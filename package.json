@@ -1,0 +1,23 @@
+{
+  "name": "sheets-proxy-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "googleapis": "^118.0.0",
+    "next": "^14.2.5",
+    "open": "^10.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "description": "Web tối giản đọc dữ liệu từ **Google Sheets riêng tư** (không public) qua API proxy (read-only).",
+  "main": "next.config.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
