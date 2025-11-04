@@ -123,26 +123,23 @@ function vnd(x) {
 function _haystackForVariantRaw(_p, v) {
   const tokens = new Set();
 
-  // 1) Từ sizeCanon của biến thể
   const canon = (v?.sizeCanon || "").toString().trim().toUpperCase();
   if (canon) {
     if (/^EU/.test(canon)) {
-      const num = canon.replace(/^EU\s*/i, "").replace(/,/g, "."); // "39" | "39.5"
-      const compact = num.replace(".", ""); // "395" | "39"
+      const num = canon.replace(/^EU\s*/i, "").replace(/,/g, ".");
+      const compact = num.replace(".", "");
       tokens.add(`eu${num}`.toLowerCase());
       tokens.add(`(eu${num})`.toLowerCase());
       tokens.add(num.toLowerCase());
       tokens.add(compact.toLowerCase());
     } else if (/^\d+(\.\d+)?$/.test(canon)) {
-      // 24.5 → "24.5", "245"
       tokens.add(canon.toLowerCase());
       tokens.add(canon.replace(".", "").toLowerCase());
     } else if (/^(XXS|XS|S|M|L|XL|XXL|XXXL)$/.test(canon)) {
-      tokens.add(canon.toLowerCase()); // "xl"
+      tokens.add(canon.toLowerCase());
     }
   }
 
-  // 2) Bắt EU trong SKU: "(EU 38.5)" hoặc "EU 38.5"
   const sku = String(v?.sku || "");
   const mParen = sku.match(/\(\s*eu\s*([0-9.,]+)\s*\)/i);
   if (mParen) {
@@ -153,73 +150,58 @@ function _haystackForVariantRaw(_p, v) {
     tokens.add(num.toLowerCase());
     tokens.add(compact.toLowerCase());
   }
-  const mEUFree = sku.match(/\beu\s*([0-9.,]+)\b/i);
-  if (mEUFree) {
-    const num = mEUFree[1].replace(/,/g, ".");
+  const mEU = sku.match(/\beu\s*([0-9.,]+)\b/i);
+  if (mEU) {
+    const num = mEU[1].replace(/,/g, ".");
     const compact = num.replace(".", "");
     tokens.add(`eu${num}`.toLowerCase());
     tokens.add(num.toLowerCase());
     tokens.add(compact.toLowerCase());
   }
 
-  // 3) Từ prettySizeLine (an toàn vì chỉ sinh phần size từ SKU)
   const pretty = prettySizeLine(sku).toLowerCase().replace(/,/g, ".");
   if (pretty) {
-    // bóc EUxx trong pretty
     const m = pretty.match(/\beu\s*([0-9.]+)\b/i);
     if (m) {
       const num = m[1];
-      const compact = num.replace(".", "");
       tokens.add(`eu${num}`.toLowerCase());
       tokens.add(num.toLowerCase());
-      tokens.add(compact.toLowerCase());
-    }
-    // bóc size chữ nếu có
-    const mL = pretty.match(/\b(xxS|xs|s|m|l|xl|xxl|xxxl)\b/i);
-    if (mL) tokens.add(mL[0].toLowerCase());
-    // bóc số cm kiểu 24.5
-    const mN = pretty.match(/\b\d{1,2}(?:\.\d)?\b/);
-    if (mN) {
-      const num = mN[0];
-      tokens.add(num);
       tokens.add(num.replace(".", ""));
+    }
+    const ml = pretty.match(/\b(xxS|xs|s|m|l|xl|xxl|xxxl)\b/i);
+    if (ml) tokens.add(ml[0].toLowerCase());
+    const mn = pretty.match(/\b\d{1,2}(?:\.\d)?\b/);
+    if (mn) {
+      tokens.add(mn[0]);
+      tokens.add(mn[0].replace(".", ""));
     }
   }
 
-  if (!tokens.size) return "|";
-  return "|" + Array.from(tokens).join("|") + "|";
+  return tokens.size ? `|${[...tokens].join("|")}|` : "|";
 }
 
 /** So khớp size chính xác trên chuỗi token (“|...|”), tránh 39 ăn 39.5; hỗ trợ EU/letter */
-function _matchSizeQuery(haystackTokens, query) {
+function _matchSizeQuery(hayTokens, query) {
   if (!query) return true;
   const q = String(query).toLowerCase().trim();
   const qn = q
     .replace(/,/g, ".")
     .replace(/\s+/g, "")
     .replace(/[^a-z0-9.()]/g, "");
-  const H = haystackTokens; // dạng "|t1|t2|...|"
 
-  // Letter sizes
   if (/^(xs|s|m|l|xl|xxl|xxxl)$/i.test(qn)) {
-    return H.includes(`|${qn}|`);
+    return hayTokens.includes(`|${qn}|`);
   }
 
-  // EU forms
   const startsEU = qn.startsWith("eu") || qn.startsWith("(eu");
-  const numDot = qn.replace(/^\(??eu\)?/i, "").replace(/[()]/g, ""); // "39.5" | "39" | "245"
+  const numDot = qn.replace(/^\(??eu\)?/i, "").replace(/[()]/g, "");
   const numCompact = numDot.replace(".", "");
 
-  const forms = new Set([
-    numDot, // "39.5" | "39"
-    numCompact, // "395" | "39"
-    `eu${numDot}`, // "eu39.5"
-    `(eu${numDot})`, // "(eu39.5)"
-  ]);
-  if (startsEU) forms.add(qn); // nếu user gõ đúng "eu39" hay "(eu39.5)"
+  const forms = new Set([numDot, numCompact, `eu${numDot}`, `(eu${numDot})`]);
+  if (startsEU) forms.add(qn);
 
   for (const f of forms) {
-    if (f && H.includes(`|${f}|`)) return true;
+    if (f && hayTokens.includes(`|${f}|`)) return true;
   }
   return false;
 }
@@ -401,8 +383,14 @@ export default function Home() {
           // Lọc biến thể theo SIZE-ONLY (39 không ăn 39.5, EU/letter chuẩn)
           const filteredVariants = p.variants.filter((v) => {
             if (!sizeQuery) return true;
-            const tokens = _haystackForVariantRaw(p, v);
-            return _matchSizeQuery(tokens, sizeQuery);
+            try {
+              const tokens = _haystackForVariantRaw(p, v);
+              return _matchSizeQuery(tokens, sizeQuery);
+            } catch (e) {
+              // Không để crash client
+              console.error("size-match error:", e);
+              return false;
+            }
           });
 
           const pass =
