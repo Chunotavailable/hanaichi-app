@@ -116,102 +116,103 @@ function isAllCapsVN(text = "") {
 function vnd(x) {
   const n = +x;
   return Number.isFinite(n) ? n.toLocaleString("vi-VN") : x ?? "";
-}
 
-/* ======= SIZE SEARCH (MỞ RỘNG) ======= */
-// Chuẩn hóa chuỗi size người dùng gõ (24,5 -> 24.5; bỏ khoảng trắng; bỏ ký tự lạ; bỏ tiền tố 'eu')
-function _normSizeToken(t = "") {
-  return String(t)
-    .toLowerCase()
-    .replace(/,/g, ".")
-    .replace(/\s+/g, "")
-    .replace(/[^a-z0-9.]/g, "")
-    .replace(/^eu/, "");
-}
-
-function _haystackForVariant(p, v) {
-  // Gom tối đa mọi nơi có thể chứa size/mã
-  const arr = [
-    p.baseCode,
-    p.name,
-    v?.sku,
-    v?.size,
-    v?.sizeCanon, // ← thêm
-    ...(Array.isArray(p.sizeSet) ? p.sizeSet : []), // ← thêm (tập size của group)
-    prettySizeLine(v?.sku || ""),
-  ].filter(Boolean);
-
-  // Chuẩn hóa cơ bản
-  let s = arr.join(" ").toLowerCase().replace(/,/g, ".");
-
-  // Mở rộng EU có/không khoảng trắng, có/không ngoặc
-  // (EU 38.5) → "(eu38.5) eu38.5 38.5 385"
-  s = s.replace(/\(eu\s*([0-9.,]+)\)/gi, (_m, g1) => {
-    const d = String(g1).replace(/,/g, "."); // "38.5"
-    const n = d.replace(".", ""); // "385"
-    return `(eu${d}) eu${d} ${d} ${n}`;
-  });
-  // EU 38.5 → "eu38.5 38.5 385"
-  s = s.replace(/\beu\s*([0-9.,]+)\b/gi, (_m, g1) => {
-    const d = String(g1).replace(/,/g, ".");
-    const n = d.replace(".", "");
-    return `eu${d} ${d} ${n}`;
-  });
-
-  // Mở rộng size chữ dạng hậu tố mã: "-XL", "/L" → thêm "xl", "l" để tìm nhanh
-  s = s.replace(/[-/](xs|s|m|l|xl|xxl|xxxl)\b/gi, (_m, g1) => {
-    const t = String(g1).toLowerCase();
-    return `-${t} /${t} ${t}`;
-  });
-
-  // Bỏ khoảng trắng để so khớp chuỗi con dễ hơn
-  return s.replace(/\s+/g, "");
-}
-
-// So khớp truy vấn size với chuỗi đã normalize
-function _matchSizeQuery(haystackRaw, query) {
-  if (!query) return true;
-
-  const q = String(query).toLowerCase().trim();
-  // Chuẩn hóa truy vấn: đổi "," → ".", bỏ khoảng trắng, bỏ ký tự lạ; bỏ tiền tố 'eu' (để tạo nhiều biến thể)
-  const qn = q
-    .replace(/,/g, ".")
-    .replace(/\s+/g, "")
-    .replace(/[^a-z0-9.]/g, "");
-  const qnNoEu = qn.replace(/^eu/, ""); // "eu38.5" -> "38.5"
-
-  const H = haystackRaw; // đã được normalize bởi _haystackForVariant
-
-  // Nếu là size chữ (xs/s/m/l/xl/xxl/xxxl)
-  if (/^(xs|s|m|l|xl|xxl|xxxl)$/i.test(qn)) {
-    const t = qn; // dạng thường
-    return H.includes(t) || H.includes(`-${t}`) || H.includes(`/${t}`);
+  /* ======= SIZE SEARCH (MỞ RỘNG & CHÍNH XÁC) ======= */
+  // Chuẩn hóa truy vấn size người dùng
+  function _normSizeToken(t = "") {
+    return String(t)
+      .toLowerCase()
+      .replace(/,/g, ".")
+      .replace(/\s+/g, "")
+      .replace(/[^a-z0-9.]/g, "")
+      .replace(/^eu/, "");
   }
 
-  // Trường hợp số: 24.5/245, 38.5/385, cho cả có/không 'eu'/'(eu...)'
-  const num = qnNoEu; // "38.5" hoặc "245"
-  const numCompact = num.replace(".", ""); // "385" hoặc "245"
-  const forms = new Set([
-    num, // "38.5"
-    numCompact, // "385"
-    `eu${num}`, // "eu38.5"
-    `(eu${num})`, // "(eu38.5)"
-  ]);
+  // Xây dựng chuỗi thô (giữ khoảng trắng) để regex chính xác theo biên + biến thể EU
+  function _haystackForVariantRaw(p, v) {
+    const arr = [
+      p.baseCode,
+      p.name,
+      v?.sku,
+      v?.size,
+      v?.sizeCanon,
+      ...(Array.isArray(p.sizeSet) ? p.sizeSet : []),
+      prettySizeLine(v?.sku || ""),
+    ].filter(Boolean);
 
-  // Nếu người dùng gõ dạng có 'eu' ngay từ đầu, thêm lại cả chính truy vấn
-  if (qn.startsWith("eu")) forms.add(qn);
-  if (qn.startsWith("(eu")) forms.add(qn.replace(/\s+/g, ""));
+    let s = arr.join(" ").toLowerCase().replace(/,/g, ".");
+    // Chuẩn hóa khoảng trắng đơn
+    s = s.replace(/\s+/g, " ");
 
-  for (const f of forms) {
-    if (f && H.includes(f)) return true;
+    // Chuẩn hoá (EU 38.5) và EU 38.5 -> chấp nhận có khoảng trắng
+    // Không thêm biến thể thừa để tránh match rộng
+    return s.trim();
   }
 
-  // fallback nhẹ: nếu người dùng gõ "38" (2 chữ số) → cho phép match chuỗi con
-  if (/^\d{2}$/.test(qn)) {
-    return H.includes(qn);
-  }
+  // So khớp size chính xác: 39 không ăn 39.5; XL không ăn XXL; EU39 không ăn EU39.5
+  function _matchSizeQuery(haystackRaw, query) {
+    if (!query) return true;
 
-  return false;
+    const q = String(query).toLowerCase().trim();
+    const qn = q
+      .replace(/,/g, ".")
+      .replace(/\s+/g, "")
+      .replace(/[^a-z0-9.]/g, "");
+    const isLetter = /^(xs|s|m|l|xl|xxl|xxxl)$/.test(qn);
+    const H = haystackRaw; // đã normalize thường + giữ khoảng trắng
+
+    // LETTER SIZES
+    if (isLetter) {
+      const t = qn;
+      // biên chữ: không dính ký tự chữ/số 2 bên
+      const re = new RegExp(`(?<![a-z0-9])${t}(?![a-z0-9])`, "i");
+      const reDash = new RegExp(`[-/]${t}(?![a-z0-9])`, "i"); // đuôi mã
+      return re.test(H) || reDash.test(H);
+    }
+
+    // NUMERIC / EU
+    // lấy phần số: 'eu38.5' -> '38.5'; '385' giữ nguyên
+    const qnNoEu = qn.replace(/^eu/, "");
+    // nếu chỉ 2 chữ số (ví dụ '39'), ta vẫn match chính xác (không ăn 39.5)
+    const dotted = qnNoEu;
+    const compact = dotted.replace(".", "");
+
+    const pieces = [
+      // số thuần
+      { pattern: dotted, before: "[^d.]", after: "[^d.]" },
+      { pattern: compact, before: "[^d.]", after: "[^d.]" },
+      // EU có/không khoảng trắng
+      {
+        pattern: `eu\s*${dotted.replace(".", "\\.")}`,
+        before: "[^a-z0-9]",
+        after: "(?![d.])",
+      },
+      // dạng (EU 38.5)
+      {
+        pattern: `\(\s*eu\s*${dotted.replace(".", "\\.")}\s*\)`,
+        before: "",
+        after: "",
+      },
+    ];
+
+    for (const it of pieces) {
+      const { pattern, before, after } = it;
+      let re;
+      if (before || after) {
+        re = new RegExp(
+          (before ? `(?<=${before}|^)` : "^") +
+            pattern +
+            (after ? `${after}` : ""),
+          "i"
+        );
+      } else {
+        re = new RegExp(pattern, "i");
+      }
+      if (re.test(H)) return true;
+    }
+
+    return false;
+  }
 }
 
 /* ======= Gom nhóm theo catalogue → tên → size ======= */
@@ -369,13 +370,12 @@ export default function Home() {
 
   const allProducts = useMemo(() => groupProducts(rows), [rows]);
 
-  // === ĐÃ SỬA: tìm size mở rộng bằng _haystackForVariant + _matchSizeQuery ===
   const products = useMemo(() => {
     let out = allProducts;
 
     const nameKey = searchName.trim().toLowerCase();
     const codeKey = searchCode.trim().toLowerCase();
-    const sizeQuery = searchSize.trim(); // dùng trực tiếp truy vấn người dùng
+    const sizeQuery = searchSize.trim();
 
     if (nameKey || codeKey || sizeQuery) {
       out = out
@@ -388,11 +388,11 @@ export default function Home() {
               p.variants.some((v) => v.sku.toLowerCase().includes(codeKey))
             : true;
 
-          // Lọc biến thể theo size mở rộng (24.5 / 24,5 / 245 + EU38.5 / 38.5 / 385 + S/M/L/XL…)
+          // Lọc biến thể theo size CHÍNH XÁC (39 không ăn 39.5) và hỗ trợ EU/letter
           const filteredVariants = p.variants.filter((v) => {
             if (!sizeQuery) return true;
-            const H = _haystackForVariant(p, v);
-            return _matchSizeQuery(H, sizeQuery);
+            const Hraw = _haystackForVariantRaw(p, v);
+            return _matchSizeQuery(Hraw, sizeQuery);
           });
 
           const pass =
