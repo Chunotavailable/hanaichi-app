@@ -118,6 +118,65 @@ function vnd(x) {
   return Number.isFinite(n) ? n.toLocaleString("vi-VN") : x ?? "";
 }
 
+/* ======= SIZE SEARCH (MỞ RỘNG) ======= */
+// Chuẩn hóa chuỗi size người dùng gõ (24,5 -> 24.5; bỏ khoảng trắng; bỏ ký tự lạ; bỏ tiền tố 'eu')
+function _normSizeToken(t = "") {
+  return String(t)
+    .toLowerCase()
+    .replace(/,/g, ".")
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9.]/g, "")
+    .replace(/^eu/, "");
+}
+// Gom mọi chỗ có thể chứa size/mã (mã chính, sku, size, prettySizeLine, cả (EU38.5))
+function _haystackForVariant(p, v) {
+  const arr = [
+    p.baseCode,
+    p.name,
+    v?.sku,
+    v?.size,
+    prettySizeLine(v?.sku || ""),
+  ].filter(Boolean);
+  let s = arr.join(" ").toLowerCase().replace(/,/g, ".");
+  // Bơm thêm biến thể cho EU: "EU38.5" -> "eu38.5 38.5 385", "(EU38.5)" -> "(eu38.5) eu38.5 38.5 385"
+  s = s
+    .replace(/\(eu([0-9.]+)\)/gi, (_m, g1) => {
+      const d = String(g1),
+        n = d.replace(".", "");
+      return `(eu${d}) eu${d} ${d} ${n}`;
+    })
+    .replace(/eu([0-9.]+)/gi, (_m, g1) => {
+      const d = String(g1),
+        n = d.replace(".", "");
+      return `eu${d} ${d} ${n}`;
+    });
+  return s.replace(/\s+/g, "");
+}
+// So khớp truy vấn size với chuỗi đã normalize
+function _matchSizeQuery(haystackRaw, query) {
+  if (!query) return true;
+  const q = _normSizeToken(query);
+  const H = haystackRaw;
+
+  // Dạng số: 24.5 ~ 245; 38.5 ~ 385; có/không 'eu' / '(eu...)'
+  const forms = new Set([
+    q,
+    q.replace(".", ""),
+    q.replace(".", ","), // phòng khi dữ liệu đâu đó còn dấu phẩy
+    `eu${q}`,
+    `(eu${q})`,
+  ]);
+  for (const f of forms) if (f && H.includes(f)) return true;
+
+  // Dạng chữ: XS/S/M/L/XL/XXL/XXXL — chấp nhận '-XL' hoặc '/L'
+  if (/^(xs|s|m|l|xl|xxl|xxxl)$/i.test(q)) {
+    if (H.includes(q)) return true;
+    if (H.includes(`-${q}`)) return true;
+    if (H.includes(`/${q}`)) return true;
+  }
+  return false;
+}
+
 /* ======= Gom nhóm theo catalogue → tên → size ======= */
 function groupProducts(rows) {
   const groups = new Map();
@@ -273,14 +332,15 @@ export default function Home() {
 
   const allProducts = useMemo(() => groupProducts(rows), [rows]);
 
+  // === ĐÃ SỬA: tìm size mở rộng bằng _haystackForVariant + _matchSizeQuery ===
   const products = useMemo(() => {
     let out = allProducts;
 
     const nameKey = searchName.trim().toLowerCase();
     const codeKey = searchCode.trim().toLowerCase();
-    const sizeKeyCanon = detectSizeCanonFromQuery(searchSize);
+    const sizeQuery = searchSize.trim(); // dùng trực tiếp truy vấn người dùng
 
-    if (nameKey || codeKey || sizeKeyCanon) {
+    if (nameKey || codeKey || sizeQuery) {
       out = out
         .map((p) => {
           const nameMatch = nameKey
@@ -291,17 +351,19 @@ export default function Home() {
               p.variants.some((v) => v.sku.toLowerCase().includes(codeKey))
             : true;
 
+          // Lọc biến thể theo size mở rộng (24.5 / 24,5 / 245 + EU38.5 / 38.5 / 385 + S/M/L/XL…)
           const filteredVariants = p.variants.filter((v) => {
-            const sizeOk = sizeKeyCanon ? v.sizeCanon === sizeKeyCanon : true;
-            return sizeOk;
+            if (!sizeQuery) return true;
+            const H = _haystackForVariant(p, v);
+            return _matchSizeQuery(H, sizeQuery);
           });
 
           const pass =
             nameMatch &&
             codeMatch &&
-            (filteredVariants.length > 0 || !sizeKeyCanon);
+            (filteredVariants.length > 0 || !sizeQuery);
           return pass
-            ? { ...p, variants: sizeKeyCanon ? filteredVariants : p.variants }
+            ? { ...p, variants: sizeQuery ? filteredVariants : p.variants }
             : null;
         })
         .filter(Boolean);
