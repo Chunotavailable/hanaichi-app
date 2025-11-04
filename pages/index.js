@@ -116,6 +116,106 @@ function isAllCapsVN(text = "") {
 function vnd(x) {
   const n = +x;
   return Number.isFinite(n) ? n.toLocaleString("vi-VN") : x ?? "";
+
+  /* ======= SIZE SEARCH (MỞ RỘNG & CHÍNH XÁC) ======= */
+  // Chuẩn hóa truy vấn size người dùng
+  function _normSizeToken(t = "") {
+    return String(t)
+      .toLowerCase()
+      .replace(/,/g, ".")
+      .replace(/\s+/g, "")
+      .replace(/[^a-z0-9.]/g, "")
+      .replace(/^eu/, "");
+  }
+
+  // Xây dựng chuỗi thô (giữ khoảng trắng) để regex chính xác theo biên + biến thể EU
+  function _haystackForVariant(p, v) {
+    // Chỉ build từ SIZE — không dùng baseCode, name, sku thô (tránh dính số trong mã)
+    const tokens = new Set();
+
+    // 1) Từ sizeCanon của biến thể
+    const canon = (v?.sizeCanon || "").toString().trim().toUpperCase();
+    if (canon) {
+      if (/^EU/.test(canon)) {
+        // EU39 / EU39.5 → thêm các token chuẩn
+        const num = canon.replace(/^EU\s*/i, "").replace(/,/g, "."); // "39" | "39.5"
+        const compact = num.replace(".", ""); // "395"
+        tokens.add(`eu${num}`);
+        tokens.add(`(eu${num})`);
+        tokens.add(num);
+        tokens.add(compact);
+      } else if (/^\d+(\.\d+)?$/.test(canon)) {
+        // 24.5 → "24.5" & "245"
+        tokens.add(canon.toLowerCase());
+        tokens.add(canon.replace(".", "").toLowerCase());
+      } else if (/^(XXS|XS|S|M|L|XL|XXL|XXXL)$/.test(canon)) {
+        const t = canon.toLowerCase();
+        tokens.add(t); // "xl"
+        tokens.add(`-${t}`); // "-xl"
+        tokens.add(`/${t}`); // "/xl"
+      }
+    }
+
+    // 2) Bắt EU trong SKU (dạng "(EU 38.5)" hoặc "(EU38.5)") để hỗ trợ tìm EUxx
+    const sku = String(v?.sku || "");
+    const EUinSku = sku.match(/\(eu\s*([0-9.,]+)\)/i);
+    if (EUinSku) {
+      const num = EUinSku[1].replace(/,/g, "."); // "38.5"
+      const compact = num.replace(".", ""); // "385"
+      tokens.add(`eu${num}`);
+      tokens.add(`(eu${num})`);
+      tokens.add(num);
+      tokens.add(compact);
+    }
+
+    // Trả về chuỗi tokens có delimiter '|' để so khớp chính xác (tránh "39" ăn vào "395")
+    return "|" + Array.from(tokens).join("|") + "|";
+  }
+
+  // So khớp size chính xác: 39 không ăn 39.5; XL không ăn XXL; EU39 không ăn EU39.5
+  function _matchSizeQuery(haystackRaw, query) {
+    if (!query) return true;
+
+    // Chuẩn hóa truy vấn
+    const q = String(query).toLowerCase().trim();
+    const qn = q
+      .replace(/,/g, ".")
+      .replace(/\s+/g, "")
+      .replace(/[^a-z0-9.()]/g, "");
+    const H = haystackRaw; // chuỗi dạng "|token|token2|..."
+
+    // Size chữ
+    if (/^(xs|s|m|l|xl|xxl|xxxl)$/i.test(qn)) {
+      const t = qn;
+      return (
+        H.includes(`|${t}|`) || H.includes(`|-${t}|`) || H.includes(`|/${t}|`)
+      );
+    }
+
+    // EU form
+    const isEU = qn.startsWith("eu") || qn.startsWith("(eu");
+    const num = qn
+      .replace(/^\(??eu\)?/i, "")
+      .replace(/^\(eu/i, "")
+      .replace(/^\(eu|\)/gi, "");
+    const cleanedNum = num.replace(/[()]/g, "");
+    const numDot = cleanedNum.replace(/,/g, "."); // "39.5" | "39"
+    const numCompact = numDot.replace(".", ""); // "395" | "39"
+
+    const forms = new Set([numDot, numCompact, `eu${numDot}`, `(eu${numDot})`]);
+    if (isEU) {
+      // nếu người dùng gõ "eu39" hay "(eu39.5)" thì thêm đúng form đó
+      forms.add(qn);
+    }
+
+    // So khớp chính xác theo token (có delimiter |...|)
+    for (const f of forms) {
+      if (f && H.includes(`|${f}|`)) return true;
+    }
+
+    // Không match mập mờ — "39" sẽ không khớp "39.5"
+    return false;
+  }
 }
 
 /* ======= Gom nhóm theo catalogue → tên → size ======= */
@@ -278,9 +378,9 @@ export default function Home() {
 
     const nameKey = searchName.trim().toLowerCase();
     const codeKey = searchCode.trim().toLowerCase();
-    const sizeKeyCanon = detectSizeCanonFromQuery(searchSize);
+    const sizeQuery = searchSize.trim();
 
-    if (nameKey || codeKey || sizeKeyCanon) {
+    if (nameKey || codeKey || sizeQuery) {
       out = out
         .map((p) => {
           const nameMatch = nameKey
@@ -291,17 +391,19 @@ export default function Home() {
               p.variants.some((v) => v.sku.toLowerCase().includes(codeKey))
             : true;
 
+          // Lọc biến thể theo size CHÍNH XÁC (39 không ăn 39.5) và hỗ trợ EU/letter
           const filteredVariants = p.variants.filter((v) => {
             if (!sizeQuery) return true;
-            const tokens = _tokensForVariant(v);
-            return _matchSizeQueryExact(tokens, sizeQuery);
+            const Hraw = _haystackForVariantRaw(p, v);
+            return _matchSizeQuery(Hraw, sizeQuery);
           });
+
           const pass =
             nameMatch &&
             codeMatch &&
-            (filteredVariants.length > 0 || !sizeKeyCanon);
+            (filteredVariants.length > 0 || !sizeQuery);
           return pass
-            ? { ...p, variants: sizeKeyCanon ? filteredVariants : p.variants }
+            ? { ...p, variants: sizeQuery ? filteredVariants : p.variants }
             : null;
         })
         .filter(Boolean);
