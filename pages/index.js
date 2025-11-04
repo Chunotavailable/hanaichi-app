@@ -1,5 +1,5 @@
 // pages/index.js
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /* ================== Theme ================== */
 const THEME = {
@@ -117,17 +117,15 @@ function vnd(x) {
   return Number.isFinite(n) ? n.toLocaleString("vi-VN") : x ?? "";
 }
 
-/* ======= SIZE SEARCH: token-only, không regex lookbehind ======= */
+/* ======= SIZE SEARCH (token-only, match đúng size) ======= */
 function _haystackForVariantRaw(_p, v) {
   const tokens = new Set();
-
   const canon = (v?.sizeCanon || "").toString().trim().toUpperCase();
   if (canon) {
     if (/^EU/.test(canon)) {
       const num = canon.replace(/^EU\s*/i, "").replace(/,/g, ".");
       const compact = num.replace(".", "");
       tokens.add(`eu${num}`.toLowerCase());
-      tokens.add(`(eu${num})`.toLowerCase());
       tokens.add(num.toLowerCase());
       tokens.add(compact.toLowerCase());
     } else if (/^\d+(\.\d+)?$/.test(canon)) {
@@ -137,26 +135,21 @@ function _haystackForVariantRaw(_p, v) {
       tokens.add(canon.toLowerCase());
     }
   }
-
   const sku = String(v?.sku || "");
   const mParen = sku.match(/\(\s*eu\s*([0-9.,]+)\s*\)/i);
   if (mParen) {
     const num = mParen[1].replace(/,/g, ".");
-    const compact = num.replace(".", "");
     tokens.add(`eu${num}`.toLowerCase());
-    tokens.add(`(eu${num})`.toLowerCase());
     tokens.add(num.toLowerCase());
-    tokens.add(compact.toLowerCase());
+    tokens.add(num.replace(".", ""));
   }
   const mEU = sku.match(/\beu\s*([0-9.,]+)\b/i);
   if (mEU) {
     const num = mEU[1].replace(/,/g, ".");
-    const compact = num.replace(".", "");
     tokens.add(`eu${num}`.toLowerCase());
     tokens.add(num.toLowerCase());
-    tokens.add(compact.toLowerCase());
+    tokens.add(num.replace(".", ""));
   }
-
   const pretty = prettySizeLine(sku).toLowerCase().replace(/,/g, ".");
   if (pretty) {
     const m = pretty.match(/\beu\s*([0-9.]+)\b/i);
@@ -174,7 +167,6 @@ function _haystackForVariantRaw(_p, v) {
       tokens.add(mn[0].replace(".", ""));
     }
   }
-
   return tokens.size ? `|${[...tokens].join("|")}|` : "|";
 }
 function _matchSizeQuery(hayTokens, query) {
@@ -183,66 +175,57 @@ function _matchSizeQuery(hayTokens, query) {
   const qn = q
     .replace(/,/g, ".")
     .replace(/\s+/g, "")
-    .replace(/[^a-z0-9.()]/g, "");
-
+    .replace(/[^a-z0-9.]/g, "");
   if (/^(xs|s|m|l|xl|xxl|xxxl)$/i.test(qn))
     return hayTokens.includes(`|${qn}|`);
-
-  const startsEU = qn.startsWith("eu") || qn.startsWith("(eu");
-  const numDot = qn.replace(/^\(??eu\)?/i, "").replace(/[()]/g, "");
+  const startsEU = qn.startsWith("eu");
+  const numDot = qn.replace(/^eu/i, "");
   const numCompact = numDot.replace(".", "");
-
-  const forms = new Set([numDot, numCompact, `eu${numDot}`, `(eu${numDot})`]);
+  const forms = new Set([numDot, numCompact, `eu${numDot}`]);
   if (startsEU) forms.add(qn);
-
   for (const f of forms) {
     if (f && hayTokens.includes(`|${f}|`)) return true;
   }
   return false;
 }
 
-/* ======= ẢNH: lấy theo thư mục /imgs/<baseCode>/n.(webp|jpg|jpeg|png) ======= */
+/* ======= ẢNH: CHỈ dùng folder public/imgs/<MÃ>/ (cover.*, 1..N) ======= */
 const IMG_EXTS = ["webp", "jpg", "jpeg", "png"];
-// Giảm bớt số lượng để tránh spam request
-const MAX_IMAGES_PER_FOLDER = 8;
+const MAX_IMAGES_PER_FOLDER = 8; // số ảnh đánh số 1..N dùng cho gallery
+const MAX_GALLERY = 12; // cắt bớt để nhẹ
 
-function getFolderCandidates(code = "") {
-  const c = String(code || "").trim();
-  if (!c) return [];
-  const urls = [];
+// Trả về danh sách ứng viên cho 1 mã: cover.* trước, rồi 1..N
+function getFolderCandidates(baseCode = "") {
+  const bc = String(baseCode || "").trim();
+  if (!bc) return [];
+  const base = `/imgs/${bc}`;
 
-  // Ưu tiên file cover.*
-  for (const ext of IMG_EXTS) {
-    urls.push(`/imgs/${c}/cover.${ext}`);
-  }
-
-  // Sau đó là 1..8
+  const cover = IMG_EXTS.map((ext) => `${base}/cover.${ext}`);
+  const numbered = [];
   for (let i = 1; i <= MAX_IMAGES_PER_FOLDER; i++) {
     for (const ext of IMG_EXTS) {
-      urls.push(`/imgs/${c}/${i}.${ext}`);
+      numbered.push(`${base}/${i}.${ext}`);
     }
   }
-  return urls;
+  return [...cover, ...numbered];
 }
-function getLegacyCandidates(code = "") {
-  const c = String(code || "").trim();
-  if (!c) return [];
-  return [
-    `/imgs/${c}.webp`,
-    `/imgs/${c}.jpg`,
-    `/imgs/${c}.jpeg`,
-    `/imgs/${c}.png`,
-  ];
-}
-function getImageCandidatesByCode(code = "", sheetImg = "") {
-  const folder = getFolderCandidates(code);
-  const legacy = getLegacyCandidates(code);
-  const sheet = sheetImg ? [sheetImg] : [];
-  return [...folder, ...legacy, ...sheet];
-}
+// Ảnh hiển thị ngoài card (cover)
 function getImageCandidates(p) {
-  const code = (p.baseCode || "").trim();
-  return getImageCandidatesByCode(code, p.image || "");
+  return getFolderCandidates(p.baseCode);
+}
+// Danh sách ảnh cho modal gallery
+function getGalleryCandidates(p) {
+  return getFolderCandidates(p.baseCode);
+}
+
+function testImage(url) {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") return resolve(false);
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
 }
 
 /* ======= Gom nhóm theo catalogue → tên → size ======= */
@@ -285,7 +268,7 @@ function groupProducts(rows) {
           baseCode: base,
           name: currentTitle || base,
           catalogue: currentCatalogue,
-          image: img || "",
+          image: img || "", // vẫn giữ metadata nhưng KHÔNG dùng để load ảnh
           zaloBase: "",
           variants: [],
         });
@@ -355,14 +338,18 @@ export default function Home() {
   const [discountPct, setDiscountPct] = useState(0);
 
   // Ảnh & modal zoom
-  const [imgSrcMap, setImgSrcMap] = useState({}); // baseCode -> current displayed src
-  const [zoomSrc, setZoomSrc] = useState(""); // src ảnh đang phóng to
-  const [zoomCode, setZoomCode] = useState(""); // baseCode đang xem gallery
+  const [imgSrcMap, setImgSrcMap] = useState({}); // baseCode -> cover src ("" = không có, undefined = chưa dò)
+  const [zoomSrc, setZoomSrc] = useState(""); // ảnh đang phóng to
+  const [zoomCode, setZoomCode] = useState(""); // mã đang xem gallery
+  const [zoomList, setZoomList] = useState([]); // danh sách ảnh hợp lệ cho mã
 
-  // Đồng bộ lần cuối
+  // cache cho dò ảnh
+  const imageOkCache = useRef(new Map()); // url -> true/false
+  const preloadingCover = useRef(new Set()); // đang dò cover cho mã
+  const galleryCache = useRef(new Map()); // code -> [urls]
+
+  // Đồng bộ lần cuối & toolbar
   const [lastSync, setLastSync] = useState(null);
-
-  // NEW: trạng thái ẩn/hiện Toolbar (mặc định mở)
   const [toolbarOpen, setToolbarOpen] = useState(true);
 
   useEffect(() => {
@@ -401,6 +388,46 @@ export default function Home() {
 
   const allProducts = useMemo(() => groupProducts(rows), [rows]);
 
+  // Dò cover tuần tự cho mỗi mã (chỉ khi chưa có key trong imgSrcMap)
+  useEffect(() => {
+    let cancelled = false;
+    async function ensureCover(p) {
+      const code = p.baseCode;
+      if (preloadingCover.current.has(code)) return;
+      preloadingCover.current.add(code);
+
+      const cands = getImageCandidates(p);
+      for (const u of cands) {
+        let ok = imageOkCache.current.get(u);
+        if (ok == null) {
+          ok = await testImage(u);
+          imageOkCache.current.set(u, ok);
+        }
+        if (cancelled) return;
+        if (ok) {
+          setImgSrcMap((m) => (m[code] === u ? m : { ...m, [code]: u }));
+          preloadingCover.current.delete(code);
+          return;
+        }
+      }
+      // không có ảnh
+      setImgSrcMap((m) => (m[code] === "" ? m : { ...m, [code]: "" }));
+      preloadingCover.current.delete(code);
+    }
+
+    // gọi dò cover cho những mã chưa có key
+    allProducts.forEach((p) => {
+      const code = p.baseCode;
+      if (!Object.prototype.hasOwnProperty.call(imgSrcMap, code)) {
+        ensureCover(p);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allProducts, imgSrcMap]);
+
   // === TÌM SIZE CHÍNH XÁC — CHỈ NHÌN SIZE/EU/LETTER; KHÔNG NHÌN MÃ/TÊN ===
   const products = useMemo(() => {
     let out = allProducts;
@@ -425,8 +452,7 @@ export default function Home() {
             try {
               const tokens = _haystackForVariantRaw(p, v);
               return _matchSizeQuery(tokens, sizeQuery);
-            } catch (e) {
-              console.error("size-match error:", e);
+            } catch {
               return false;
             }
           });
@@ -489,6 +515,7 @@ export default function Home() {
       p.includes(c) ? p.filter((x) => x !== c) : [...p, c]
     );
   };
+
   const openEdit = (t) => {
     setModalType(t);
     setModalSelected(new Set(t === "clothing" ? clothingSet : footwearSet));
@@ -511,6 +538,7 @@ export default function Home() {
     }
     setShowEditModal(false);
   };
+
   const commonSizes = useMemo(() => {
     const s = new Set();
     allProducts.forEach((p) => p.sizeSet.forEach((x) => s.add(x)));
@@ -544,27 +572,42 @@ export default function Home() {
     await refreshData();
   };
 
-  // Ảnh: candidates theo thư mục trước, rồi fallback legacy + sheet
-  // Ảnh: candidates theo thư mục trước, rồi fallback legacy + sheet
-  const advanceImage = (p, current) => {
-    const cands = getImageCandidates(p);
-    const idx = cands.indexOf(current);
-
-    // Nếu current không nằm trong danh sách (idx === -1) hoặc đã là cuối danh sách → dừng
-    if (idx === -1 || idx >= cands.length - 1) {
-      setImgSrcMap((m) => {
-        if ((m[p.baseCode] || "") === "") return m;
-        return { ...m, [p.baseCode]: "" };
-      });
-      return;
+  // Build gallery khi mở zoom
+  useEffect(() => {
+    let cancelled = false;
+    async function buildGallery(code) {
+      if (!code) return setZoomList([]);
+      if (galleryCache.current.has(code)) {
+        const cached = galleryCache.current.get(code);
+        setZoomList(cached);
+        if (!zoomSrc && cached[0]) setZoomSrc(cached[0]);
+        return;
+      }
+      const cands = Array.from(
+        new Set(getGalleryCandidates({ baseCode: code }))
+      );
+      const okList = [];
+      for (const u of cands) {
+        let ok = imageOkCache.current.get(u);
+        if (ok == null) {
+          ok = await testImage(u);
+          imageOkCache.current.set(u, ok);
+        }
+        if (cancelled) return;
+        if (ok) {
+          okList.push(u);
+          if (okList.length >= MAX_GALLERY) break;
+        }
+      }
+      galleryCache.current.set(code, okList);
+      setZoomList(okList);
+      if (!zoomSrc && okList[0]) setZoomSrc(okList[0]);
     }
-
-    const next = cands[idx + 1];
-    setImgSrcMap((m) => {
-      if (m[p.baseCode] === next) return m;
-      return { ...m, [p.baseCode]: next || "" };
-    });
-  };
+    buildGallery(zoomCode);
+    return () => {
+      cancelled = true;
+    };
+  }, [zoomCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <main style={appWrap}>
@@ -802,8 +845,11 @@ export default function Home() {
             </div>
 
             {items.map((p) => {
-              const cands = getImageCandidates(p);
-              const currSrc = imgSrcMap[p.baseCode] ?? cands[0];
+              const hasCoverKey = Object.prototype.hasOwnProperty.call(
+                imgSrcMap,
+                p.baseCode
+              );
+              const currSrc = hasCoverKey ? imgSrcMap[p.baseCode] : undefined;
 
               return (
                 <div key={p.baseCode} style={card}>
@@ -818,15 +864,17 @@ export default function Home() {
                         currSrc ? "img-has" : "img-empty"
                       }`}
                       onClick={() => {
-                        const all = getImageCandidatesByCode(
-                          p.baseCode,
-                          p.image || ""
-                        );
-                        const first = currSrc || all[0] || "";
                         setZoomCode(p.baseCode);
-                        setZoomSrc(first);
+                        if (currSrc) setZoomSrc(currSrc);
+                        else setZoomSrc("");
                       }}
-                      title={currSrc ? "Bấm để xem lớn" : "Không ảnh"}
+                      title={
+                        currSrc
+                          ? "Bấm để xem lớn"
+                          : hasCoverKey
+                          ? "Không ảnh"
+                          : "Đang dò ảnh…"
+                      }
                     >
                       <div className="zoom-inner">
                         {currSrc ? (
@@ -839,10 +887,11 @@ export default function Home() {
                               objectFit: "contain",
                               display: "block",
                             }}
-                            onError={() => advanceImage(p, currSrc)}
                           />
-                        ) : (
+                        ) : hasCoverKey ? (
                           <span style={{ color: "#999" }}>Không ảnh</span>
+                        ) : (
+                          <span style={{ color: "#999" }}>Đang dò…</span>
                         )}
                       </div>
                     </div>
@@ -985,34 +1034,47 @@ export default function Home() {
       </div>
 
       {/* ===== Modal ảnh phóng to + gallery ===== */}
-      {zoomSrc && (
+      {zoomCode && (
         <div
           style={imgModalWrap}
           onClick={() => {
             setZoomSrc("");
             setZoomCode("");
+            setZoomList([]);
           }}
         >
           <div style={imgModal} onClick={(e) => e.stopPropagation()}>
             {/* Ảnh lớn */}
-            <img
-              src={zoomSrc}
-              alt="Xem ảnh"
-              style={{
-                display: "block",
-                maxWidth: "92vw",
-                maxHeight: "78vh",
-                objectFit: "contain",
-                margin: "8px auto",
-              }}
-              onError={() => setZoomSrc("")}
-            />
+            {zoomSrc ? (
+              <img
+                src={zoomSrc}
+                alt="Xem ảnh"
+                style={{
+                  display: "block",
+                  maxWidth: "92vw",
+                  maxHeight: "78vh",
+                  objectFit: "contain",
+                  margin: "8px auto",
+                }}
+                onError={() => setZoomSrc("")}
+              />
+            ) : (
+              <div
+                style={{
+                  color: "#ddd",
+                  textAlign: "center",
+                  padding: "80px 0 60px",
+                }}
+              >
+                Không có ảnh hợp lệ
+              </div>
+            )}
 
-            {/* Slide thumbnails */}
-            {!!zoomCode && (
+            {/* Slide thumbnails (đã lọc tồn tại) */}
+            {zoomList.length > 0 && (
               <div style={thumbRailWrap}>
                 <div style={thumbRailInner}>
-                  {getImageCandidatesByCode(zoomCode).map((src) => (
+                  {zoomList.map((src) => (
                     <button
                       key={src}
                       style={{
@@ -1036,9 +1098,6 @@ export default function Home() {
                           display: "block",
                           borderRadius: 8,
                         }}
-                        onError={(e) =>
-                          (e.currentTarget.parentElement.style.display = "none")
-                        }
                       />
                     </button>
                   ))}
@@ -1062,12 +1121,10 @@ export default function Home() {
           background: ${THEME.primary};
           color: #fff;
         }
-
         .card-hover:hover {
           transform: none !important;
           box-shadow: ${THEME.glow} !important;
         }
-
         .img-zoom {
           position: relative;
           overflow: visible;
@@ -1092,7 +1149,6 @@ export default function Home() {
           box-shadow: 0 12px 28px rgba(17, 34, 68, 0.18);
           z-index: 5;
         }
-
         .toolbar-collapsible {
           overflow: hidden;
           transition: max-height 0.28s ${EASE}, padding 0.28s ${EASE};
@@ -1104,7 +1160,6 @@ export default function Home() {
           padding-top: 0;
           padding-bottom: 0;
         }
-
         .toolbar-toggle {
           position: absolute;
           left: 50%;
@@ -1129,7 +1184,6 @@ export default function Home() {
         .toolbar-toggle:hover {
           background: #f7f8fd;
         }
-
         @media (max-width: 900px) {
           .toolbar-grid {
             grid-template-columns: 1fr !important;
@@ -1349,7 +1403,6 @@ const imgModal = {
   background: "#000",
   paddingBottom: 10,
 };
-
 const thumbRailWrap = {
   width: "100%",
   padding: "8px 10px 12px",
