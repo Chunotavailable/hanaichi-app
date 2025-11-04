@@ -116,103 +116,6 @@ function isAllCapsVN(text = "") {
 function vnd(x) {
   const n = +x;
   return Number.isFinite(n) ? n.toLocaleString("vi-VN") : x ?? "";
-
-  /* ======= SIZE SEARCH (MỞ RỘNG & CHÍNH XÁC) ======= */
-  // Chuẩn hóa truy vấn size người dùng
-  function _normSizeToken(t = "") {
-    return String(t)
-      .toLowerCase()
-      .replace(/,/g, ".")
-      .replace(/\s+/g, "")
-      .replace(/[^a-z0-9.]/g, "")
-      .replace(/^eu/, "");
-  }
-
-  // Xây dựng chuỗi thô (giữ khoảng trắng) để regex chính xác theo biên + biến thể EU
-  function _haystackForVariantRaw(p, v) {
-    const arr = [
-      p.baseCode,
-      p.name,
-      v?.sku,
-      v?.size,
-      v?.sizeCanon,
-      ...(Array.isArray(p.sizeSet) ? p.sizeSet : []),
-      prettySizeLine(v?.sku || ""),
-    ].filter(Boolean);
-
-    let s = arr.join(" ").toLowerCase().replace(/,/g, ".");
-    // Chuẩn hóa khoảng trắng đơn
-    s = s.replace(/\s+/g, " ");
-
-    // Chuẩn hoá (EU 38.5) và EU 38.5 -> chấp nhận có khoảng trắng
-    // Không thêm biến thể thừa để tránh match rộng
-    return s.trim();
-  }
-
-  // So khớp size chính xác: 39 không ăn 39.5; XL không ăn XXL; EU39 không ăn EU39.5
-  function _matchSizeQuery(haystackRaw, query) {
-    if (!query) return true;
-
-    const q = String(query).toLowerCase().trim();
-    const qn = q
-      .replace(/,/g, ".")
-      .replace(/\s+/g, "")
-      .replace(/[^a-z0-9.]/g, "");
-    const isLetter = /^(xs|s|m|l|xl|xxl|xxxl)$/.test(qn);
-    const H = haystackRaw; // đã normalize thường + giữ khoảng trắng
-
-    // LETTER SIZES
-    if (isLetter) {
-      const t = qn;
-      // biên chữ: không dính ký tự chữ/số 2 bên
-      const re = new RegExp(`(?<![a-z0-9])${t}(?![a-z0-9])`, "i");
-      const reDash = new RegExp(`[-/]${t}(?![a-z0-9])`, "i"); // đuôi mã
-      return re.test(H) || reDash.test(H);
-    }
-
-    // NUMERIC / EU
-    // lấy phần số: 'eu38.5' -> '38.5'; '385' giữ nguyên
-    const qnNoEu = qn.replace(/^eu/, "");
-    // nếu chỉ 2 chữ số (ví dụ '39'), ta vẫn match chính xác (không ăn 39.5)
-    const dotted = qnNoEu;
-    const compact = dotted.replace(".", "");
-
-    const pieces = [
-      // số thuần
-      { pattern: dotted, before: "[^d.]", after: "[^d.]" },
-      { pattern: compact, before: "[^d.]", after: "[^d.]" },
-      // EU có/không khoảng trắng
-      {
-        pattern: `eu\s*${dotted.replace(".", "\\.")}`,
-        before: "[^a-z0-9]",
-        after: "(?![d.])",
-      },
-      // dạng (EU 38.5)
-      {
-        pattern: `\(\s*eu\s*${dotted.replace(".", "\\.")}\s*\)`,
-        before: "",
-        after: "",
-      },
-    ];
-
-    for (const it of pieces) {
-      const { pattern, before, after } = it;
-      let re;
-      if (before || after) {
-        re = new RegExp(
-          (before ? `(?<=${before}|^)` : "^") +
-            pattern +
-            (after ? `${after}` : ""),
-          "i"
-        );
-      } else {
-        re = new RegExp(pattern, "i");
-      }
-      if (re.test(H)) return true;
-    }
-
-    return false;
-  }
 }
 
 /* ======= Gom nhóm theo catalogue → tên → size ======= */
@@ -375,9 +278,9 @@ export default function Home() {
 
     const nameKey = searchName.trim().toLowerCase();
     const codeKey = searchCode.trim().toLowerCase();
-    const sizeQuery = searchSize.trim();
+    const sizeKeyCanon = detectSizeCanonFromQuery(searchSize);
 
-    if (nameKey || codeKey || sizeQuery) {
+    if (nameKey || codeKey || sizeKeyCanon) {
       out = out
         .map((p) => {
           const nameMatch = nameKey
@@ -388,19 +291,17 @@ export default function Home() {
               p.variants.some((v) => v.sku.toLowerCase().includes(codeKey))
             : true;
 
-          // Lọc biến thể theo size CHÍNH XÁC (39 không ăn 39.5) và hỗ trợ EU/letter
           const filteredVariants = p.variants.filter((v) => {
             if (!sizeQuery) return true;
-            const Hraw = _haystackForVariantRaw(p, v);
-            return _matchSizeQuery(Hraw, sizeQuery);
+            const tokens = _tokensForVariant(v);
+            return _matchSizeQueryExact(tokens, sizeQuery);
           });
-
           const pass =
             nameMatch &&
             codeMatch &&
-            (filteredVariants.length > 0 || !sizeQuery);
+            (filteredVariants.length > 0 || !sizeKeyCanon);
           return pass
-            ? { ...p, variants: sizeQuery ? filteredVariants : p.variants }
+            ? { ...p, variants: sizeKeyCanon ? filteredVariants : p.variants }
             : null;
         })
         .filter(Boolean);
