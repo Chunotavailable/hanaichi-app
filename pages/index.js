@@ -8,10 +8,9 @@ const THEME = {
   text: "#0f172a",
   subtext: "#5b6475",
   line: "#e8ebf3",
-  // HỒNG NHẸ (pastel), giữ tương phản tốt cho chữ trắng
-  primary: "#F9CFE1", // hồng phấn rất nhẹ
-  primary600: "#ebabc2ff", // nhấn nhẹ hơn
-  primary700: "#ee9fbaff", // đậm hơn để tạo chiều sâu ở cuối gradient
+  primary: "#F9CFE1",
+  primary600: "#ebabc2ff",
+  primary700: "#ee9fbaff",
   successBg: "#eaf8f1",
   dangerBg: "#fdeff0",
   chipBg: "#f1f4fb",
@@ -118,8 +117,7 @@ function vnd(x) {
   return Number.isFinite(n) ? n.toLocaleString("vi-VN") : x ?? "";
 }
 
-/* ======= SIZE SEARCH (MỞ RỘNG & CHÍNH XÁC — SIZE-ONLY) ======= */
-/** Xây token size chỉ từ size/sizeCanon/EU trong SKU, KHÔNG dùng mã/tên. Trả về chuỗi "|t1|t2|...|" */
+/* ======= SIZE SEARCH: token-only, không regex lookbehind ======= */
 function _haystackForVariantRaw(_p, v) {
   const tokens = new Set();
 
@@ -179,8 +177,6 @@ function _haystackForVariantRaw(_p, v) {
 
   return tokens.size ? `|${[...tokens].join("|")}|` : "|";
 }
-
-/** So khớp size chính xác trên chuỗi token (“|...|”), tránh 39 ăn 39.5; hỗ trợ EU/letter */
 function _matchSizeQuery(hayTokens, query) {
   if (!query) return true;
   const q = String(query).toLowerCase().trim();
@@ -189,9 +185,8 @@ function _matchSizeQuery(hayTokens, query) {
     .replace(/\s+/g, "")
     .replace(/[^a-z0-9.()]/g, "");
 
-  if (/^(xs|s|m|l|xl|xxl|xxxl)$/i.test(qn)) {
+  if (/^(xs|s|m|l|xl|xxl|xxxl)$/i.test(qn))
     return hayTokens.includes(`|${qn}|`);
-  }
 
   const startsEU = qn.startsWith("eu") || qn.startsWith("(eu");
   const numDot = qn.replace(/^\(??eu\)?/i, "").replace(/[()]/g, "");
@@ -204,6 +199,42 @@ function _matchSizeQuery(hayTokens, query) {
     if (f && hayTokens.includes(`|${f}|`)) return true;
   }
   return false;
+}
+
+/* ======= ẢNH: lấy theo thư mục /imgs/<baseCode>/n.(webp|jpg|jpeg|png) ======= */
+const IMG_EXTS = ["webp", "jpg", "jpeg", "png"];
+const MAX_IMAGES_PER_FOLDER = 20;
+
+function getFolderCandidates(code = "") {
+  const c = String(code || "").trim();
+  if (!c) return [];
+  const urls = [];
+  for (let i = 1; i <= MAX_IMAGES_PER_FOLDER; i++) {
+    for (const ext of IMG_EXTS) {
+      urls.push(`/imgs/${c}/${i}.${ext}`);
+    }
+  }
+  return urls;
+}
+function getLegacyCandidates(code = "") {
+  const c = String(code || "").trim();
+  if (!c) return [];
+  return [
+    `/imgs/${c}.webp`,
+    `/imgs/${c}.jpg`,
+    `/imgs/${c}.jpeg`,
+    `/imgs/${c}.png`,
+  ];
+}
+function getImageCandidatesByCode(code = "", sheetImg = "") {
+  const folder = getFolderCandidates(code);
+  const legacy = getLegacyCandidates(code);
+  const sheet = sheetImg ? [sheetImg] : [];
+  return [...folder, ...legacy, ...sheet];
+}
+function getImageCandidates(p) {
+  const code = (p.baseCode || "").trim();
+  return getImageCandidatesByCode(code, p.image || "");
 }
 
 /* ======= Gom nhóm theo catalogue → tên → size ======= */
@@ -316,8 +347,9 @@ export default function Home() {
   const [discountPct, setDiscountPct] = useState(0);
 
   // Ảnh & modal zoom
-  const [imgSrcMap, setImgSrcMap] = useState({});
-  const [zoomSrc, setZoomSrc] = useState("");
+  const [imgSrcMap, setImgSrcMap] = useState({}); // baseCode -> current displayed src
+  const [zoomSrc, setZoomSrc] = useState(""); // src ảnh đang phóng to
+  const [zoomCode, setZoomCode] = useState(""); // baseCode đang xem gallery
 
   // Đồng bộ lần cuối
   const [lastSync, setLastSync] = useState(null);
@@ -361,7 +393,7 @@ export default function Home() {
 
   const allProducts = useMemo(() => groupProducts(rows), [rows]);
 
-  // === TÌM SIZE CHÍNH XÁC — CHỈ NHÌN SIZE, EU, LETTER; KHÔNG NHÌN MÃ/TÊN ===
+  // === TÌM SIZE CHÍNH XÁC — CHỈ NHÌN SIZE/EU/LETTER; KHÔNG NHÌN MÃ/TÊN ===
   const products = useMemo(() => {
     let out = allProducts;
 
@@ -380,14 +412,12 @@ export default function Home() {
               p.variants.some((v) => v.sku.toLowerCase().includes(codeKey))
             : true;
 
-          // Lọc biến thể theo SIZE-ONLY (39 không ăn 39.5, EU/letter chuẩn)
           const filteredVariants = p.variants.filter((v) => {
             if (!sizeQuery) return true;
             try {
               const tokens = _haystackForVariantRaw(p, v);
               return _matchSizeQuery(tokens, sizeQuery);
             } catch (e) {
-              // Không để crash client
               console.error("size-match error:", e);
               return false;
             }
@@ -506,17 +536,7 @@ export default function Home() {
     await refreshData();
   };
 
-  const getImageCandidates = (p) => {
-    const code = (p.baseCode || "").trim();
-    const local = [
-      `/imgs/${code}.webp`,
-      `/imgs/${code}.jpg`,
-      `/imgs/${code}.jpeg`,
-      `/imgs/${code}.png`,
-    ];
-    const sheetImg = p.image ? [p.image] : [];
-    return [...local, ...sheetImg];
-  };
+  // Ảnh: candidates theo thư mục trước, rồi fallback legacy + sheet
   const advanceImage = (p, current) => {
     const cands = getImageCandidates(p);
     const idx = cands.indexOf(current);
@@ -562,7 +582,6 @@ export default function Home() {
       <div style={container}>
         {/* ===== Toolbar sticky + toggle ===== */}
         <div style={toolbarSticky}>
-          {/* Nội dung có thể thu gọn */}
           <div
             className={`toolbar-collapsible ${toolbarOpen ? "open" : "closed"}`}
           >
@@ -714,14 +733,12 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Nút mũi tên ẩn/hiện */}
           <button
             type="button"
             className={`toolbar-toggle ${toolbarOpen ? "open" : "closed"}`}
             onClick={() => setToolbarOpen((v) => !v)}
             title={toolbarOpen ? "Ẩn thanh công cụ" : "Hiện thanh công cụ"}
           >
-            {/* mũi tên: hướng lên khi mở, hướng xuống khi đóng */}
             <span>{toolbarOpen ? "▴" : "▾"}</span>
           </button>
         </div>
@@ -778,7 +795,15 @@ export default function Home() {
                       className={`img-zoom ${
                         currSrc ? "img-has" : "img-empty"
                       }`}
-                      onClick={() => currSrc && setZoomSrc(currSrc)}
+                      onClick={() => {
+                        const all = getImageCandidatesByCode(
+                          p.baseCode,
+                          p.image || ""
+                        );
+                        const first = currSrc || all[0] || "";
+                        setZoomCode(p.baseCode);
+                        setZoomSrc(first);
+                      }}
                       title={currSrc ? "Bấm để xem lớn" : "Không ảnh"}
                     >
                       <div className="zoom-inner">
@@ -937,121 +962,67 @@ export default function Home() {
         ))}
       </div>
 
-      {/* ===== Modal chọn danh sách ===== */}
-      {showEditModal && (
-        <div style={modalWrap} onClick={() => setShowEditModal(false)}>
-          <div style={modal} onClick={(e) => e.stopPropagation()}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: 10,
-              }}
-            >
-              <b>
-                Chỉnh sửa danh sách{" "}
-                {modalType === "clothing" ? "Quần áo" : "Giày dép"}
-              </b>
-              <button onClick={() => setShowEditModal(false)} style={btnGhost}>
-                Đóng
-              </button>
-            </div>
-            <input
-              value={modalQuery}
-              onChange={(e) => setModalQuery(e.target.value)}
-              placeholder="Tìm..."
-              style={inp}
-            />
-            <div
-              style={{
-                maxHeight: 400,
-                overflow: "auto",
-                margin: "10px 0",
-                border: `1px solid ${THEME.line}`,
-                borderRadius: 8,
-              }}
-            >
-              {allProducts
-                .filter((p) => {
-                  const k = modalQuery.trim().toLowerCase();
-                  if (!k) return true;
-                  return (
-                    p.name.toLowerCase().includes(k) ||
-                    p.baseCode.toLowerCase().includes(k)
-                  );
-                })
-                .map((p) => {
-                  const checked =
-                    (modalType === "clothing" ? clothingSet : footwearSet).has(
-                      p.baseCode
-                    ) ||
-                    (modalSelected.has && modalSelected.has(p.baseCode));
-                  return (
-                    <label
-                      key={p.baseCode}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "8px 10px",
-                        background: checked ? "#f3fbff" : "#fff",
-                        borderBottom: "1px dashed #f0f0f0",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          const next = new Set(
-                            modalSelected.size
-                              ? modalSelected
-                              : modalType === "clothing"
-                              ? clothingSet
-                              : footwearSet
-                          );
-                          if (next.has(p.baseCode)) next.delete(p.baseCode);
-                          else next.add(p.baseCode);
-                          setModalSelected(next);
-                        }}
-                      />
-                      <div style={{ fontWeight: 600, minWidth: 200 }}>
-                        {p.baseCode}
-                      </div>
-                      <div>{p.name}</div>
-                    </label>
-                  );
-                })}
-            </div>
-            <div
-              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
-            >
-              <button onClick={() => setShowEditModal(false)} style={btnGhost}>
-                Huỷ
-              </button>
-              <button onClick={applyModal} style={btnPrimary}>
-                Xác nhận
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== Modal ảnh phóng to ===== */}
+      {/* ===== Modal ảnh phóng to + gallery ===== */}
       {zoomSrc && (
-        <div style={imgModalWrap} onClick={() => setZoomSrc("")}>
+        <div
+          style={imgModalWrap}
+          onClick={() => {
+            setZoomSrc("");
+            setZoomCode("");
+          }}
+        >
           <div style={imgModal} onClick={(e) => e.stopPropagation()}>
+            {/* Ảnh lớn */}
             <img
               src={zoomSrc}
               alt="Xem ảnh"
               style={{
                 display: "block",
                 maxWidth: "92vw",
-                maxHeight: "92vh",
+                maxHeight: "78vh",
                 objectFit: "contain",
+                margin: "8px auto",
               }}
               onError={() => setZoomSrc("")}
             />
+
+            {/* Slide thumbnails */}
+            {!!zoomCode && (
+              <div style={thumbRailWrap}>
+                <div style={thumbRailInner}>
+                  {getImageCandidatesByCode(zoomCode).map((src) => (
+                    <button
+                      key={src}
+                      style={{
+                        ...thumbBtn,
+                        borderColor: src === zoomSrc ? "#66a6ff" : "#e6e8ef",
+                        outline:
+                          src === zoomSrc
+                            ? "2px solid rgba(102,166,255,.45)"
+                            : "none",
+                      }}
+                      onClick={() => setZoomSrc(src)}
+                      title="Xem ảnh"
+                    >
+                      <img
+                        src={src}
+                        alt="thumb"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          display: "block",
+                          borderRadius: 8,
+                        }}
+                        onError={(e) =>
+                          (e.currentTarget.parentElement.style.display = "none")
+                        }
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1070,13 +1041,11 @@ export default function Home() {
           color: #fff;
         }
 
-        /* Bỏ hover card */
         .card-hover:hover {
           transform: none !important;
           box-shadow: ${THEME.glow} !important;
         }
 
-        /* Ảnh zoom: phóng lớp con (không làm vỡ layout) */
         .img-zoom {
           position: relative;
           overflow: visible;
@@ -1102,11 +1071,10 @@ export default function Home() {
           z-index: 5;
         }
 
-        /* Collapsible toolbar (ẩn/hiện) */
         .toolbar-collapsible {
           overflow: hidden;
           transition: max-height 0.28s ${EASE}, padding 0.28s ${EASE};
-          max-height: 1000px; /* lớn hơn chiều cao thực tế */
+          max-height: 1000px;
           padding-top: 2px;
         }
         .toolbar-collapsible.closed {
@@ -1114,14 +1082,14 @@ export default function Home() {
           padding-top: 0;
           padding-bottom: 0;
         }
-        /* Nút mũi tên ẩn/hiện — bản to hơn */
+
         .toolbar-toggle {
           position: absolute;
           left: 50%;
-          bottom: -22px; /* đè mép dưới sâu hơn vì nút to */
+          bottom: -22px;
           transform: translate(-50%, 0);
-          width: 44px; /* ↑ từ 28px */
-          height: 44px; /* ↑ từ 28px */
+          width: 44px;
+          height: 44px;
           border-radius: 999px;
           border: 1px solid ${THEME.line};
           background: ${THEME.surface};
@@ -1133,14 +1101,13 @@ export default function Home() {
           cursor: pointer;
           transition: background 0.2s ${EASE}, transform 0.2s ${EASE};
           z-index: 60;
-          font-size: 20px; /* mũi tên to hơn */
+          font-size: 20px;
           line-height: 1;
         }
         .toolbar-toggle:hover {
           background: #f7f8fd;
         }
 
-        /* Responsive */
         @media (max-width: 900px) {
           .toolbar-grid {
             grid-template-columns: 1fr !important;
@@ -1158,7 +1125,6 @@ export default function Home() {
             min-width: 520px;
           }
         }
-
         @media (max-width: 640px) {
           .img-zoom {
             width: 100% !important;
@@ -1236,10 +1202,9 @@ const toolbarSticky = {
   border: `1px solid ${THEME.line}`,
   borderRadius: 14,
   padding: 12,
-  paddingBottom: 30, // ↑ từ 18 để nhường chỗ cho nút 44px
+  paddingBottom: 30,
   boxShadow: THEME.glow,
 };
-
 const panelLight = {
   border: `1px dashed ${THEME.line}`,
   borderRadius: 12,
@@ -1337,7 +1302,6 @@ const ROW_BG_OUT = THEME.dangerBg;
 const TEXT_IN_STOCK = "#0a7";
 const TEXT_OUT = "#c33";
 
-/* cuộn ngang cho bảng trên màn nhỏ */
 const tableWrap = {
   width: "100%",
   overflowX: "auto",
@@ -1345,7 +1309,7 @@ const tableWrap = {
   borderRadius: 8,
 };
 
-/* ===== Modals ===== */
+/* Modal zoom + gallery */
 const imgModalWrap = {
   position: "fixed",
   inset: 0,
@@ -1361,23 +1325,30 @@ const imgModal = {
   borderRadius: 12,
   overflow: "hidden",
   background: "#000",
+  paddingBottom: 10,
 };
-const modalWrap = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.25)",
+
+const thumbRailWrap = {
+  width: "100%",
+  padding: "8px 10px 12px",
+  background: "#0b0b0b",
+  borderTop: "1px solid rgba(255,255,255,.08)",
+};
+const thumbRailInner = {
   display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 1000,
+  gap: 8,
+  overflowX: "auto",
+  WebkitOverflowScrolling: "touch",
 };
-const modal = {
-  width: 900,
-  maxWidth: "95vw",
+const thumbBtn = {
+  width: 84,
+  height: 64,
+  borderRadius: 10,
+  border: "2px solid #e6e8ef",
   background: "#fff",
-  borderRadius: 12,
-  padding: 16,
-  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+  padding: 0,
+  cursor: "pointer",
+  flex: "0 0 auto",
 };
 
 // ok Z66
