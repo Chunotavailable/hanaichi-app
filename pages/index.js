@@ -116,106 +116,112 @@ function isAllCapsVN(text = "") {
 function vnd(x) {
   const n = +x;
   return Number.isFinite(n) ? n.toLocaleString("vi-VN") : x ?? "";
+}
 
-  /* ======= SIZE SEARCH (MỞ RỘNG & CHÍNH XÁC) ======= */
-  // Chuẩn hóa truy vấn size người dùng
-  function _normSizeToken(t = "") {
-    return String(t)
-      .toLowerCase()
-      .replace(/,/g, ".")
-      .replace(/\s+/g, "")
-      .replace(/[^a-z0-9.]/g, "")
-      .replace(/^eu/, "");
+/* ======= SIZE SEARCH (MỞ RỘNG & CHÍNH XÁC — SIZE-ONLY) ======= */
+/** Xây token size chỉ từ size/sizeCanon/EU trong SKU, KHÔNG dùng mã/tên. Trả về chuỗi "|t1|t2|...|" */
+function _haystackForVariantRaw(_p, v) {
+  const tokens = new Set();
+
+  // 1) Từ sizeCanon của biến thể
+  const canon = (v?.sizeCanon || "").toString().trim().toUpperCase();
+  if (canon) {
+    if (/^EU/.test(canon)) {
+      const num = canon.replace(/^EU\s*/i, "").replace(/,/g, "."); // "39" | "39.5"
+      const compact = num.replace(".", ""); // "395" | "39"
+      tokens.add(`eu${num}`.toLowerCase());
+      tokens.add(`(eu${num})`.toLowerCase());
+      tokens.add(num.toLowerCase());
+      tokens.add(compact.toLowerCase());
+    } else if (/^\d+(\.\d+)?$/.test(canon)) {
+      // 24.5 → "24.5", "245"
+      tokens.add(canon.toLowerCase());
+      tokens.add(canon.replace(".", "").toLowerCase());
+    } else if (/^(XXS|XS|S|M|L|XL|XXL|XXXL)$/.test(canon)) {
+      tokens.add(canon.toLowerCase()); // "xl"
+    }
   }
 
-  // Xây dựng chuỗi thô (giữ khoảng trắng) để regex chính xác theo biên + biến thể EU
-  function _haystackForVariant(p, v) {
-    // Chỉ build từ SIZE — không dùng baseCode, name, sku thô (tránh dính số trong mã)
-    const tokens = new Set();
+  // 2) Bắt EU trong SKU: "(EU 38.5)" hoặc "EU 38.5"
+  const sku = String(v?.sku || "");
+  const mParen = sku.match(/\(\s*eu\s*([0-9.,]+)\s*\)/i);
+  if (mParen) {
+    const num = mParen[1].replace(/,/g, ".");
+    const compact = num.replace(".", "");
+    tokens.add(`eu${num}`.toLowerCase());
+    tokens.add(`(eu${num})`.toLowerCase());
+    tokens.add(num.toLowerCase());
+    tokens.add(compact.toLowerCase());
+  }
+  const mEUFree = sku.match(/\beu\s*([0-9.,]+)\b/i);
+  if (mEUFree) {
+    const num = mEUFree[1].replace(/,/g, ".");
+    const compact = num.replace(".", "");
+    tokens.add(`eu${num}`.toLowerCase());
+    tokens.add(num.toLowerCase());
+    tokens.add(compact.toLowerCase());
+  }
 
-    // 1) Từ sizeCanon của biến thể
-    const canon = (v?.sizeCanon || "").toString().trim().toUpperCase();
-    if (canon) {
-      if (/^EU/.test(canon)) {
-        // EU39 / EU39.5 → thêm các token chuẩn
-        const num = canon.replace(/^EU\s*/i, "").replace(/,/g, "."); // "39" | "39.5"
-        const compact = num.replace(".", ""); // "395"
-        tokens.add(`eu${num}`);
-        tokens.add(`(eu${num})`);
-        tokens.add(num);
-        tokens.add(compact);
-      } else if (/^\d+(\.\d+)?$/.test(canon)) {
-        // 24.5 → "24.5" & "245"
-        tokens.add(canon.toLowerCase());
-        tokens.add(canon.replace(".", "").toLowerCase());
-      } else if (/^(XXS|XS|S|M|L|XL|XXL|XXXL)$/.test(canon)) {
-        const t = canon.toLowerCase();
-        tokens.add(t); // "xl"
-        tokens.add(`-${t}`); // "-xl"
-        tokens.add(`/${t}`); // "/xl"
-      }
+  // 3) Từ prettySizeLine (an toàn vì chỉ sinh phần size từ SKU)
+  const pretty = prettySizeLine(sku).toLowerCase().replace(/,/g, ".");
+  if (pretty) {
+    // bóc EUxx trong pretty
+    const m = pretty.match(/\beu\s*([0-9.]+)\b/i);
+    if (m) {
+      const num = m[1];
+      const compact = num.replace(".", "");
+      tokens.add(`eu${num}`.toLowerCase());
+      tokens.add(num.toLowerCase());
+      tokens.add(compact.toLowerCase());
     }
-
-    // 2) Bắt EU trong SKU (dạng "(EU 38.5)" hoặc "(EU38.5)") để hỗ trợ tìm EUxx
-    const sku = String(v?.sku || "");
-    const EUinSku = sku.match(/\(eu\s*([0-9.,]+)\)/i);
-    if (EUinSku) {
-      const num = EUinSku[1].replace(/,/g, "."); // "38.5"
-      const compact = num.replace(".", ""); // "385"
-      tokens.add(`eu${num}`);
-      tokens.add(`(eu${num})`);
+    // bóc size chữ nếu có
+    const mL = pretty.match(/\b(xxS|xs|s|m|l|xl|xxl|xxxl)\b/i);
+    if (mL) tokens.add(mL[0].toLowerCase());
+    // bóc số cm kiểu 24.5
+    const mN = pretty.match(/\b\d{1,2}(?:\.\d)?\b/);
+    if (mN) {
+      const num = mN[0];
       tokens.add(num);
-      tokens.add(compact);
+      tokens.add(num.replace(".", ""));
     }
-
-    // Trả về chuỗi tokens có delimiter '|' để so khớp chính xác (tránh "39" ăn vào "395")
-    return "|" + Array.from(tokens).join("|") + "|";
   }
 
-  // So khớp size chính xác: 39 không ăn 39.5; XL không ăn XXL; EU39 không ăn EU39.5
-  function _matchSizeQuery(haystackRaw, query) {
-    if (!query) return true;
+  if (!tokens.size) return "|";
+  return "|" + Array.from(tokens).join("|") + "|";
+}
 
-    // Chuẩn hóa truy vấn
-    const q = String(query).toLowerCase().trim();
-    const qn = q
-      .replace(/,/g, ".")
-      .replace(/\s+/g, "")
-      .replace(/[^a-z0-9.()]/g, "");
-    const H = haystackRaw; // chuỗi dạng "|token|token2|..."
+/** So khớp size chính xác trên chuỗi token (“|...|”), tránh 39 ăn 39.5; hỗ trợ EU/letter */
+function _matchSizeQuery(haystackTokens, query) {
+  if (!query) return true;
+  const q = String(query).toLowerCase().trim();
+  const qn = q
+    .replace(/,/g, ".")
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9.()]/g, "");
+  const H = haystackTokens; // dạng "|t1|t2|...|"
 
-    // Size chữ
-    if (/^(xs|s|m|l|xl|xxl|xxxl)$/i.test(qn)) {
-      const t = qn;
-      return (
-        H.includes(`|${t}|`) || H.includes(`|-${t}|`) || H.includes(`|/${t}|`)
-      );
-    }
-
-    // EU form
-    const isEU = qn.startsWith("eu") || qn.startsWith("(eu");
-    const num = qn
-      .replace(/^\(??eu\)?/i, "")
-      .replace(/^\(eu/i, "")
-      .replace(/^\(eu|\)/gi, "");
-    const cleanedNum = num.replace(/[()]/g, "");
-    const numDot = cleanedNum.replace(/,/g, "."); // "39.5" | "39"
-    const numCompact = numDot.replace(".", ""); // "395" | "39"
-
-    const forms = new Set([numDot, numCompact, `eu${numDot}`, `(eu${numDot})`]);
-    if (isEU) {
-      // nếu người dùng gõ "eu39" hay "(eu39.5)" thì thêm đúng form đó
-      forms.add(qn);
-    }
-
-    // So khớp chính xác theo token (có delimiter |...|)
-    for (const f of forms) {
-      if (f && H.includes(`|${f}|`)) return true;
-    }
-
-    // Không match mập mờ — "39" sẽ không khớp "39.5"
-    return false;
+  // Letter sizes
+  if (/^(xs|s|m|l|xl|xxl|xxxl)$/i.test(qn)) {
+    return H.includes(`|${qn}|`);
   }
+
+  // EU forms
+  const startsEU = qn.startsWith("eu") || qn.startsWith("(eu");
+  const numDot = qn.replace(/^\(??eu\)?/i, "").replace(/[()]/g, ""); // "39.5" | "39" | "245"
+  const numCompact = numDot.replace(".", "");
+
+  const forms = new Set([
+    numDot, // "39.5" | "39"
+    numCompact, // "395" | "39"
+    `eu${numDot}`, // "eu39.5"
+    `(eu${numDot})`, // "(eu39.5)"
+  ]);
+  if (startsEU) forms.add(qn); // nếu user gõ đúng "eu39" hay "(eu39.5)"
+
+  for (const f of forms) {
+    if (f && H.includes(`|${f}|`)) return true;
+  }
+  return false;
 }
 
 /* ======= Gom nhóm theo catalogue → tên → size ======= */
@@ -373,6 +379,7 @@ export default function Home() {
 
   const allProducts = useMemo(() => groupProducts(rows), [rows]);
 
+  // === TÌM SIZE CHÍNH XÁC — CHỈ NHÌN SIZE, EU, LETTER; KHÔNG NHÌN MÃ/TÊN ===
   const products = useMemo(() => {
     let out = allProducts;
 
@@ -391,11 +398,11 @@ export default function Home() {
               p.variants.some((v) => v.sku.toLowerCase().includes(codeKey))
             : true;
 
-          // Lọc biến thể theo size CHÍNH XÁC (39 không ăn 39.5) và hỗ trợ EU/letter
+          // Lọc biến thể theo SIZE-ONLY (39 không ăn 39.5, EU/letter chuẩn)
           const filteredVariants = p.variants.filter((v) => {
             if (!sizeQuery) return true;
-            const Hraw = _haystackForVariantRaw(p, v);
-            return _matchSizeQuery(Hraw, sizeQuery);
+            const tokens = _haystackForVariantRaw(p, v);
+            return _matchSizeQuery(tokens, sizeQuery);
           });
 
           const pass =
