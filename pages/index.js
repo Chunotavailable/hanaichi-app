@@ -1,5 +1,5 @@
 // pages/index.js
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /* ================== Theme ================== */
 const THEME = {
@@ -193,7 +193,7 @@ function groupProducts(rows) {
     const sl = r.sl ?? r.so_luong ?? "";
     const daBan = Number(r.da_ban ?? r.a_ban ?? 0);
     const conLai = r.con_lai ?? r.ton ?? "";
-    const img = r.anh || r.hinh_anh_san_pham || ""; // metadata (không dùng load ảnh)
+    const img = r.anh || r.hinh_anh_san_pham || "";
     const zl = r.zl ?? r.giazalo ?? "";
 
     const hasSku = !!sku;
@@ -207,6 +207,7 @@ function groupProducts(rows) {
 
     if (hasSku) {
       if (colA) currentTitle = colA;
+
       const base = normalizeSku(sku);
       const size = parseSize(sku);
 
@@ -255,7 +256,6 @@ function groupProducts(rows) {
 }
 
 /* ============== ẢNH: LẤY QUA API /api/list-images?code= ============== */
-// Caching map: baseCode -> [urls] (images), [] nếu không có, undefined nếu chưa load
 const MAX_GALLERY = 20;
 
 async function fetchImagesForCode(code) {
@@ -266,9 +266,9 @@ async function fetchImagesForCode(code) {
     );
     const data = await res.json();
     let imgs = Array.isArray(data?.images) ? data.images : [];
-    // Ưu tiên ảnh có tên bắt đầu bằng "cover"
-    const covers = imgs.filter((u) => /\/cover(\.|$)/i.test(u));
-    const others = imgs.filter((u) => !/\/cover(\.|$)/i.test(u));
+    // Ưu tiên file tên bắt đầu bằng "cover"
+    const covers = imgs.filter((u) => /\/cover(\.|-|_|$)/i.test(u));
+    const others = imgs.filter((u) => !/\/cover(\.|-|_|$)/i.test(u));
     imgs = covers.length ? [...covers, ...others] : imgs;
     return imgs.slice(0, MAX_GALLERY);
   } catch {
@@ -306,16 +306,17 @@ export default function Home() {
   });
   const [discountPct, setDiscountPct] = useState(0);
 
-  // Ảnh & modal zoom
-  const [imageListMap, setImageListMap] = useState({}); // { [baseCode]: string[] } — [] nếu không có ảnh
-  const [zoomCode, setZoomCode] = useState(""); // mã đang xem gallery
-  const [zoomIndex, setZoomIndex] = useState(0); // index ảnh đang phóng to (theo zoomList)
+  // Ảnh
+  // imageListMap: { [baseCode]: string[] | undefined } — undefined = đang nạp, [] = không có ảnh
+  const [imageListMap, setImageListMap] = useState({});
+  const [zoomCode, setZoomCode] = useState("");
+  const [zoomIndex, setZoomIndex] = useState(0);
 
-  // Đồng bộ lần cuối & toolbar
+  // Đồng bộ & toolbar
   const [lastSync, setLastSync] = useState(null);
   const [toolbarOpen, setToolbarOpen] = useState(true);
 
-  // Load data
+  // Load data từ API products
   useEffect(() => {
     let timer;
     (async () => {
@@ -352,7 +353,7 @@ export default function Home() {
 
   const allProducts = useMemo(() => groupProducts(rows), [rows]);
 
-  // === TÌM SIZE CHÍNH XÁC — CHỈ NHÌN SIZE/EU/LETTER; KHÔNG NHÌN MÃ/TÊN ===
+  // Tìm size chính xác (chỉ nhìn size/EU/letter)
   const products = useMemo(() => {
     let out = allProducts;
 
@@ -434,13 +435,51 @@ export default function Home() {
     return base;
   }, [products, tab, selectedCatalogue, sizeFilters, clothingSet, footwearSet]);
 
+  // 👉 NẠP ẢNH AN TOÀN (KHÔNG setState trong render)
+  useEffect(() => {
+    // lấy các mã đang hiển thị (theo filtered) mà chưa có entry trong imageListMap
+    const need = [];
+    for (const section of Object.values(
+      filtered.reduce((acc, p) => {
+        const cat = (p.catalogue || "Khác").trim();
+        (acc[cat] ||= []).push(p);
+        return acc;
+      }, {})
+    )) {
+      for (const p of section) {
+        if (!Object.prototype.hasOwnProperty.call(imageListMap, p.baseCode)) {
+          need.push(p.baseCode);
+        }
+      }
+    }
+    if (!need.length) return;
+
+    // đánh dấu "đang nạp"
+    setImageListMap((m) => {
+      const next = { ...m };
+      need.forEach((code) => {
+        if (!Object.prototype.hasOwnProperty.call(next, code))
+          next[code] = undefined;
+      });
+      return next;
+    });
+
+    // nạp tuần tự (tránh bão request)
+    (async () => {
+      for (const code of need) {
+        const arr = await fetchImagesForCode(code);
+        setImageListMap((m) => ({ ...m, [code]: arr }));
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered]); // cố ý không đưa imageListMap vào deps để tránh vòng lặp
+
   const toggleSize = (v) => {
     const c = canonicalSize(v);
     setSizeFilters((p) =>
       p.includes(c) ? p.filter((x) => x !== c) : [...p, c]
     );
   };
-
   const openEdit = (t) => {
     setModalType(t);
     setModalSelected(new Set(t === "clothing" ? clothingSet : footwearSet));
@@ -497,23 +536,9 @@ export default function Home() {
     await refreshData();
   };
 
-  // helper: đảm bảo đã có image list cho 1 mã
-  const ensureImages = async (code) => {
-    if (!code) return;
-    setImageListMap((m) =>
-      Object.prototype.hasOwnProperty.call(m, code)
-        ? m
-        : { ...m, [code]: undefined }
-    );
-    const imgs = await fetchImagesForCode(code);
-    setImageListMap((m) => ({ ...m, [code]: imgs })); // [] nếu không có ảnh
-  };
-
-  // Modal helpers
-  const openGallery = async (code) => {
-    await ensureImages(code);
+  const openGallery = (code) => {
     setZoomCode(code);
-    setZoomIndex(0); // 0 = cover nếu có; nếu không có cover thì là ảnh đầu tiên
+    setZoomIndex(0);
   };
   const zoomList = zoomCode ? imageListMap[zoomCode] || [] : [];
   const zoomSrc = zoomList[zoomIndex] || "";
@@ -754,18 +779,8 @@ export default function Home() {
             </div>
 
             {items.map((p) => {
-              const imgs = imageListMap[p.baseCode];
-              const cover = Array.isArray(imgs) && imgs.length ? imgs[0] : ""; // cover.* nếu có, không có thì ảnh đầu tiên
-
-              // lần đầu render, nếu chưa load ảnh cho mã này thì load
-              if (
-                !Object.prototype.hasOwnProperty.call(imageListMap, p.baseCode)
-              ) {
-                // kick async nhưng không block render
-                fetchImagesForCode(p.baseCode).then((arr) => {
-                  setImageListMap((m) => ({ ...m, [p.baseCode]: arr }));
-                });
-              }
+              const imgs = imageListMap[p.baseCode]; // undefined: đang nạp; []: không ảnh; array: đã có
+              const cover = Array.isArray(imgs) && imgs.length ? imgs[0] : "";
 
               return (
                 <div key={p.baseCode} style={card}>
@@ -777,7 +792,7 @@ export default function Home() {
                     <div
                       style={imgBox}
                       className={`img-zoom ${cover ? "img-has" : "img-empty"}`}
-                      onClick={() => openGallery(p.baseCode)}
+                      onClick={() => imgs && openGallery(p.baseCode)}
                       title={
                         cover
                           ? "Bấm để xem bộ ảnh"
@@ -797,8 +812,7 @@ export default function Home() {
                               objectFit: "contain",
                               display: "block",
                             }}
-                            onError={(e) => {
-                              // nếu cover lỗi, thử chuyển sang ảnh tiếp theo trong danh sách đã có
+                            onError={() => {
                               const list = Array.isArray(imgs) ? imgs : [];
                               if (list.length > 1) {
                                 setImageListMap((m) => {
@@ -812,7 +826,7 @@ export default function Home() {
                                 setImageListMap((m) => ({
                                   ...m,
                                   [p.baseCode]: [],
-                                })); // không ảnh
+                                }));
                               }
                             }}
                           />
@@ -971,7 +985,6 @@ export default function Home() {
           }}
         >
           <div style={imgModal} onClick={(e) => e.stopPropagation()}>
-            {/* Ảnh lớn */}
             {zoomSrc ? (
               <img
                 src={zoomSrc}
@@ -1004,13 +1017,12 @@ export default function Home() {
               </div>
             )}
 
-            {/* Slide thumbnails */}
             {zoomList.length > 0 && (
               <div style={thumbRailWrap}>
                 <div style={thumbRailInner}>
                   {zoomList.map((src, i) => (
                     <button
-                      key={src}
+                      key={`${src}-${i}`}
                       style={{
                         ...thumbBtn,
                         borderColor: i === zoomIndex ? "#66a6ff" : "#e6e8ef",
@@ -1055,10 +1067,12 @@ export default function Home() {
           background: ${THEME.primary};
           color: #fff;
         }
+
         .card-hover:hover {
           transform: none !important;
           box-shadow: ${THEME.glow} !important;
         }
+
         .img-zoom {
           position: relative;
           overflow: visible;
@@ -1083,6 +1097,7 @@ export default function Home() {
           box-shadow: 0 12px 28px rgba(17, 34, 68, 0.18);
           z-index: 5;
         }
+
         .toolbar-collapsible {
           overflow: hidden;
           transition: max-height 0.28s ${EASE}, padding 0.28s ${EASE};
@@ -1094,6 +1109,7 @@ export default function Home() {
           padding-top: 0;
           padding-bottom: 0;
         }
+
         .toolbar-toggle {
           position: absolute;
           left: 50%;
@@ -1118,6 +1134,7 @@ export default function Home() {
         .toolbar-toggle:hover {
           background: #f7f8fd;
         }
+
         @media (max-width: 900px) {
           .toolbar-grid {
             grid-template-columns: 1fr !important;
