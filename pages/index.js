@@ -38,7 +38,7 @@ function normalizeSku(raw = "") {
   return s.trim();
 }
 
-// Size hiển thị từ SKU
+// Hiển thị size từ SKU
 function prettySizeLine(sku = "") {
   const s = String(sku).trim();
   if (!s) return "";
@@ -76,16 +76,6 @@ function canonicalSize(size = "") {
   if (/^\d+(\.\d+)?$/.test(raw)) return raw;
   return raw;
 }
-function detectSizeCanonFromQuery(q = "") {
-  const s = String(q).trim().toLowerCase();
-  const mDot = s.match(/(\d{1,2}[.,]\d)/);
-  if (mDot) return canonicalSize(mDot[1]);
-  const m3 = s.match(/\b(\d{3})\b/);
-  if (m3) return canonicalSize(m3[1]);
-  const mEU = s.match(/\beu\s*\d{2}(\.\d+)?\b/i);
-  if (mEU) return canonicalSize(mEU[0]);
-  return "";
-}
 function sizeRank(size) {
   const t = canonicalSize(size);
   const eu = t.match(/^EU(\d+(\.\d+)?)$/);
@@ -117,17 +107,16 @@ function vnd(x) {
   return Number.isFinite(n) ? n.toLocaleString("vi-VN") : x ?? "";
 }
 
-/* ======= SIZE SEARCH (token-only, match đúng size) ======= */
+/* ======= SIZE SEARCH (chỉ match SIZE, không ăn theo mã/tên) ======= */
 function _haystackForVariantRaw(_p, v) {
   const tokens = new Set();
   const canon = (v?.sizeCanon || "").toString().trim().toUpperCase();
   if (canon) {
     if (/^EU/.test(canon)) {
       const num = canon.replace(/^EU\s*/i, "").replace(/,/g, ".");
-      const compact = num.replace(".", "");
       tokens.add(`eu${num}`.toLowerCase());
       tokens.add(num.toLowerCase());
-      tokens.add(compact.toLowerCase());
+      tokens.add(num.replace(".", ""));
     } else if (/^\d+(\.\d+)?$/.test(canon)) {
       tokens.add(canon.toLowerCase());
       tokens.add(canon.replace(".", "").toLowerCase());
@@ -183,49 +172,8 @@ function _matchSizeQuery(hayTokens, query) {
   const numCompact = numDot.replace(".", "");
   const forms = new Set([numDot, numCompact, `eu${numDot}`]);
   if (startsEU) forms.add(qn);
-  for (const f of forms) {
-    if (f && hayTokens.includes(`|${f}|`)) return true;
-  }
+  for (const f of forms) if (f && hayTokens.includes(`|${f}|`)) return true;
   return false;
-}
-
-/* ======= ẢNH: CHỈ dùng folder public/imgs/<MÃ>/ (cover.*, 1..N) ======= */
-const IMG_EXTS = ["webp", "jpg", "jpeg", "png"];
-const MAX_IMAGES_PER_FOLDER = 8; // số ảnh đánh số 1..N dùng cho gallery
-const MAX_GALLERY = 12; // cắt bớt để nhẹ
-
-// Trả về danh sách ứng viên cho 1 mã: cover.* trước, rồi 1..N
-function getFolderCandidates(baseCode = "") {
-  const bc = String(baseCode || "").trim();
-  if (!bc) return [];
-  const base = `/imgs/${bc}`;
-
-  const cover = IMG_EXTS.map((ext) => `${base}/cover.${ext}`);
-  const numbered = [];
-  for (let i = 1; i <= MAX_IMAGES_PER_FOLDER; i++) {
-    for (const ext of IMG_EXTS) {
-      numbered.push(`${base}/${i}.${ext}`);
-    }
-  }
-  return [...cover, ...numbered];
-}
-// Ảnh hiển thị ngoài card (cover)
-function getImageCandidates(p) {
-  return getFolderCandidates(p.baseCode);
-}
-// Danh sách ảnh cho modal gallery
-function getGalleryCandidates(p) {
-  return getFolderCandidates(p.baseCode);
-}
-
-function testImage(url) {
-  return new Promise((resolve) => {
-    if (typeof window === "undefined") return resolve(false);
-    const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
-    img.src = url;
-  });
 }
 
 /* ======= Gom nhóm theo catalogue → tên → size ======= */
@@ -245,7 +193,7 @@ function groupProducts(rows) {
     const sl = r.sl ?? r.so_luong ?? "";
     const daBan = Number(r.da_ban ?? r.a_ban ?? 0);
     const conLai = r.con_lai ?? r.ton ?? "";
-    const img = r.anh || r.hinh_anh_san_pham || "";
+    const img = r.anh || r.hinh_anh_san_pham || ""; // metadata (không dùng load ảnh)
     const zl = r.zl ?? r.giazalo ?? "";
 
     const hasSku = !!sku;
@@ -259,7 +207,6 @@ function groupProducts(rows) {
 
     if (hasSku) {
       if (colA) currentTitle = colA;
-
       const base = normalizeSku(sku);
       const size = parseSize(sku);
 
@@ -268,7 +215,7 @@ function groupProducts(rows) {
           baseCode: base,
           name: currentTitle || base,
           catalogue: currentCatalogue,
-          image: img || "", // vẫn giữ metadata nhưng KHÔNG dùng để load ảnh
+          image: img || "",
           zaloBase: "",
           variants: [],
         });
@@ -307,6 +254,28 @@ function groupProducts(rows) {
   });
 }
 
+/* ============== ẢNH: LẤY QUA API /api/list-images?code= ============== */
+// Caching map: baseCode -> [urls] (images), [] nếu không có, undefined nếu chưa load
+const MAX_GALLERY = 20;
+
+async function fetchImagesForCode(code) {
+  if (!code) return [];
+  try {
+    const res = await fetch(
+      `/api/list-images?code=${encodeURIComponent(code)}`
+    );
+    const data = await res.json();
+    let imgs = Array.isArray(data?.images) ? data.images : [];
+    // Ưu tiên ảnh có tên bắt đầu bằng "cover"
+    const covers = imgs.filter((u) => /\/cover(\.|$)/i.test(u));
+    const others = imgs.filter((u) => !/\/cover(\.|$)/i.test(u));
+    imgs = covers.length ? [...covers, ...others] : imgs;
+    return imgs.slice(0, MAX_GALLERY);
+  } catch {
+    return [];
+  }
+}
+
 /* =================== Component =================== */
 export default function Home() {
   const [rows, setRows] = useState([]);
@@ -338,20 +307,15 @@ export default function Home() {
   const [discountPct, setDiscountPct] = useState(0);
 
   // Ảnh & modal zoom
-  const [imgSrcMap, setImgSrcMap] = useState({}); // baseCode -> cover src ("" = không có, undefined = chưa dò)
-  const [zoomSrc, setZoomSrc] = useState(""); // ảnh đang phóng to
+  const [imageListMap, setImageListMap] = useState({}); // { [baseCode]: string[] } — [] nếu không có ảnh
   const [zoomCode, setZoomCode] = useState(""); // mã đang xem gallery
-  const [zoomList, setZoomList] = useState([]); // danh sách ảnh hợp lệ cho mã
-
-  // cache cho dò ảnh
-  const imageOkCache = useRef(new Map()); // url -> true/false
-  const preloadingCover = useRef(new Set()); // đang dò cover cho mã
-  const galleryCache = useRef(new Map()); // code -> [urls]
+  const [zoomIndex, setZoomIndex] = useState(0); // index ảnh đang phóng to (theo zoomList)
 
   // Đồng bộ lần cuối & toolbar
   const [lastSync, setLastSync] = useState(null);
   const [toolbarOpen, setToolbarOpen] = useState(true);
 
+  // Load data
   useEffect(() => {
     let timer;
     (async () => {
@@ -387,46 +351,6 @@ export default function Home() {
   }, []);
 
   const allProducts = useMemo(() => groupProducts(rows), [rows]);
-
-  // Dò cover tuần tự cho mỗi mã (chỉ khi chưa có key trong imgSrcMap)
-  useEffect(() => {
-    let cancelled = false;
-    async function ensureCover(p) {
-      const code = p.baseCode;
-      if (preloadingCover.current.has(code)) return;
-      preloadingCover.current.add(code);
-
-      const cands = getImageCandidates(p);
-      for (const u of cands) {
-        let ok = imageOkCache.current.get(u);
-        if (ok == null) {
-          ok = await testImage(u);
-          imageOkCache.current.set(u, ok);
-        }
-        if (cancelled) return;
-        if (ok) {
-          setImgSrcMap((m) => (m[code] === u ? m : { ...m, [code]: u }));
-          preloadingCover.current.delete(code);
-          return;
-        }
-      }
-      // không có ảnh
-      setImgSrcMap((m) => (m[code] === "" ? m : { ...m, [code]: "" }));
-      preloadingCover.current.delete(code);
-    }
-
-    // gọi dò cover cho những mã chưa có key
-    allProducts.forEach((p) => {
-      const code = p.baseCode;
-      if (!Object.prototype.hasOwnProperty.call(imgSrcMap, code)) {
-        ensureCover(p);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [allProducts, imgSrcMap]);
 
   // === TÌM SIZE CHÍNH XÁC — CHỈ NHÌN SIZE/EU/LETTER; KHÔNG NHÌN MÃ/TÊN ===
   const products = useMemo(() => {
@@ -499,13 +423,14 @@ export default function Home() {
       base = base.filter(
         (p) => !clothing.has(p.baseCode) && !footwear.has(p.baseCode)
       );
-    if (sizeFilters.length)
+    if (sizeFilters.length) {
       base = base
         .map((p) => ({
           ...p,
           variants: p.variants.filter((v) => sizeFilters.includes(v.sizeCanon)),
         }))
         .filter((p) => p.variants.length);
+    }
     return base;
   }, [products, tab, selectedCatalogue, sizeFilters, clothingSet, footwearSet]);
 
@@ -572,42 +497,26 @@ export default function Home() {
     await refreshData();
   };
 
-  // Build gallery khi mở zoom
-  useEffect(() => {
-    let cancelled = false;
-    async function buildGallery(code) {
-      if (!code) return setZoomList([]);
-      if (galleryCache.current.has(code)) {
-        const cached = galleryCache.current.get(code);
-        setZoomList(cached);
-        if (!zoomSrc && cached[0]) setZoomSrc(cached[0]);
-        return;
-      }
-      const cands = Array.from(
-        new Set(getGalleryCandidates({ baseCode: code }))
-      );
-      const okList = [];
-      for (const u of cands) {
-        let ok = imageOkCache.current.get(u);
-        if (ok == null) {
-          ok = await testImage(u);
-          imageOkCache.current.set(u, ok);
-        }
-        if (cancelled) return;
-        if (ok) {
-          okList.push(u);
-          if (okList.length >= MAX_GALLERY) break;
-        }
-      }
-      galleryCache.current.set(code, okList);
-      setZoomList(okList);
-      if (!zoomSrc && okList[0]) setZoomSrc(okList[0]);
-    }
-    buildGallery(zoomCode);
-    return () => {
-      cancelled = true;
-    };
-  }, [zoomCode]); // eslint-disable-line react-hooks/exhaustive-deps
+  // helper: đảm bảo đã có image list cho 1 mã
+  const ensureImages = async (code) => {
+    if (!code) return;
+    setImageListMap((m) =>
+      Object.prototype.hasOwnProperty.call(m, code)
+        ? m
+        : { ...m, [code]: undefined }
+    );
+    const imgs = await fetchImagesForCode(code);
+    setImageListMap((m) => ({ ...m, [code]: imgs })); // [] nếu không có ảnh
+  };
+
+  // Modal helpers
+  const openGallery = async (code) => {
+    await ensureImages(code);
+    setZoomCode(code);
+    setZoomIndex(0); // 0 = cover nếu có; nếu không có cover thì là ảnh đầu tiên
+  };
+  const zoomList = zoomCode ? imageListMap[zoomCode] || [] : [];
+  const zoomSrc = zoomList[zoomIndex] || "";
 
   return (
     <main style={appWrap}>
@@ -845,11 +754,18 @@ export default function Home() {
             </div>
 
             {items.map((p) => {
-              const hasCoverKey = Object.prototype.hasOwnProperty.call(
-                imgSrcMap,
-                p.baseCode
-              );
-              const currSrc = hasCoverKey ? imgSrcMap[p.baseCode] : undefined;
+              const imgs = imageListMap[p.baseCode];
+              const cover = Array.isArray(imgs) && imgs.length ? imgs[0] : ""; // cover.* nếu có, không có thì ảnh đầu tiên
+
+              // lần đầu render, nếu chưa load ảnh cho mã này thì load
+              if (
+                !Object.prototype.hasOwnProperty.call(imageListMap, p.baseCode)
+              ) {
+                // kick async nhưng không block render
+                fetchImagesForCode(p.baseCode).then((arr) => {
+                  setImageListMap((m) => ({ ...m, [p.baseCode]: arr }));
+                });
+              }
 
               return (
                 <div key={p.baseCode} style={card}>
@@ -857,29 +773,23 @@ export default function Home() {
                     style={{ display: "flex", gap: 16 }}
                     className="card-flex"
                   >
-                    {/* ẢNH: khung cố định + zoom lớp con */}
+                    {/* ẢNH: khung cố định + click mở gallery */}
                     <div
                       style={imgBox}
-                      className={`img-zoom ${
-                        currSrc ? "img-has" : "img-empty"
-                      }`}
-                      onClick={() => {
-                        setZoomCode(p.baseCode);
-                        if (currSrc) setZoomSrc(currSrc);
-                        else setZoomSrc("");
-                      }}
+                      className={`img-zoom ${cover ? "img-has" : "img-empty"}`}
+                      onClick={() => openGallery(p.baseCode)}
                       title={
-                        currSrc
-                          ? "Bấm để xem lớn"
-                          : hasCoverKey
-                          ? "Không ảnh"
-                          : "Đang dò ảnh…"
+                        cover
+                          ? "Bấm để xem bộ ảnh"
+                          : imgs === undefined
+                          ? "Đang lấy ảnh…"
+                          : "Không ảnh"
                       }
                     >
                       <div className="zoom-inner">
-                        {currSrc ? (
+                        {cover ? (
                           <img
-                            src={currSrc}
+                            src={cover}
                             alt={p.name}
                             style={{
                               width: "100%",
@@ -887,11 +797,29 @@ export default function Home() {
                               objectFit: "contain",
                               display: "block",
                             }}
+                            onError={(e) => {
+                              // nếu cover lỗi, thử chuyển sang ảnh tiếp theo trong danh sách đã có
+                              const list = Array.isArray(imgs) ? imgs : [];
+                              if (list.length > 1) {
+                                setImageListMap((m) => {
+                                  const now = Array.isArray(m[p.baseCode])
+                                    ? m[p.baseCode]
+                                    : [];
+                                  const next = now.slice(1); // bỏ ảnh lỗi
+                                  return { ...m, [p.baseCode]: next };
+                                });
+                              } else {
+                                setImageListMap((m) => ({
+                                  ...m,
+                                  [p.baseCode]: [],
+                                })); // không ảnh
+                              }
+                            }}
                           />
-                        ) : hasCoverKey ? (
-                          <span style={{ color: "#999" }}>Không ảnh</span>
+                        ) : imgs === undefined ? (
+                          <span style={{ color: "#999" }}>Đang lấy…</span>
                         ) : (
-                          <span style={{ color: "#999" }}>Đang dò…</span>
+                          <span style={{ color: "#999" }}>Không ảnh</span>
                         )}
                       </div>
                     </div>
@@ -1038,9 +966,8 @@ export default function Home() {
         <div
           style={imgModalWrap}
           onClick={() => {
-            setZoomSrc("");
             setZoomCode("");
-            setZoomList([]);
+            setZoomIndex(0);
           }}
         >
           <div style={imgModal} onClick={(e) => e.stopPropagation()}>
@@ -1056,7 +983,14 @@ export default function Home() {
                   objectFit: "contain",
                   margin: "8px auto",
                 }}
-                onError={() => setZoomSrc("")}
+                onError={() => {
+                  const list = imageListMap[zoomCode] || [];
+                  const next = list.filter((_, i) => i !== zoomIndex);
+                  setImageListMap((m) => ({ ...m, [zoomCode]: next }));
+                  setZoomIndex((i) =>
+                    Math.max(0, Math.min(i, next.length - 1))
+                  );
+                }}
               />
             ) : (
               <div
@@ -1070,22 +1004,22 @@ export default function Home() {
               </div>
             )}
 
-            {/* Slide thumbnails (đã lọc tồn tại) */}
+            {/* Slide thumbnails */}
             {zoomList.length > 0 && (
               <div style={thumbRailWrap}>
                 <div style={thumbRailInner}>
-                  {zoomList.map((src) => (
+                  {zoomList.map((src, i) => (
                     <button
                       key={src}
                       style={{
                         ...thumbBtn,
-                        borderColor: src === zoomSrc ? "#66a6ff" : "#e6e8ef",
+                        borderColor: i === zoomIndex ? "#66a6ff" : "#e6e8ef",
                         outline:
-                          src === zoomSrc
+                          i === zoomIndex
                             ? "2px solid rgba(102,166,255,.45)"
                             : "none",
                       }}
-                      onClick={() => setZoomSrc(src)}
+                      onClick={() => setZoomIndex(i)}
                       title="Xem ảnh"
                     >
                       <img
