@@ -1,5 +1,6 @@
 // pages/index.js
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 /* ================== Theme ================== */
 const THEME = {
@@ -551,6 +552,7 @@ export default function Home() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={logoDot} />
             <h1 style={heroTitle}>Hàng CÓ SẴN</h1>
+            <Link href="/gomcan" style={{ ...tabPill(false), textDecoration: "none" }}>🧮 Giá gồm cân</Link>
             {lastSync && (
               <span style={syncBadge}>
                 Đồng bộ lúc{" "}
