@@ -781,8 +781,20 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
   const xaKho = isXaKho(p);
   const priceLine = priceRangeLine(variants, xaKho ? null : discount);
   // Mã dùng chung hiện 1 lần duy nhất; mỗi biến thể chỉ còn hiện phần size.
-  const code = commonCodePrefix(variants);
-  const sizeChip = (v) => (code ? sizePartFor(v.label, code) : v.label);
+  // commonCodePrefix cần từ 2 biến thể trở lên mới so sánh được — sản phẩm
+  // chỉ còn đúng 1 size thì tách mã/size riêng theo dấu ngoặc của chính label
+  // đó (splitLabelForEdit), tránh hiện dính liền cả mã lẫn size làm 1 cục.
+  let code = commonCodePrefix(variants);
+  let sizeChip;
+  if (code) {
+    sizeChip = (v) => sizePartFor(v.label, code);
+  } else if (variants.length === 1) {
+    const only = splitLabelForEdit(variants[0].label);
+    code = only.code;
+    sizeChip = () => only.size || variants[0].label;
+  } else {
+    sizeChip = (v) => v.label;
+  }
   const inStockChipStyle = { ...chip, fontSize: 10.5, padding: "1px 6px", background: "#eafaf0", borderColor: "#c9ecd6", color: "#1f7a3d" };
   const priceColor = xaKho ? XA_KHO_COLOR : THEME.brand;
 
