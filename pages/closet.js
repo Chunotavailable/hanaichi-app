@@ -49,6 +49,23 @@ function fmtClosetPrice(price) {
   const n = Number(price) || 0;
   return n.toLocaleString("vi-VN") + "k";
 }
+// Tách 1 mã hiển thị (VD "WRS00964001-235 (EU 38)") thành 2 phần riêng để
+// sửa cho dễ: "Mã" (WRS00964001-235) và "Size" (EU 38) — dùng khi mở form
+// sửa 1 mã cụ thể. Mã nào không có ngoặc thì size để trống, mã là cả chuỗi.
+function splitLabelForEdit(label) {
+  const raw = (label || "").trim();
+  const m = raw.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (m) return { code: m[1].trim(), size: m[2].trim() };
+  return { code: raw, size: "" };
+}
+// Ghép lại "Mã" + "Size" thành 1 chuỗi label để lưu và hiển thị/tìm kiếm
+// như trước (VD "WRS00964001-235 (EU 38)").
+function composeLabel(code, size) {
+  const c = (code || "").trim();
+  const s = (size || "").trim();
+  if (!c) return s;
+  return s ? `${c} (${s})` : c;
+}
 // Dòng giá hiện ra ngoài thẻ sản phẩm: nếu các mã/size có cùng 1 giá thì
 // hiện 1 số, khác giá thì hiện khoảng giá "thấp nhất - cao nhất".
 function priceRangeLine(variants) {
@@ -436,10 +453,10 @@ function ClosetAddProductForm({ category, askCategory, onAdd, T }) {
 }
 
 function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetVariant, saveClosetVariant, delClosetVariant, bumpClosetVariant, T }) {
-  const { THEME, card, inp, btnSub, btn, iconBtn } = T;
+  const { THEME, card, inp, btnSub, btn, iconBtn, chip } = T;
   const [pendingImg, setPendingImg] = useState(null);
   const [editVariantId, setEditVariantId] = useState(null);
-  const [nf, setNf] = useState({ label: "", price: "", remaining: "" });
+  const [nf, setNf] = useState({ code: "", size: "", color: "", price: "", remaining: "" });
   const [editName, setEditName] = useState(false);
 
   async function onPickImage(e) {
@@ -492,11 +509,28 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
             {(p.variants || []).map((v) => {
               const isEdit = editVariantId === v.id;
               if (isEdit) {
+                const parts = splitLabelForEdit(v.label);
                 return (
-                  <div key={v.id} style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "6px 0", borderBottom: `1px dashed ${THEME.line}` }}>
-                    <input style={{ ...inp, flex: 1, minWidth: 110 }} defaultValue={v.label} placeholder="Mã/Size" onBlur={(e) => saveClosetVariant(p.id, v.id, { label: e.target.value })} />
-                    <input style={{ ...inp, width: 80 }} defaultValue={v.price} placeholder="Giá (k)" onBlur={(e) => saveClosetVariant(p.id, v.id, { price: Number(e.target.value) || 0 })} />
-                    <input style={{ ...inp, width: 80 }} defaultValue={v.remaining} placeholder="Còn lại" onBlur={(e) => saveClosetVariant(p.id, v.id, { remaining: Number(e.target.value) || 0 })} />
+                  <div key={v.id} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 0", borderBottom: `1px dashed ${THEME.line}` }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <input
+                        style={{ ...inp, flex: 2, minWidth: 130 }}
+                        defaultValue={parts.code}
+                        placeholder="Mã"
+                        onBlur={(e) => saveClosetVariant(p.id, v.id, { label: composeLabel(e.target.value, parts.size) })}
+                      />
+                      <input
+                        style={{ ...inp, flex: 1, minWidth: 90 }}
+                        defaultValue={parts.size}
+                        placeholder="Size"
+                        onBlur={(e) => saveClosetVariant(p.id, v.id, { label: composeLabel(parts.code, e.target.value) })}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <input style={{ ...inp, flex: 1, minWidth: 90 }} defaultValue={v.color || ""} placeholder="Màu (không bắt buộc)" onBlur={(e) => saveClosetVariant(p.id, v.id, { color: e.target.value })} />
+                      <input style={{ ...inp, width: 80 }} defaultValue={v.price} placeholder="Giá (k)" onBlur={(e) => saveClosetVariant(p.id, v.id, { price: Number(e.target.value) || 0 })} />
+                      <input style={{ ...inp, width: 80 }} defaultValue={v.remaining} placeholder="Còn lại" onBlur={(e) => saveClosetVariant(p.id, v.id, { remaining: Number(e.target.value) || 0 })} />
+                    </div>
                     <button style={btnSub} onClick={() => setEditVariantId(null)}>Xong</button>
                   </div>
                 );
@@ -504,7 +538,10 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
               return (
                 <div key={v.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0", borderBottom: `1px dashed ${THEME.line}` }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{v.label || "(không có mã)"}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>
+                      {v.label || "(không có mã)"}
+                      {v.color ? <span style={{ ...chip, marginLeft: 6, fontSize: 11, padding: "1px 7px" }}>{v.color}</span> : null}
+                    </div>
                     <div style={{ fontSize: 13, color: THEME.subtext }}>
                       {fmtClosetPrice(v.price)} ·{" "}
                       <span style={{ color: v.remaining > 0 ? "#1f7a3d" : THEME.brand, fontWeight: 700 }}>
@@ -524,21 +561,36 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
             {(!p.variants || p.variants.length === 0) && <div style={{ color: THEME.subtext, fontSize: 14 }}>Chưa có mã/size nào</div>}
           </div>
 
-          <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-            <input style={{ ...inp, flex: 1 }} placeholder="Mã/Size mới" value={nf.label} onChange={(e) => setNf({ ...nf, label: e.target.value })} />
-            <input style={{ ...inp, width: 70 }} placeholder="Giá (k)" value={nf.price} onChange={(e) => setNf({ ...nf, price: e.target.value })} />
-            <input style={{ ...inp, width: 70 }} placeholder="Còn" value={nf.remaining} onChange={(e) => setNf({ ...nf, remaining: e.target.value })} />
+          <div style={{ marginTop: 12, padding: 10, border: `1px dashed ${THEME.chipLine}`, borderRadius: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: THEME.subtext, marginBottom: 6 }}>＋ Thêm mã/size mới</div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+              <input style={{ ...inp, flex: 2, minWidth: 130 }} placeholder="Mã" value={nf.code} onChange={(e) => setNf({ ...nf, code: e.target.value })} />
+              <input style={{ ...inp, flex: 1, minWidth: 90 }} placeholder="Size" value={nf.size} onChange={(e) => setNf({ ...nf, size: e.target.value })} />
+            </div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+              <input style={{ ...inp, flex: 1, minWidth: 90 }} placeholder="Màu (không bắt buộc)" value={nf.color} onChange={(e) => setNf({ ...nf, color: e.target.value })} />
+              <input style={{ ...inp, width: 80 }} placeholder="Giá (k)" value={nf.price} onChange={(e) => setNf({ ...nf, price: e.target.value })} />
+              <input style={{ ...inp, width: 80 }} placeholder="Còn" value={nf.remaining} onChange={(e) => setNf({ ...nf, remaining: e.target.value })} />
+            </div>
+            <button
+              style={{ ...btnSub, width: "100%" }}
+              onClick={() => {
+                const label = composeLabel(nf.code, nf.size);
+                if (!label.trim()) return;
+                addClosetVariant(p.id, {
+                  label: label.trim(),
+                  color: nf.color.trim(),
+                  price: Number(nf.price) || 0,
+                  qty: Number(nf.remaining) || 0,
+                  sold: 0,
+                  remaining: Number(nf.remaining) || 0,
+                });
+                setNf({ code: "", size: "", color: "", price: "", remaining: "" });
+              }}
+            >
+              ＋ Thêm mã/size
+            </button>
           </div>
-          <button
-            style={{ ...btnSub, marginTop: 8, width: "100%" }}
-            onClick={() => {
-              if (!nf.label.trim()) return;
-              addClosetVariant(p.id, { label: nf.label.trim(), price: Number(nf.price) || 0, qty: Number(nf.remaining) || 0, sold: 0, remaining: Number(nf.remaining) || 0 });
-              setNf({ label: "", price: "", remaining: "" });
-            }}
-          >
-            ＋ Thêm mã/size
-          </button>
         </div>
       </div>
     </div>

@@ -660,7 +660,14 @@ function GiadungEditModal({ it, onDone, onSave, onPickImage, T }) {
           {it.orderType !== "ready" && <input style={inp} defaultValue={it.jpy} placeholder="Giá Yên" onBlur={(e) => onSave({ jpy: e.target.value })} />}
           <input style={inp} defaultValue={it.vnd} placeholder="Giá gồm cân" onBlur={(e) => onSave({ vnd: e.target.value })} />
         </div>
-        <textarea style={{ ...inp, minHeight: 70, marginBottom: 10 }} defaultValue={it.productNote || ""} placeholder="Ghi chú riêng cho sản phẩm này: đặc điểm, size, màu, lưu ý khi bán..." onBlur={(e) => onSave({ productNote: e.target.value })} />
+        <textarea
+          style={{ ...inp, minHeight: 70, marginBottom: 10 }}
+          defaultValue={it.productNote || ""}
+          placeholder="Ghi chú riêng cho sản phẩm này: đặc điểm, size, màu, lưu ý khi bán..."
+          onBlur={(e) => onSave({ productNote: e.target.value })}
+          lang="vi"
+          spellCheck={false}
+        />
         <button style={btn} onClick={onDone}>Xong</button>
       </div>
     </div>
