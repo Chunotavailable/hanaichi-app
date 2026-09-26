@@ -263,6 +263,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
   const [genderFilter, setGenderFilter] = useState(null); // null | "nam" | "nu"
   const [sizeFilter, setSizeFilter] = useState([]); // các số size EU đang chọn — chọn được nhiều size cùng lúc
   const [sortPriceAsc, setSortPriceAsc] = useState(false);
+  const [xaKhoFilter, setXaKhoFilter] = useState(false);
 
   const tokens = norm(q).split(" ").filter(Boolean);
   const searched = !tokens.length
@@ -294,7 +295,9 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
         return effectiveSizeFilter.some((s) => sizes.has(s));
       });
 
-  const filtered = sortPriceAsc ? [...sizeFiltered].sort((a, b) => minPriceOf(a) - minPriceOf(b)) : sizeFiltered;
+  const xaKhoFilteredList = xaKhoFilter ? sizeFiltered.filter((p) => isXaKho(p.name)) : sizeFiltered;
+
+  const filtered = sortPriceAsc ? [...xaKhoFilteredList].sort((a, b) => minPriceOf(a) - minPriceOf(b)) : xaKhoFilteredList;
 
   const categories = [];
   const seen = new Set();
@@ -375,7 +378,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
         onChange={(e) => setQ(e.target.value)}
       />
 
-      {/* Bộ lọc: Nam/Nữ, giá thấp-cao, size EU — bật được 1, 2 hay cả 3 cùng lúc. */}
+      {/* Bộ lọc: Nam/Nữ, giá thấp-cao, xả kho, size EU — bật được 1, nhiều hay cả cùng lúc. */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         <button
           onClick={() => setGenderFilter(genderFilter === "nam" ? null : "nam")}
@@ -394,6 +397,16 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
           style={{ ...btnSub, background: sortPriceAsc ? THEME.primary : THEME.chipBg }}
         >
           💰 Giá thấp → cao
+        </button>
+        <button
+          onClick={() => setXaKhoFilter((v) => !v)}
+          style={{
+            ...btnSub,
+            background: xaKhoFilter ? XA_KHO_COLOR : THEME.chipBg,
+            color: xaKhoFilter ? "#fff" : THEME.brand,
+          }}
+        >
+          🏷️ Xả kho
         </button>
       </div>
 
