@@ -222,7 +222,10 @@ export default function GomCan() {
       <header style={{ background: `linear-gradient(135deg, ${THEME.primary}, #fff)`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: THEME.text, margin: 0 }}>🧮 Giá gồm cân</h1>
-          <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🔍 Tra cứu sản phẩm</Link>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🔍 Tra cứu sản phẩm</Link>
+            <Link href="/todo" style={{ ...btnSub, textDecoration: "none" }}>✅ Việc cần làm</Link>
+          </div>
         </div>
       </header>
 

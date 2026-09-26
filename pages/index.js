@@ -553,6 +553,7 @@ export default function Home() {
             <div style={logoDot} />
             <h1 style={heroTitle}>Hàng CÓ SẴN</h1>
             <Link href="/gomcan" style={{ ...tabPill(false), textDecoration: "none" }}>🧮 Giá gồm cân</Link>
+            <Link href="/todo" style={{ ...tabPill(false), textDecoration: "none" }}>✅ Việc cần làm</Link>
             {lastSync && (
               <span style={syncBadge}>
                 Đồng bộ lúc{" "}
