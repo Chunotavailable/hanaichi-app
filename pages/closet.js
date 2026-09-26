@@ -475,7 +475,7 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
       const url = await uploadGomcanImage(p.id, dataUrl);
       saveClosetProduct(p.id, { image: url });
     } catch {
-      alert("Không đọc được ảnh này, thử ảnh khác giúp em ạ");
+      alert("Không đọc được ảnh này (thường do ảnh chụp thẳng trên iPhone ở định dạng HEIC). Bạn thử lưu ảnh dạng JPG/PNG rồi chọn lại, hoặc chụp màn hình ảnh đó rồi dùng ảnh chụp màn hình nhé.");
     }
   }
 

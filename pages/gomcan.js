@@ -435,7 +435,7 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
       const dataUrl = await resizeImageFile(file, 1280, 0.85);
       onDone(dataUrl);
     } catch {
-      alert("Không đọc được ảnh này, thử ảnh khác giúp em ạ");
+      alert("Không đọc được ảnh này (thường do ảnh chụp thẳng trên iPhone ở định dạng HEIC). Bạn thử lưu ảnh dạng JPG/PNG rồi chọn lại, hoặc chụp màn hình ảnh đó rồi dùng ảnh chụp màn hình nhé.");
     }
   }
 
