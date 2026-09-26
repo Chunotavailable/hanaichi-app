@@ -7,6 +7,7 @@
 // vào project, biến này được Vercel tự thêm vào — không cần tự tạo token thủ công.
 import { put, head } from "@vercel/blob";
 import { SEED_GIADUNG } from "../../lib/giadungSeed";
+import { SEED_CLOSET } from "../../lib/closetSeed";
 
 const DATA_PATHNAME = "gomcan/data.json";
 
@@ -55,6 +56,7 @@ const DEFAULT_DATA = {
   oniKid: [],
   unigu: [],
   giadung: [],
+  closet: [],
 };
 
 async function readData() {
@@ -64,7 +66,9 @@ async function readData() {
     if (!r.ok) return withGiadungSeed(DEFAULT_DATA).data;
     const data = await r.json();
     const merged = { ...DEFAULT_DATA, ...data, oniRates: { ...DEFAULT_DATA.oniRates, ...(data.oniRates || {}) } };
-    const { data: seeded, upgraded } = withGiadungSeed(merged);
+    const { data: seeded1, upgraded: upgraded1 } = withGiadungSeed(merged);
+    const { data: seeded, upgraded: upgraded2 } = withClosetSeed(seeded1);
+    const upgraded = upgraded1 || upgraded2;
     if (upgraded) {
       // Tự ghi lại ngay bản đã bổ sung để lần đọc sau không phải tính lại nữa.
       try {
@@ -81,7 +85,7 @@ async function readData() {
     return seeded;
   } catch (e) {
     // Chưa có file nào được lưu (lần đầu) -> trả về mặc định
-    return withGiadungSeed(DEFAULT_DATA).data;
+    return withClosetSeed(withGiadungSeed(DEFAULT_DATA).data).data;
   }
 }
 
@@ -122,6 +126,46 @@ function withGiadungSeed(data) {
     return { data, upgraded: false };
   }
   return { data: { ...data, giadung: merged }, upgraded: true };
+}
+
+// Tương tự withGiadungSeed ở trên nhưng cho tab "Hàng Closet sẵn" — mỗi sản
+// phẩm còn có danh sách biến thể (size/màu) riêng bên trong, nên merge thêm
+// một lớp nữa ở cấp biến thể: giữ nguyên biến thể đã có (số lượng còn lại đã
+// được người bán tự sửa tay sau khi bán), chỉ bổ sung biến thể/sản phẩm còn
+// thiếu so với seed, không bao giờ ghi đè nội dung đã lưu.
+function withClosetSeed(data) {
+  const list = data.closet || [];
+  if (list.length === 0) {
+    return {
+      data: { ...data, closet: SEED_CLOSET.map((p) => ({ ...p, variants: p.variants.map((v) => ({ ...v })) })) },
+      upgraded: false,
+    };
+  }
+  const byId = new Map(list.map((p) => [p.id, p]));
+  const seedIds = new Set(SEED_CLOSET.map((p) => p.id));
+
+  const orderedFromSeed = SEED_CLOSET.map((seedP) => {
+    const existing = byId.get(seedP.id);
+    if (!existing) return { ...seedP, variants: seedP.variants.map((v) => ({ ...v })) };
+    const vById = new Map((existing.variants || []).map((v) => [v.id, v]));
+    const seedVIds = new Set(seedP.variants.map((v) => v.id));
+    const mergedVariants = [
+      ...seedP.variants.map((sv) => vById.get(sv.id) || { ...sv }),
+      ...(existing.variants || []).filter((v) => !seedVIds.has(v.id)),
+    ];
+    return { ...existing, variants: mergedVariants };
+  });
+  const customExtras = list.filter((p) => !seedIds.has(p.id));
+  const merged = [...orderedFromSeed, ...customExtras];
+
+  const sameShape = (a, b) =>
+    a.length === b.length &&
+    a.every((p, i) => p.id === b[i].id && (p.variants || []).length === (b[i].variants || []).length && (p.variants || []).every((v, j) => v.id === (b[i].variants || [])[j].id));
+  const unchanged = sameShape(merged, list);
+  if (unchanged) {
+    return { data, upgraded: false };
+  }
+  return { data: { ...data, closet: merged }, upgraded: true };
 }
 
 export default async function handler(req, res) {
