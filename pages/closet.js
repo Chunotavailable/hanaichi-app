@@ -553,8 +553,8 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
                     {/* Tách riêng nhóm +/- số lượng và nhóm sửa/xoá, cách xa nhau để tránh bấm
                         nhầm (VD định bấm sửa mã nhưng lỡ chạm phải +1 làm sai số lượng). */}
                     <div style={{ display: "flex", gap: 4 }}>
-                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 13 }} title="Bán 1 đôi (-1 còn lại)" onClick={() => bumpClosetVariant(p.id, v.id, -1)}>－1</button>
-                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 13 }} title="Nhập thêm (+1 còn lại)" onClick={() => bumpClosetVariant(p.id, v.id, 1)}>＋1</button>
+                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 16 }} title="Bán 1 đôi (-1 còn lại)" onClick={() => bumpClosetVariant(p.id, v.id, -1)}>－</button>
+                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 16 }} title="Nhập thêm (+1 còn lại)" onClick={() => bumpClosetVariant(p.id, v.id, 1)}>＋</button>
                     </div>
                     <div style={{ width: 1, alignSelf: "stretch", background: THEME.chipLine }} />
                     <div style={{ display: "flex", gap: 4 }}>
