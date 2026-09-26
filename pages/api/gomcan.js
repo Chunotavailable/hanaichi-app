@@ -6,6 +6,7 @@
 // Cần biến môi trường BLOB_READ_WRITE_TOKEN. Khi bạn tạo 1 Blob Store trên Vercel và gắn
 // vào project, biến này được Vercel tự thêm vào — không cần tự tạo token thủ công.
 import { put, head } from "@vercel/blob";
+import { SEED_GIADUNG } from "../../lib/giadungSeed";
 
 const DATA_PATHNAME = "gomcan/data.json";
 
@@ -60,13 +61,24 @@ async function readData() {
   try {
     const meta = await head(DATA_PATHNAME);
     const r = await fetch(meta.url, { cache: "no-store" });
-    if (!r.ok) return DEFAULT_DATA;
+    if (!r.ok) return withGiadungSeed(DEFAULT_DATA);
     const data = await r.json();
-    return { ...DEFAULT_DATA, ...data, oniRates: { ...DEFAULT_DATA.oniRates, ...(data.oniRates || {}) } };
+    return withGiadungSeed({ ...DEFAULT_DATA, ...data, oniRates: { ...DEFAULT_DATA.oniRates, ...(data.oniRates || {}) } });
   } catch (e) {
     // Chưa có file nào được lưu (lần đầu) -> trả về mặc định
-    return DEFAULT_DATA;
+    return withGiadungSeed(DEFAULT_DATA);
   }
+}
+
+// Tự động điền sẵn danh sách "Gia dụng + TPCN" lấy từ file Google Sheet của
+// chủ shop, nhưng chỉ khi tab này đang trống (chưa có sản phẩm nào được
+// thêm/sửa tay) — một khi đã có ít nhất 1 sản phẩm thật, seed này không còn
+// tự điền vào nữa để không đè lên dữ liệu người dùng.
+function withGiadungSeed(data) {
+  if (!data.giadung || data.giadung.length === 0) {
+    return { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) };
+  }
+  return data;
 }
 
 export default async function handler(req, res) {
