@@ -242,6 +242,19 @@ export default function ClosetPage() {
     const next = { ...data, closet: data.closet.map((p) => (p.id === id ? { ...p, ...patch } : p)) };
     persist(next);
   }
+  // Dùng cho Nhập ảnh hàng loạt: áp TẤT CẢ ảnh đã tải được vào 1 lần lưu duy
+  // nhất, thay vì gọi saveClosetProduct từng cái một trong vòng lặp — vì gọi
+  // nhiều lần liên tiếp như vậy đều dựa trên cùng 1 bản "data" cũ tại thời
+  // điểm bắt đầu (React chưa kịp render lại giữa các lần gọi), nên lần sau
+  // sẽ ghi đè mất kết quả của lần trước, cuối cùng chỉ còn đúng 1 ảnh được lưu.
+  function bulkSaveClosetImages(updates) {
+    const byId = new Map(updates.map((u) => [u.id, u.image]));
+    const next = {
+      ...data,
+      closet: data.closet.map((p) => (byId.has(p.id) ? { ...p, image: byId.get(p.id) } : p)),
+    };
+    persist(next);
+  }
   function delClosetProduct(id) {
     deleteGomcanImage(id);
     const next = { ...data, closet: data.closet.filter((p) => p.id !== id) };
@@ -292,6 +305,7 @@ export default function ClosetPage() {
           data={data}
           addClosetProduct={addClosetProduct}
           saveClosetProduct={saveClosetProduct}
+          bulkSaveClosetImages={bulkSaveClosetImages}
           delClosetProduct={delClosetProduct}
           addClosetVariant={addClosetVariant}
           saveClosetVariant={saveClosetVariant}
@@ -309,7 +323,7 @@ export default function ClosetPage() {
 // Modal nhập ảnh hàng loạt: dán 1 danh sách nhiều dòng "mã: link ảnh", app tự
 // khớp từng dòng với đúng sản phẩm rồi nhập ảnh cho tất cả cùng 1 lúc, thay vì
 // phải mở từng sản phẩm ra làm tay 200 lần.
-function BulkImportModal({ list, saveClosetProduct, onClose, T }) {
+function BulkImportModal({ list, bulkSaveClosetImages, onClose, T }) {
   const { THEME, card, inp, btn, btnSub } = T;
   const [text, setText] = useState("");
   const [overwrite, setOverwrite] = useState(false);
@@ -334,12 +348,17 @@ function BulkImportModal({ list, saveClosetProduct, onClose, T }) {
     setRunning(true);
     let n = 0;
     const next = [...rows];
+    // Tải từng ảnh về tuần tự, nhưng KHÔNG lưu ngay từng cái một — gọi lưu
+    // riêng lẻ nhiều lần liên tiếp trong 1 vòng lặp sẽ bị ghi đè lẫn nhau vì
+    // đều dựa trên cùng 1 bản dữ liệu cũ. Gom hết ảnh tải thành công lại rồi
+    // lưu 1 lần duy nhất ở cuối.
+    const collected = [];
     for (let i = 0; i < next.length; i++) {
       const row = next[i];
       if (row.status !== "ok") continue;
       try {
         const url = await importGomcanImageFromUrl(row.matches[0].id, row.url);
-        saveClosetProduct(row.matches[0].id, { image: url });
+        collected.push({ id: row.matches[0].id, image: url });
         next[i] = { ...row, status: "imported" };
       } catch {
         next[i] = { ...row, status: "failed" };
@@ -348,6 +367,7 @@ function BulkImportModal({ list, saveClosetProduct, onClose, T }) {
       setDoneCount(n);
       setRows([...next]);
     }
+    if (collected.length) bulkSaveClosetImages(collected);
     setRunning(false);
   }
 
@@ -412,7 +432,7 @@ function BulkImportModal({ list, saveClosetProduct, onClose, T }) {
   );
 }
 
-function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetProduct, addClosetVariant, saveClosetVariant, delClosetVariant, bumpClosetVariant, discount, saveClosetDiscount, T }) {
+function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClosetImages, delClosetProduct, addClosetVariant, saveClosetVariant, delClosetVariant, bumpClosetVariant, discount, saveClosetDiscount, T }) {
   const { THEME, card, btn, btnSub, inp, iconBtn } = T;
   const list = data.closet || [];
   const [q, setQ] = useState("");
@@ -489,7 +509,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
       </div>
 
       {showBulkImport && (
-        <BulkImportModal list={list} saveClosetProduct={saveClosetProduct} onClose={() => setShowBulkImport(false)} T={T} />
+        <BulkImportModal list={list} bulkSaveClosetImages={bulkSaveClosetImages} onClose={() => setShowBulkImport(false)} T={T} />
       )}
 
       {/* Chương trình giảm giá áp dụng chung cho cả tab: tích vào là tự động
