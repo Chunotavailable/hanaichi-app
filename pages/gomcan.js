@@ -93,7 +93,7 @@ export default function GomCan() {
   const [subTab, setSubTab] = useState("oni");
   const [gcQuery, setGcQuery] = useState("");
   const [editKey, setEditKey] = useState(null); // { area, id } đang sửa
-  const [noteOpenIds, setNoteOpenIds] = useState({});
+  const [viewGiadungId, setViewGiadungId] = useState(null); // id sản phẩm đang xem chi tiết
   const saveTimer = useRef(null);
 
   useEffect(() => {
@@ -265,7 +265,7 @@ export default function GomCan() {
           <GiadungSection
             data={data} editKey={editKey} setEditKey={setEditKey}
             addGiadungItem={addGiadungItem} saveGiadungItem={saveGiadungItem} delGiadungItem={delGiadungItem} toggleGiadungFavorite={toggleGiadungFavorite}
-            noteOpenIds={noteOpenIds} setNoteOpenIds={setNoteOpenIds}
+            viewGiadungId={viewGiadungId} setViewGiadungId={setViewGiadungId}
             T={T}
           />
         )}
@@ -378,7 +378,7 @@ function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, 
 }
 
 /* ================== Gia dụng ================== */
-function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadungItem, delGiadungItem, toggleGiadungFavorite, noteOpenIds, setNoteOpenIds, T }) {
+function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadungItem, delGiadungItem, toggleGiadungFavorite, viewGiadungId, setViewGiadungId, T }) {
   const { THEME, card, btn, inp } = T;
   const list = sortByFavorite(data.giadung || []);
   const [form, setForm] = useState({ name: "", link: "", jpy: "", vnd: "", orderType: "order" });
@@ -407,25 +407,45 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
     setPendingImg(null);
   }
 
+  const viewingItem = viewGiadungId ? list.find((x) => x.id === viewGiadungId) : null;
+  const editingItem = editKey && editKey.area === "giadung" ? list.find((x) => x.id === editKey.id) : null;
+
   return (
     <div style={{ ...card, padding: 16, marginBottom: 16 }}>
       <h3 style={{ fontWeight: 800, marginTop: 0 }}>🏠 Gia dụng + Thực phẩm chức năng ({list.length})</h3>
       {list.length === 0 && <div style={{ color: THEME.subtext, fontSize: 16, marginBottom: 8 }}>Chưa có sản phẩm nào</div>}
-      {list.map((it, i) => (
-        <GiadungRow
-          key={it.id} it={it} idx={i + 1}
-          editing={editKey && editKey.area === "giadung" && editKey.id === it.id}
-          onEdit={() => setEditKey({ area: "giadung", id: it.id })}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(136px, 1fr))", gap: 10, marginBottom: 16 }}>
+        {list.map((it, i) => (
+          <GiadungCard
+            key={it.id} it={it} idx={i + 1}
+            onOpen={() => setViewGiadungId(it.id)}
+            onFavorite={() => toggleGiadungFavorite(it.id)}
+            T={T}
+          />
+        ))}
+      </div>
+
+      {viewingItem && (
+        <GiadungDetailModal
+          it={viewingItem}
+          onClose={() => setViewGiadungId(null)}
+          onEdit={() => { setViewGiadungId(null); setEditKey({ area: "giadung", id: viewingItem.id }); }}
+          onDelete={() => { setViewGiadungId(null); delGiadungItem(viewingItem.id); }}
+          onFavorite={() => toggleGiadungFavorite(viewingItem.id)}
+          T={T}
+        />
+      )}
+
+      {editingItem && (
+        <GiadungEditModal
+          it={editingItem}
           onDone={() => setEditKey(null)}
-          onSave={(patch) => saveGiadungItem(it.id, patch)}
-          onDelete={() => delGiadungItem(it.id)}
-          onFavorite={() => toggleGiadungFavorite(it.id)}
-          noteOpen={!!noteOpenIds[it.id]}
-          onToggleNote={() => setNoteOpenIds((s) => ({ ...s, [it.id]: !s[it.id] }))}
+          onSave={(patch) => saveGiadungItem(editingItem.id, patch)}
           onPickImage={onPickImage}
           T={T}
         />
-      ))}
+      )}
 
       <div style={{ borderTop: `1px dashed ${THEME.chipLine}`, paddingTop: 12, marginTop: 8 }}>
         <div style={{ fontWeight: 700, marginBottom: 8 }}>➕ Thêm sản phẩm</div>
@@ -451,13 +471,123 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
   );
 }
 
-function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavorite, noteOpen, onToggleNote, onPickImage, T }) {
-  const { THEME, card, inp, btnSub, iconBtn, chip, thumb } = T;
+/* ---- Ô vuông trong lưới sản phẩm ---- */
+function GiadungCard({ it, idx, onOpen, onFavorite, T }) {
+  const { THEME, card, chip, iconBtn } = T;
+  const isReady = it.orderType === "ready";
+  let priceLine;
+  if (isReady) priceLine = it.vnd || "-";
+  else if (it.jpy) priceLine = it.jpy;
+  else priceLine = "Tính giá như bình thường";
+
+  return (
+    <div
+      className="hnCard"
+      onClick={onOpen}
+      style={{ ...card, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}
+    >
+      <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", background: THEME.chipBg }}>
+        {it.image ? (
+          <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} />
+        ) : (
+          <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>🛍️</div>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); onFavorite(); }}
+          title="Yêu thích"
+          style={{ position: "absolute", top: 6, right: 6, width: 26, height: 26, borderRadius: 999, border: "none", background: "rgba(255,255,255,0.88)", fontSize: 13, cursor: "pointer", display: "grid", placeItems: "center" }}
+        >
+          {it.favorite ? "❤️" : "🤍"}
+        </button>
+        <span style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,0.85)", color: THEME.subtext, fontSize: 11, fontWeight: 700, borderRadius: 999, padding: "1px 6px" }}>{idx}</span>
+      </div>
+      <div style={{ padding: "8px 10px 10px", flex: 1, display: "flex", flexDirection: "column" }}>
+        <div style={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 34 }}>
+          {it.name}
+        </div>
+        <span style={{ ...chip, alignSelf: "flex-start", fontSize: 11, padding: "1px 8px", marginTop: 6 }}>{isReady ? "Hàng sẵn" : "Hàng order"}</span>
+        <div style={{ marginTop: 4, fontWeight: 800, color: THEME.brand, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {priceLine}
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onOpen(); }}
+          style={{ marginTop: 8, width: "100%", background: "none", border: `1px solid ${THEME.chipLine}`, color: THEME.brand, borderRadius: 8, padding: "6px 0", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}
+        >
+          Xem chi tiết
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Popup xem nhanh, gọn, bao quát 1 sản phẩm ---- */
+function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
+  const { THEME, card, chip, iconBtn } = T;
+  const isReady = it.orderType === "ready";
+  const quote = buildGiadungQuote(it);
+  const linkOk = it.link && /^https?:\/\//i.test(it.link);
+  let priceLine;
+  if (isReady) priceLine = it.vnd || "-";
+  else if (it.jpy) priceLine = it.jpy;
+  else priceLine = "Tính giá như bình thường";
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(60,20,25,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="hnCard" style={{ ...card, width: "100%", maxWidth: 420, maxHeight: "88vh", overflowY: "auto", padding: 0 }}>
+        <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", background: THEME.chipBg }}>
+          {it.image ? (
+            <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>🛍️</div>
+          )}
+          <button
+            onClick={onClose}
+            style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.9)", fontSize: 16, cursor: "pointer" }}
+          >
+            ✕
+          </button>
+        </div>
+        <div style={{ padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 17, lineHeight: 1.35 }}>{it.name}</h3>
+            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+              <button style={iconBtn} title="Yêu thích" onClick={onFavorite}>{it.favorite ? "❤️" : "🤍"}</button>
+              <button style={iconBtn} title="Sửa" onClick={onEdit}>✏️</button>
+              <button style={iconBtn} title="Xoá" onClick={onDelete}>✕</button>
+            </div>
+          </div>
+          <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={chip}>{isReady ? "Hàng sẵn" : "Hàng order"}</span>
+            {linkOk && <a href={it.link} target="_blank" rel="noopener noreferrer" style={{ color: THEME.brand, fontSize: 13 }}>Link gốc ↗</a>}
+          </div>
+          <div style={{ marginTop: 10, fontSize: 22, fontWeight: 800, color: THEME.brand }}>{priceLine}</div>
+          {quote && (
+            <div style={{ marginTop: 12, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", fontSize: 14, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+              <span style={{ flex: 1 }}>{quote}</span>
+              <button style={{ ...iconBtn, width: 28, height: 28 }} onClick={() => navigator.clipboard && navigator.clipboard.writeText(quote)}>📋</button>
+            </div>
+          )}
+          {it.productNote && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: THEME.subtext, marginBottom: 4 }}>🧾 Tính năng sản phẩm</div>
+              <div style={{ fontSize: 15, color: THEME.text, whiteSpace: "pre-line" }}>{it.productNote}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Popup sửa sản phẩm ---- */
+function GiadungEditModal({ it, onDone, onSave, onPickImage, T }) {
+  const { THEME, card, inp, btnSub, btn } = T;
   const [editImg, setEditImg] = useState(null);
 
-  if (editing) {
-    return (
-      <div style={{ ...card, padding: 12, marginBottom: 10, border: `1.5px solid ${THEME.primary600}` }}>
+  return (
+    <div onClick={onDone} style={{ position: "fixed", inset: 0, background: "rgba(60,20,25,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="hnCard" style={{ ...card, width: "100%", maxWidth: 420, maxHeight: "88vh", overflowY: "auto", padding: 16 }}>
+        <div style={{ fontWeight: 800, marginBottom: 10 }}>✏️ Sửa sản phẩm</div>
         <input style={{ ...inp, marginBottom: 8 }} defaultValue={it.name} placeholder="Tên sản phẩm" onBlur={(e) => onSave({ name: e.target.value })} />
         <div style={{ marginBottom: 8 }}>
           <input type="file" accept="image/*" onChange={(e) => onPickImage(e, async (dataUrl) => { setEditImg(dataUrl); const url = await uploadGomcanImage(it.id, dataUrl); onSave({ image: url }); })} />
@@ -472,56 +602,8 @@ function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavo
           {it.orderType !== "ready" && <input style={inp} defaultValue={it.jpy} placeholder="Giá Yên" onBlur={(e) => onSave({ jpy: e.target.value })} />}
           <input style={inp} defaultValue={it.vnd} placeholder="Giá gồm cân" onBlur={(e) => onSave({ vnd: e.target.value })} />
         </div>
-        <button style={btnSub} onClick={onDone}>Xong</button>
-      </div>
-    );
-  }
-
-  const isReady = it.orderType === "ready";
-  const quote = buildGiadungQuote(it);
-  const linkOk = it.link && /^https?:\/\//i.test(it.link);
-  let priceLine;
-  if (isReady) priceLine = <b style={{ color: THEME.brand, fontSize: 18 }}>{it.vnd || "-"}</b>;
-  else if (it.jpy) priceLine = <b style={{ color: THEME.brand, fontSize: 18 }}>{it.jpy}</b>;
-  else priceLine = <span style={{ color: THEME.subtext }}>Tính giá như bình thường</span>;
-
-  return (
-    <div className="hnCard" style={{ ...card, marginBottom: 10, overflow: "hidden" }}>
-      <div style={{ display: "flex", gap: 12, padding: "12px 12px 6px 12px" }}>
-        <div style={thumb}>{it.image ? <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} /> : "🛍️"}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-            <div style={{ fontWeight: 700 }}><span style={{ color: THEME.subtext, fontWeight: 400 }}>{idx}.</span> {it.name}</div>
-            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-              <button style={iconBtn} title="Yêu thích" onClick={onFavorite}>{it.favorite ? "❤️" : "🤍"}</button>
-              <button style={iconBtn} title="Sửa" onClick={onEdit}>✏️</button>
-              <button style={iconBtn} onClick={onDelete}>✕</button>
-            </div>
-          </div>
-          <div style={{ fontSize: 13, marginTop: 4, display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={chip}>{isReady ? "Hàng sẵn" : "Hàng order"}</span>
-            {linkOk && <a href={it.link} target="_blank" rel="noopener noreferrer" style={{ color: THEME.brand }}>Link gốc ↗</a>}
-          </div>
-          <div style={{ marginTop: 4 }}>{priceLine}</div>
-        </div>
-      </div>
-      {quote && (
-        <div style={{ margin: "0 12px 10px 12px", background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "6px 10px", fontSize: 13.5, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-          <span style={{ flex: 1 }}>{quote}</span>
-          <button style={{ ...iconBtn, width: 26, height: 26, fontSize: 13 }} onClick={() => navigator.clipboard && navigator.clipboard.writeText(quote)}>📋</button>
-        </div>
-      )}
-      <div style={{ padding: "6px 12px 10px 12px", borderTop: `1px dashed ${THEME.line}` }}>
-        <button style={{ background: "none", border: "none", color: THEME.subtext, fontWeight: 600, fontSize: 13, cursor: "pointer", padding: "2px 0" }} onClick={onToggleNote}>
-          🧾 Tính năng sản phẩm {noteOpen ? "▲" : "▼"}
-        </button>
-        {noteOpen ? (
-          <div style={{ marginTop: 8 }}>
-            <textarea style={{ ...inp, minHeight: 70 }} defaultValue={it.productNote || ""} placeholder="Ghi chú riêng cho sản phẩm này: đặc điểm, size, màu, lưu ý khi bán..." onBlur={(e) => onSave({ productNote: e.target.value })} />
-          </div>
-        ) : it.productNote ? (
-          <div style={{ marginTop: 4, fontSize: 16, color: THEME.subtext, whiteSpace: "pre-line" }}>{it.productNote}</div>
-        ) : null}
+        <textarea style={{ ...inp, minHeight: 70, marginBottom: 10 }} defaultValue={it.productNote || ""} placeholder="Ghi chú riêng cho sản phẩm này: đặc điểm, size, màu, lưu ý khi bán..." onBlur={(e) => onSave({ productNote: e.target.value })} />
+        <button style={btn} onClick={onDone}>Xong</button>
       </div>
     </div>
   );
