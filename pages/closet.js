@@ -549,11 +549,18 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
                       </span>
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                    <button style={{ ...iconBtn, width: 26, height: 26, fontSize: 13 }} title="Bán 1 đôi (-1 còn lại)" onClick={() => bumpClosetVariant(p.id, v.id, -1)}>－1</button>
-                    <button style={{ ...iconBtn, width: 26, height: 26, fontSize: 13 }} title="Nhập thêm (+1 còn lại)" onClick={() => bumpClosetVariant(p.id, v.id, 1)}>＋1</button>
-                    <button style={{ ...iconBtn, width: 26, height: 26, fontSize: 12 }} title="Sửa" onClick={() => setEditVariantId(v.id)}>✏️</button>
-                    <button style={{ ...iconBtn, width: 26, height: 26, fontSize: 12 }} title="Xoá" onClick={() => delClosetVariant(p.id, v.id)}>✕</button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                    {/* Tách riêng nhóm +/- số lượng và nhóm sửa/xoá, cách xa nhau để tránh bấm
+                        nhầm (VD định bấm sửa mã nhưng lỡ chạm phải +1 làm sai số lượng). */}
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 13 }} title="Bán 1 đôi (-1 còn lại)" onClick={() => bumpClosetVariant(p.id, v.id, -1)}>－1</button>
+                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 13 }} title="Nhập thêm (+1 còn lại)" onClick={() => bumpClosetVariant(p.id, v.id, 1)}>＋1</button>
+                    </div>
+                    <div style={{ width: 1, alignSelf: "stretch", background: THEME.chipLine }} />
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 12 }} title="Sửa mã/size này" onClick={() => setEditVariantId(v.id)}>✏️</button>
+                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 12 }} title="Xoá" onClick={() => delClosetVariant(p.id, v.id)}>✕</button>
+                    </div>
                   </div>
                 </div>
               );
