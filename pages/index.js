@@ -19,6 +19,9 @@ const MENU = [
   { href: "/todo", icon: "✅", title: "Việc cần làm", desc: "Việc lẻ + việc cố định hàng ngày" },
   { href: "/fbcontent", icon: "✍️", title: "Viết bài FB", desc: "Tạo nhanh bài đăng hội nhóm / trang cá nhân" },
   { href: "/rewrite", icon: "📝", title: "Sửa bài theo khung", desc: "Ghép ý thô vào khung bài mẫu, viết lại bằng AI" },
+  { href: "/customers", icon: "👥", title: "Khách hàng", desc: "Lưu thông tin và tra cứu khách hàng" },
+  { href: "/news", icon: "📰", title: "Tin tức đồ Nhật", desc: "Lưu tin, gợi ý content bằng AI" },
+  { href: "/warehouse", icon: "📦", title: "Kho sản phẩm", desc: "Gộp tìm kiếm toàn bộ sản phẩm, backup dữ liệu" },
 ];
 
 export default function Home() {
