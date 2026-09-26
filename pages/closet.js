@@ -89,7 +89,14 @@ function parseBulkImageLines(text) {
       const m = line.match(/(https?:\/\/\S+)/i);
       if (!m) return { raw: line, code: line, url: "" };
       const url = m[1];
-      const code = line.slice(0, m.index).replace(/[:\-|,\s]+$/, "").trim();
+      // Chỉ bỏ dấu phân cách cuối (": ", "|", ",") — KHÔNG bỏ dấu "-" vì
+      // nhiều id sản phẩm/mã thật sự kết thúc bằng dấu gạch ngang.
+      const code = line
+        .slice(0, m.index)
+        .replace(/\s+$/, "")
+        .replace(/[:|,]+$/, "")
+        .replace(/\s+$/, "")
+        .trim();
       return { raw: line, code, url };
     });
 }
