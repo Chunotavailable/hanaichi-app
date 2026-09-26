@@ -2,7 +2,6 @@
 import { useEffect } from "react";
 import Head from "next/head";
 import { ThemeProvider } from "../lib/theme";
-import { BackgroundMusic } from "../lib/music";
 import { playPop } from "../lib/sound";
 
 function GlobalClickPop() {
@@ -20,7 +19,6 @@ export default function App({ Component, pageProps }) {
   return (
     <ThemeProvider>
       <GlobalClickPop />
-      <BackgroundMusic />
       <Head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
