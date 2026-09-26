@@ -1,6 +1,6 @@
 // pages/pricing.js — Báo giá nhanh
 import { useEffect, useRef, useState } from "react";
-import { useTheme, makeStyles, Loading } from "../lib/theme";
+import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 
 function uid() {
@@ -67,6 +67,7 @@ export default function PricingPage() {
   const [editId, setEditId] = useState(null);
   const [ehPrice, setEhPrice] = useState("");
   const [ehNote, setEhNote] = useState("");
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const saveTimer = useRef(null);
 
   useEffect(() => {
@@ -109,8 +110,9 @@ export default function PricingPage() {
     }
     const total = roundUp5k(jpyN * rateN * (1 - discN / 100));
     const msg = `Dạ mã này đang sale còn ${fmtK(total)} + KG ạ`;
-    setOrderResult({ total, msg });
-    const h = { id: uid(), type: "Order", output: total, note: "", date: Date.now(), jpy: jpyN, rate: rateN, disc: discN, msg };
+    const altMsg = `Dạ mẫu này giá ${fmtK(total)} + KG ạ`;
+    setOrderResult({ total, msg, altMsg });
+    const h = { id: uid(), type: "Order", output: total, note: "", date: Date.now(), jpy: jpyN, rate: rateN, disc: discN, msg, altMsg };
     persist({ ...data, priceHist: [h, ...data.priceHist], lastRate: rateN });
   }
 
@@ -157,8 +159,11 @@ export default function PricingPage() {
   }
   function delAllHist() {
     if (data.priceHist.length === 0) return;
-    if (!window.confirm("Xoá toàn bộ lịch sử báo giá? Không thể hoàn tác.")) return;
+    setConfirmDeleteAll(true);
+  }
+  function confirmDelAllHist() {
     persist({ ...data, priceHist: [] });
+    setConfirmDeleteAll(false);
   }
 
   if (!loaded) {
@@ -172,7 +177,7 @@ export default function PricingPage() {
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px" }}>
         <div style={{ ...card, padding: 14, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Phần 1: Báo giá Order</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <input style={inp} inputMode="decimal" placeholder="Giá Yên (JPY)" value={jpy} onChange={(e) => setJpy(e.target.value)} onKeyDown={(e) => e.key === "Enter" && calcOrder()} />
             <input style={inp} inputMode="decimal" placeholder="Tỷ giá" value={rate} onChange={(e) => setRate(e.target.value)} onKeyDown={(e) => e.key === "Enter" && calcOrder()} />
             <input style={inp} inputMode="decimal" placeholder="% Giảm giá (nếu có)" value={disc} onChange={(e) => setDisc(e.target.value)} onKeyDown={(e) => e.key === "Enter" && calcOrder()} />
@@ -186,6 +191,10 @@ export default function PricingPage() {
               <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: 10, marginTop: 6, fontSize: 14 }}>{orderResult.msg}</div>
               <button style={{ ...btn, marginTop: 8 }} onClick={() => copyMsg(orderResult.msg)}>
                 📋 Copy câu báo giá
+              </button>
+              <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: 10, marginTop: 10, fontSize: 14 }}>{orderResult.altMsg}</div>
+              <button style={{ ...btnSub, marginTop: 8 }} onClick={() => copyMsg(orderResult.altMsg)}>
+                📋 Copy câu (không nhắc sale)
               </button>
             </div>
           )}
@@ -276,12 +285,27 @@ export default function PricingPage() {
                       </button>
                     </div>
                   )}
+                  {h.altMsg && (
+                    <div style={{ marginTop: 6, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 14 }}>
+                      <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{h.altMsg}</span>
+                      <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy" onClick={() => copyMsg(h.altMsg)}>
+                        📋
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteAll}
+        message="Xoá toàn bộ lịch sử báo giá? Không thể hoàn tác."
+        onCancel={() => setConfirmDeleteAll(false)}
+        onConfirm={confirmDelAllHist}
+      />
     </main>
   );
 }

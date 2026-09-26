@@ -1,6 +1,6 @@
 // pages/gomcan.js
 import { useEffect, useRef, useState } from "react";
-import { useTheme, makeStyles, Loading } from "../lib/theme";
+import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 
 /* ================== Helpers ================== */
@@ -386,6 +386,7 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
   const list = sortByFavorite(data.giadung || []);
   const [form, setForm] = useState({ name: "", link: "", jpy: "", vnd: "", orderType: "order" });
   const [pendingImg, setPendingImg] = useState(null);
+  const [confirmDelId, setConfirmDelId] = useState(null);
 
   async function onPickImage(e, onDone) {
     const file = e.target.files && e.target.files[0];
@@ -412,6 +413,7 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
 
   const viewingItem = viewGiadungId ? list.find((x) => x.id === viewGiadungId) : null;
   const editingItem = editKey && editKey.area === "giadung" ? list.find((x) => x.id === editKey.id) : null;
+  const confirmDelItem = confirmDelId ? list.find((x) => x.id === confirmDelId) : null;
 
   return (
     <div style={{ ...card, padding: 16, marginBottom: 16 }}>
@@ -434,11 +436,22 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
           it={viewingItem}
           onClose={() => setViewGiadungId(null)}
           onEdit={() => { setViewGiadungId(null); setEditKey({ area: "giadung", id: viewingItem.id }); }}
-          onDelete={() => { setViewGiadungId(null); delGiadungItem(viewingItem.id); }}
+          onDelete={() => setConfirmDelId(viewingItem.id)}
           onFavorite={() => toggleGiadungFavorite(viewingItem.id)}
           T={T}
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelItem}
+        message={`Xoá sản phẩm "${confirmDelItem ? confirmDelItem.name : ""}"? Không thể hoàn tác.`}
+        onCancel={() => setConfirmDelId(null)}
+        onConfirm={() => {
+          delGiadungItem(confirmDelId);
+          setConfirmDelId(null);
+          setViewGiadungId(null);
+        }}
+      />
 
       {editingItem && (
         <GiadungEditModal
