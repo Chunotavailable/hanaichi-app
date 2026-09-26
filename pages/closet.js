@@ -459,6 +459,13 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
   const [nf, setNf] = useState({ code: "", size: "", color: "", price: "", remaining: "" });
   const [editName, setEditName] = useState(false);
 
+  // Mã gốc (VD: WRS00964001) dùng để tìm ảnh sản phẩm thật trên mạng.
+  const searchCode = commonCodePrefix(p.variants || []);
+  function openImageSearch() {
+    const q = [searchCode, p.name.replace(/\n/g, " ")].filter(Boolean).join(" ");
+    window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`, "_blank", "noopener,noreferrer");
+  }
+
   async function onPickImage(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -485,10 +492,21 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
             <button onClick={onClose} style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.9)", fontSize: 16, cursor: "pointer" }}>
               ✕
             </button>
-            <label style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(255,255,255,0.92)", color: THEME.brand, fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: "5px 12px", cursor: "pointer" }}>
-              📷 {p.image ? "Đổi ảnh" : "Thêm ảnh"}
-              <input type="file" accept="image/*" onChange={onPickImage} style={{ display: "none" }} />
-            </label>
+            <div style={{ position: "absolute", bottom: 10, right: 10, display: "flex", gap: 6 }}>
+              {searchCode && (
+                <button
+                  onClick={openImageSearch}
+                  title="Tìm ảnh sản phẩm này trên Google bằng mã gốc"
+                  style={{ background: "rgba(255,255,255,0.92)", color: THEME.brand, fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: "5px 12px", border: "none", cursor: "pointer" }}
+                >
+                  🔍 Tìm ảnh
+                </button>
+              )}
+              <label style={{ background: "rgba(255,255,255,0.92)", color: THEME.brand, fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: "5px 12px", cursor: "pointer" }}>
+                📷 {p.image ? "Đổi ảnh" : "Thêm ảnh"}
+                <input type="file" accept="image/*" onChange={onPickImage} style={{ display: "none" }} />
+              </label>
+            </div>
           </div>
         </div>
         <div style={{ padding: 16 }}>
