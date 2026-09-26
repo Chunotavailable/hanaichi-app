@@ -61,38 +61,56 @@ async function readData() {
   try {
     const meta = await head(DATA_PATHNAME);
     const r = await fetch(meta.url, { cache: "no-store" });
-    if (!r.ok) return withGiadungSeed(DEFAULT_DATA);
+    if (!r.ok) return withGiadungSeed(DEFAULT_DATA).data;
     const data = await r.json();
-    return withGiadungSeed({ ...DEFAULT_DATA, ...data, oniRates: { ...DEFAULT_DATA.oniRates, ...(data.oniRates || {}) } });
+    const merged = { ...DEFAULT_DATA, ...data, oniRates: { ...DEFAULT_DATA.oniRates, ...(data.oniRates || {}) } };
+    const { data: seeded, upgraded } = withGiadungSeed(merged);
+    if (upgraded) {
+      // Tự ghi lại ngay bản đầy đủ để lần đọc sau không phải tính lại nữa,
+      // và một khi đã ghi (số sản phẩm > 37) thì cơ chế nâng cấp bên dưới sẽ
+      // không đụng vào nữa dù người dùng có sửa/thêm gì sau đó.
+      try {
+        await put(DATA_PATHNAME, JSON.stringify(seeded), {
+          access: "public",
+          addRandomSuffix: false,
+          allowOverwrite: true,
+          contentType: "application/json",
+        });
+      } catch (e) {
+        // không ghi được thì thôi, lần đọc sau sẽ tự thử lại
+      }
+    }
+    return seeded;
   } catch (e) {
     // Chưa có file nào được lưu (lần đầu) -> trả về mặc định
-    return withGiadungSeed(DEFAULT_DATA);
+    return withGiadungSeed(DEFAULT_DATA).data;
   }
 }
 
 // Tự động điền sẵn danh sách "Gia dụng + TPCN" lấy từ file Google Sheet của
-// chủ shop, nhưng chỉ khi tab này đang trống (chưa có sản phẩm nào được
-// thêm/sửa tay) — một khi đã có ít nhất 1 sản phẩm thật, seed này không còn
-// tự điền vào nữa để không đè lên dữ liệu người dùng.
+// chủ shop, nhưng chỉ khi tab này đang trống hoặc chỉ toàn sản phẩm seed cũ
+// (chưa ai thêm/sửa/xoá tay) — một khi đã có sản phẩm thật của người dùng,
+// seed này không còn tự điền/nâng cấp nữa để không đè lên dữ liệu người dùng.
 //
-// Lần đầu chỉ có 37 sản phẩm được điền sẵn (bản seed cũ, OLD_SEED_37 bên
-// dưới). Sau đó có thêm 72 sản phẩm nữa từ 1 sheet bổ sung, nâng SEED_GIADUNG
-// lên 109 sản phẩm. Để bản đã lưu (đang có đúng 37 sản phẩm seed cũ, chưa ai
-// sửa/thêm/xoá gì) tự nâng cấp lên đủ 109 sản phẩm mới mà KHÔNG đụng vào dữ
-// liệu người dùng đã tự chỉnh, chỉ nâng cấp khi dữ liệu đang lưu khớp Y HỆT
-// với bản seed 37 sản phẩm ban đầu (deep-equal) — nghĩa là chắc chắn chưa ai
-// đụng vào.
-const OLD_SEED_37 = SEED_GIADUNG.slice(0, 37);
+// Lần đầu chỉ có 37 sản phẩm được điền sẵn (id dạng "g1".."g37"). Sau đó có
+// thêm 72 sản phẩm nữa từ 1 sheet bổ sung, nâng SEED_GIADUNG lên 109 sản
+// phẩm. Nhận diện "vẫn còn nguyên seed cũ, chưa ai đụng vào" bằng CÁCH SO ID
+// (không so nội dung từng chữ) — chỉ cần mọi id đang lưu đều nằm trong tập id
+// seed cũ và tổng số không vượt quá 37 — vì id do người dùng tự thêm luôn là
+// chuỗi ngẫu nhiên (không bao giờ trùng mẫu "gNN" này), nên không sợ nhầm với
+// sản phẩm thật của người dùng.
+const OLD_SEED_IDS = new Set(SEED_GIADUNG.slice(0, 37).map((it) => it.id));
 
 function withGiadungSeed(data) {
   const list = data.giadung || [];
   if (list.length === 0) {
-    return { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) };
+    return { data: { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) }, upgraded: false };
   }
-  if (list.length === OLD_SEED_37.length && JSON.stringify(list) === JSON.stringify(OLD_SEED_37)) {
-    return { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) };
+  const stillPureOldSeed = list.length <= OLD_SEED_IDS.size && list.every((it) => OLD_SEED_IDS.has(it.id));
+  if (stillPureOldSeed) {
+    return { data: { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) }, upgraded: true };
   }
-  return data;
+  return { data, upgraded: false };
 }
 
 export default async function handler(req, res) {
