@@ -66,6 +66,11 @@ function normCode(s) {
   return (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 function matchClosetProductsByCode(list, code) {
+  // Cho phép dán thẳng đúng id nội bộ của sản phẩm (chính xác tuyệt đối,
+  // dùng khi đã biết chắc sản phẩm nào — ví dụ do tự tra cứu sẵn) — ưu tiên
+  // kiểm tra trước, không thì mới khớp mờ theo mã xuất hiện trong tên/biến thể.
+  const byId = list.find((p) => p.id === (code || "").trim());
+  if (byId) return [byId];
   const nc = normCode(code);
   if (nc.length < 4) return [];
   return list.filter((p) => {
