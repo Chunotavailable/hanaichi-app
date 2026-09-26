@@ -28,10 +28,18 @@ export default async function handler(req, res) {
         if (url.protocol !== "http:" && url.protocol !== "https:") {
           return res.status(400).json({ error: "Link ảnh không hợp lệ" });
         }
+        // Nhiều CDN của các hãng lớn (Nike, Adidas, Asics...) chặn thẳng các
+        // request tự xưng là "bot" — phải giả lập đúng trình duyệt thật (User-Agent,
+        // Accept, Referer cùng domain ảnh) thì mới tải được, không thì bị chặn âm thầm.
         const r = await fetch(url.toString(), {
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; HanaichiBot/1.0)" },
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            Referer: `${url.protocol}//${url.hostname}/`,
+          },
         });
-        if (!r.ok) return res.status(400).json({ error: "Không tải được ảnh từ link này" });
+        if (!r.ok) return res.status(400).json({ error: `Không tải được ảnh từ link này (mã lỗi ${r.status})` });
         const ct = r.headers.get("content-type") || "";
         const m = ct.match(/^image\/(\w+)/);
         if (!m) return res.status(400).json({ error: "Link này không phải ảnh" });

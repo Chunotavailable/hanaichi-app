@@ -360,8 +360,8 @@ function BulkImportModal({ list, bulkSaveClosetImages, onClose, T }) {
         const url = await importGomcanImageFromUrl(row.matches[0].id, row.url);
         collected.push({ id: row.matches[0].id, image: url });
         next[i] = { ...row, status: "imported" };
-      } catch {
-        next[i] = { ...row, status: "failed" };
+      } catch (err) {
+        next[i] = { ...row, status: "failed", error: (err && err.message) || "" };
       }
       n++;
       setDoneCount(n);
@@ -422,7 +422,10 @@ function BulkImportModal({ list, bulkSaveClosetImages, onClose, T }) {
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                   {r.matches && r.matches[0] ? r.matches[0].name : r.code || r.raw}
                 </span>
-                <span style={{ flexShrink: 0, color: THEME.subtext }}>{STATUS_LABEL[r.status] || r.status}</span>
+                <span style={{ flexShrink: 0, color: THEME.subtext }}>
+                  {STATUS_LABEL[r.status] || r.status}
+                  {r.status === "failed" && r.error ? ` (${r.error})` : ""}
+                </span>
               </div>
             ))}
           </div>
