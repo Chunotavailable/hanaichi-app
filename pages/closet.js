@@ -49,10 +49,15 @@ function fmtClosetPrice(price) {
   const n = Number(price) || 0;
   return n.toLocaleString("vi-VN") + "k";
 }
-// Sản phẩm xả kho: tên có chữ "xả kho" — hiện nhãn XẢ KHO + giá tô đỏ ở
-// ngoài, và không được áp chương trình giảm giá chung.
-function isXaKho(name) {
-  return norm(name || "").includes("xa kho");
+// Sản phẩm xả kho: tên có chữ "xả kho" HOẶC được tự tay tích chọn (p.xaKho)
+// — hiện nhãn XẢ KHO + giá tô đỏ ở ngoài, và không được áp chương trình
+// giảm giá chung. Nhận vào cả product object hoặc chuỗi tên (giữ tương thích
+// với các chỗ gọi cũ isXaKho(p)).
+function isXaKho(p) {
+  if (p && typeof p === "object") {
+    return !!p.xaKho || norm(p.name || "").includes("xa kho");
+  }
+  return norm(p || "").includes("xa kho");
 }
 const XA_KHO_COLOR = "#dc2626";
 
@@ -295,7 +300,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
         return effectiveSizeFilter.some((s) => sizes.has(s));
       });
 
-  const xaKhoFilteredList = xaKhoFilter ? sizeFiltered.filter((p) => isXaKho(p.name)) : sizeFiltered;
+  const xaKhoFilteredList = xaKhoFilter ? sizeFiltered.filter((p) => isXaKho(p)) : sizeFiltered;
 
   const filtered = sortPriceAsc ? [...xaKhoFilteredList].sort((a, b) => minPriceOf(a) - minPriceOf(b)) : xaKhoFilteredList;
 
@@ -554,7 +559,7 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
   const inStock = variants.filter((v) => Number(v.remaining) > 0);
   const shown = inStock.slice(0, 6);
   const extra = inStock.length - shown.length;
-  const xaKho = isXaKho(p.name);
+  const xaKho = isXaKho(p);
   const priceLine = priceRangeLine(variants, xaKho ? null : discount);
   // Mã dùng chung hiện 1 lần duy nhất; mỗi biến thể chỉ còn hiện phần size.
   const code = commonCodePrefix(variants);
@@ -684,7 +689,7 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
   const [editVariantId, setEditVariantId] = useState(null);
   const [nf, setNf] = useState({ code: "", size: "", color: "", price: "", remaining: "" });
   const [editName, setEditName] = useState(false);
-  const xaKho = isXaKho(p.name);
+  const xaKho = isXaKho(p);
   const effectiveDiscount = xaKho ? null : discount;
   const quote = buildClosetQuote(p, effectiveDiscount);
 
@@ -738,6 +743,16 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
             </div>
           </div>
           <div style={{ marginTop: 4, fontSize: 13, color: THEME.subtext }}>{p.category}</div>
+
+          <label style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 700, color: xaKho ? XA_KHO_COLOR : THEME.text, cursor: "pointer", userSelect: "none" }}>
+            <input
+              type="checkbox"
+              checked={!!p.xaKho}
+              onChange={(e) => saveClosetProduct(p.id, { xaKho: e.target.checked })}
+              style={{ width: 17, height: 17, accentColor: XA_KHO_COLOR, cursor: "pointer" }}
+            />
+            🏷️ Xả kho (tự tích/bỏ tích, không cần đổi tên sản phẩm)
+          </label>
 
           {quote && (
             <div style={{ marginTop: 10, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", fontSize: 14, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
