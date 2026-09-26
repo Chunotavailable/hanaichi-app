@@ -1,7 +1,7 @@
 // pages/news.js — Tin tức đồ Nhật
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
+import { useTheme, makeStyles, ThemeToggle, Loading } from "../lib/theme";
 import { playTick, playDelete, playSuccess, playClick } from "../lib/sound";
 
 function uid() {
@@ -106,16 +106,12 @@ export default function NewsPage() {
   }
 
   if (!loaded) {
-    return (
-      <main style={{ minHeight: "100vh", background: THEME.bg, display: "grid", placeItems: "center", color: THEME.subtext }}>
-        Đang tải...
-      </main>
-    );
+    return <Loading />;
   }
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
-      <header style={{ background: `linear-gradient(135deg, #241a22, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
+      <header style={{ background: `linear-gradient(135deg, ${THEME.brand}18, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: THEME.text, margin: 0, fontFamily: THEME.headingFont }}>📰 Tin tức đồ Nhật</h1>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

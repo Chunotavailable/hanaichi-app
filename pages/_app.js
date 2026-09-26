@@ -1,10 +1,26 @@
 // pages/_app.js
+import { useEffect } from "react";
 import Head from "next/head";
 import { ThemeProvider } from "../lib/theme";
+import { BackgroundMusic } from "../lib/music";
+import { playPop } from "../lib/sound";
+
+function GlobalClickPop() {
+  useEffect(() => {
+    function onClick(e) {
+      if (e.target.closest("button, .menuCard")) playPop();
+    }
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+  return null;
+}
 
 export default function App({ Component, pageProps }) {
   return (
     <ThemeProvider>
+      <GlobalClickPop />
+      <BackgroundMusic />
       <Head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -65,6 +81,11 @@ export default function App({ Component, pageProps }) {
           }
           to {
             transform: rotate(180deg);
+          }
+        }
+        @keyframes hnSpin {
+          to {
+            transform: rotate(360deg);
           }
         }
         main {

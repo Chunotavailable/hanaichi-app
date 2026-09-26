@@ -5,6 +5,7 @@ import { playClick } from "../lib/sound";
 
 const MENU = [
   { href: "/gomcan", icon: "🧮", title: "Giá gồm cân", desc: "Bảng giá Oni, Uni + GU, Gia dụng + TPCN" },
+  { href: "/pricing", icon: "💰", title: "Báo giá nhanh", desc: "Tính giá Order / Hàng sẵn, lưu lịch sử báo giá" },
   { href: "/todo", icon: "✅", title: "Việc cần làm", desc: "Việc lẻ + việc cố định hàng ngày" },
   { href: "/fbcontent", icon: "✍️", title: "Viết bài FB", desc: "Tạo nhanh bài đăng hội nhóm / trang cá nhân" },
   { href: "/rewrite", icon: "📝", title: "Sửa bài theo khung", desc: "Ghép ý thô vào khung bài mẫu, viết lại bằng AI" },
