@@ -149,6 +149,24 @@ function euSizesOf(p) {
   });
   return sizes;
 }
+// Thứ tự hiển thị chuẩn cho size chữ (quần áo) — dùng để sắp chip lọc và so sánh.
+const LETTER_SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
+// Lấy các size dạng chữ (S/M/L/XL/2XL...) có trong mã của 1 sản phẩm — mã
+// quần áo thường có dạng "IW5977-S", "684188-51-XL" (chữ size ở cuối, sau
+// dấu gạch ngang cuối cùng), không nằm trong ngoặc như size EU giày.
+function letterSizesOf(p) {
+  const sizes = new Set();
+  (p.variants || []).forEach((v) => {
+    const label = (v.label || "").trim();
+    const m = label.match(/-(\d?XL|XXL|XS|S|M|L)\s*(?:\([^)]*\))?$/i);
+    if (m) {
+      let s = m[1].toUpperCase();
+      if (s === "XXL") s = "2XL";
+      sizes.add(s);
+    }
+  });
+  return sizes;
+}
 function minPriceOf(p) {
   const prices = (p.variants || []).map((v) => Number(v.price) || 0).filter((n) => n > 0);
   return prices.length ? Math.min(...prices) : Infinity;
@@ -498,16 +516,22 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
         return g === genderFilter || g === "both";
       });
 
-  const availableSizes = Array.from(new Set(genderFiltered.flatMap((p) => Array.from(euSizesOf(p))))).sort(
+  // Gộp cả size số EU (giày) lẫn size chữ S/M/L... (quần áo) vào chung 1 bộ lọc
+  // — số xếp tăng dần trước, chữ xếp theo thứ tự XS→5XL sau.
+  const availableEuSizes = Array.from(new Set(genderFiltered.flatMap((p) => Array.from(euSizesOf(p))))).sort(
     (a, b) => Number(a) - Number(b)
   );
+  const availableLetterSizes = Array.from(new Set(genderFiltered.flatMap((p) => Array.from(letterSizesOf(p))))).sort(
+    (a, b) => LETTER_SIZE_ORDER.indexOf(a) - LETTER_SIZE_ORDER.indexOf(b)
+  );
+  const availableSizes = [...availableEuSizes, ...availableLetterSizes];
   // Nếu đổi bộ lọc giới tính khiến 1 size đang chọn không còn xuất hiện nữa
   // thì tự bỏ qua size đó thay vì lọc ra danh sách rỗng mãi.
   const effectiveSizeFilter = sizeFilter.filter((s) => availableSizes.includes(s));
   const sizeFiltered = !effectiveSizeFilter.length
     ? genderFiltered
     : genderFiltered.filter((p) => {
-        const sizes = euSizesOf(p);
+        const sizes = new Set([...euSizesOf(p), ...letterSizesOf(p)]);
         return effectiveSizeFilter.some((s) => sizes.has(s));
       });
 
@@ -635,7 +659,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
 
       {availableSizes.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", marginBottom: 10, paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
-          <span style={{ fontSize: 12.5, color: THEME.subtext, flexShrink: 0 }}>Size EU:</span>
+          <span style={{ fontSize: 12.5, color: THEME.subtext, flexShrink: 0 }}>Size:</span>
           {availableSizes.map((s) => {
             const active = effectiveSizeFilter.includes(s);
             return (
