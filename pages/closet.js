@@ -66,14 +66,43 @@ function composeLabel(code, size) {
   if (!c) return s;
   return s ? `${c} (${s})` : c;
 }
+// Chương trình giảm giá áp dụng cho cả tab Closet: bật lên thì mọi sản phẩm
+// có giá từ "threshold" trở lên được giảm "percent"% khi hiển thị ra ngoài.
+const DEFAULT_DISCOUNT = { enabled: false, threshold: 500, percent: 5 };
+function applyDiscount(price, discount) {
+  const d = discount || DEFAULT_DISCOUNT;
+  if (!d.enabled) return price;
+  const threshold = Number(d.threshold) || 0;
+  const percent = Number(d.percent) || 0;
+  if (threshold > 0 && percent > 0 && price >= threshold) {
+    return Math.round(price * (1 - percent / 100));
+  }
+  return price;
+}
 // Dòng giá hiện ra ngoài thẻ sản phẩm: nếu các mã/size có cùng 1 giá thì
-// hiện 1 số, khác giá thì hiện khoảng giá "thấp nhất - cao nhất".
-function priceRangeLine(variants) {
+// hiện 1 số, khác giá thì hiện khoảng giá "thấp nhất - cao nhất". Khi có
+// chương trình giảm giá đang bật và áp dụng được, trả thêm dòng giá gốc để
+// hiện gạch ngang bên cạnh giá đã giảm.
+function priceRangeLine(variants, discount) {
   const prices = (variants || []).map((v) => Number(v.price) || 0).filter((n) => n > 0);
-  if (!prices.length) return "------";
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  return min === max ? fmtClosetPrice(min) : `${fmtClosetPrice(min)} - ${fmtClosetPrice(max)}`;
+  if (!prices.length) return { text: "------", originalText: null };
+  const discounted = prices.map((p) => applyDiscount(p, discount));
+  const min = Math.min(...discounted);
+  const max = Math.max(...discounted);
+  const text = min === max ? fmtClosetPrice(min) : `${fmtClosetPrice(min)} - ${fmtClosetPrice(max)}`;
+  const hasDiscount = discounted.some((d, i) => d !== prices[i]);
+  if (!hasDiscount) return { text, originalText: null };
+  const omin = Math.min(...prices);
+  const omax = Math.max(...prices);
+  const originalText = omin === omax ? fmtClosetPrice(omin) : `${fmtClosetPrice(omin)} - ${fmtClosetPrice(omax)}`;
+  return { text, originalText };
+}
+// Câu báo giá nhanh cho từng sản phẩm, theo đúng mẫu chủ shop dùng để trả lời khách.
+function buildClosetQuote(p, discount) {
+  const priceLine = priceRangeLine(p.variants || [], discount);
+  if (priceLine.text === "------") return "";
+  const name = (p.name || "").replace(/\n/g, " ").trim();
+  return `Dạ ${name} bên em có sẵn giá ${priceLine.text} ạ`;
 }
 
 export default function ClosetPage() {
@@ -157,6 +186,10 @@ export default function ClosetPage() {
     const nextRemaining = Math.max(0, (Number(v.remaining) || 0) + delta);
     saveClosetVariant(productId, variantId, { remaining: nextRemaining });
   }
+  function saveClosetDiscount(patch) {
+    const next = { ...data, closetDiscount: { ...(data.closetDiscount || DEFAULT_DISCOUNT), ...patch } };
+    persist(next);
+  }
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
@@ -171,6 +204,8 @@ export default function ClosetPage() {
           saveClosetVariant={saveClosetVariant}
           delClosetVariant={delClosetVariant}
           bumpClosetVariant={bumpClosetVariant}
+          discount={data.closetDiscount || DEFAULT_DISCOUNT}
+          saveClosetDiscount={saveClosetDiscount}
           T={T}
         />
       </div>
@@ -178,8 +213,8 @@ export default function ClosetPage() {
   );
 }
 
-function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetProduct, addClosetVariant, saveClosetVariant, delClosetVariant, bumpClosetVariant, T }) {
-  const { THEME, card, btn, btnSub, inp } = T;
+function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetProduct, addClosetVariant, saveClosetVariant, delClosetVariant, bumpClosetVariant, discount, saveClosetDiscount, T }) {
+  const { THEME, card, btn, btnSub, inp, iconBtn } = T;
   const list = data.closet || [];
   const [q, setQ] = useState("");
   const [viewId, setViewId] = useState(null);
@@ -187,6 +222,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
   const [addingCategory, setAddingCategory] = useState(null); // category đang thêm sản phẩm mới
   const [viewMode, setViewMode] = useState("small");
   const [activeCat, setActiveCat] = useState(null); // null = xem tất cả danh mục
+  const [editingDiscount, setEditingDiscount] = useState(false);
 
   const tokens = norm(q).split(" ").filter(Boolean);
   const filtered = !tokens.length
@@ -218,6 +254,56 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
         <h3 style={{ fontWeight: 800, margin: 0 }}>👜 Hàng Closet sẵn ({list.length} mẫu)</h3>
         <ViewModeToggle mode={viewMode} setMode={setViewMode} T={T} />
       </div>
+
+      {/* Chương trình giảm giá áp dụng chung cho cả tab: tích vào là tự động
+          giảm giá cho mọi sản phẩm từ mức giá đã đặt, bấm ✏️ để đổi % giảm
+          hoặc mức giá áp dụng theo từng đợt khuyến mãi khác nhau. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginTop: 12,
+          padding: "8px 10px",
+          background: discount.enabled ? "#eafaf0" : THEME.chipBg,
+          border: `1px solid ${discount.enabled ? "#c9ecd6" : THEME.chipLine}`,
+          borderRadius: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={!!discount.enabled}
+          onChange={(e) => saveClosetDiscount({ enabled: e.target.checked })}
+          style={{ width: 18, height: 18, flexShrink: 0 }}
+        />
+        {editingDiscount ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", flex: 1 }}>
+            <span style={{ fontSize: 13.5 }}>Giảm</span>
+            <input
+              style={{ ...inp, width: 56, padding: "4px 6px" }}
+              defaultValue={discount.percent}
+              onBlur={(e) => saveClosetDiscount({ percent: Number(e.target.value) || 0 })}
+            />
+            <span style={{ fontSize: 13.5 }}>% cho sản phẩm từ</span>
+            <input
+              style={{ ...inp, width: 80, padding: "4px 6px" }}
+              defaultValue={discount.threshold}
+              onBlur={(e) => saveClosetDiscount({ threshold: Number(e.target.value) || 0 })}
+            />
+            <span style={{ fontSize: 13.5 }}>k trở lên</span>
+            <button style={btnSub} onClick={() => setEditingDiscount(false)}>Xong</button>
+          </div>
+        ) : (
+          <>
+            <span style={{ flex: 1, fontWeight: 700, fontSize: 13.5, color: discount.enabled ? "#1f7a3d" : THEME.text }}>
+              🏷️ Giảm {discount.percent}% cho sản phẩm từ {fmtClosetPrice(discount.threshold)} trở lên
+            </span>
+            <button style={iconBtn} title="Sửa chương trình giảm giá" onClick={() => setEditingDiscount(true)}>✏️</button>
+          </>
+        )}
+      </div>
+
       <input
         style={{ ...inp, marginTop: 12, marginBottom: 10 }}
         placeholder="🔍 Tìm theo tên, mã, size, màu... (VD: 38, onitsuka, wilson)"
@@ -272,7 +358,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
             {filtered
               .filter((p) => p.category === cat)
               .map((p) => (
-                <ClosetProductCard key={p.id} p={p} listMode={viewMode === "list"} onOpen={() => setViewId(p.id)} T={T} />
+                <ClosetProductCard key={p.id} p={p} listMode={viewMode === "list"} onOpen={() => setViewId(p.id)} discount={discount} T={T} />
               ))}
           </div>
           <button style={btnSub} onClick={() => setAddingCategory(addingCategory === cat ? null : cat)}>
@@ -318,6 +404,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
           saveClosetVariant={saveClosetVariant}
           delClosetVariant={delClosetVariant}
           bumpClosetVariant={bumpClosetVariant}
+          discount={discount}
           T={T}
         />
       )}
@@ -338,15 +425,18 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
 
 /* ---- Thẻ sản phẩm ở ngoài: ảnh (không hiện số lượng nữa) + tên + giá +
    các mã/size (chip). Ở chế độ danh sách thì gọn thành 1 dòng ngang. ---- */
-function ClosetProductCard({ p, listMode, onOpen, T }) {
+function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
   const { THEME, card, chip } = T;
   const variants = p.variants || [];
-  const shown = variants.slice(0, 6);
-  const extra = variants.length - shown.length;
-  const priceLine = priceRangeLine(variants);
+  // Ở ngoài chỉ hiện các size CÒN HÀNG (màu xanh) — size hết hàng không hiện nữa.
+  const inStock = variants.filter((v) => Number(v.remaining) > 0);
+  const shown = inStock.slice(0, 6);
+  const extra = inStock.length - shown.length;
+  const priceLine = priceRangeLine(variants, discount);
   // Mã dùng chung hiện 1 lần duy nhất; mỗi biến thể chỉ còn hiện phần size.
   const code = commonCodePrefix(variants);
   const sizeChip = (v) => (code ? sizePartFor(v.label, code) : v.label);
+  const inStockChipStyle = { ...chip, fontSize: 10.5, padding: "1px 6px", background: "#eafaf0", borderColor: "#c9ecd6", color: "#1f7a3d" };
 
   if (listMode) {
     return (
@@ -361,12 +451,17 @@ function ClosetProductCard({ p, listMode, onOpen, T }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 2, minWidth: 0 }}>
-            <span style={{ fontWeight: 800, color: THEME.brand, fontSize: 14, flexShrink: 0 }}>{priceLine}</span>
+            {priceLine.originalText && <span style={{ fontSize: 11, color: THEME.subtext, textDecoration: "line-through", flexShrink: 0 }}>{priceLine.originalText}</span>}
+            <span style={{ fontWeight: 800, color: THEME.brand, fontSize: 14, flexShrink: 0 }}>{priceLine.text}</span>
             {code && <span style={{ fontSize: 11, color: THEME.subtext, flexShrink: 0 }}>Mã {code}</span>}
             <div style={{ display: "flex", gap: 4, overflow: "hidden", minWidth: 0 }}>
-              {shown.slice(0, 3).map((v) => (
-                <span key={v.id} style={{ ...chip, fontSize: 10.5, padding: "1px 6px", flexShrink: 0 }}>{sizeChip(v)}</span>
-              ))}
+              {shown.length ? (
+                shown.slice(0, 3).map((v) => (
+                  <span key={v.id} style={{ ...inStockChipStyle, flexShrink: 0 }}>{sizeChip(v)}</span>
+                ))
+              ) : (
+                <span style={{ fontSize: 11, color: THEME.subtext, flexShrink: 0 }}>Hết hàng</span>
+              )}
             </div>
           </div>
         </div>
@@ -389,28 +484,25 @@ function ClosetProductCard({ p, listMode, onOpen, T }) {
         <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, whiteSpace: "pre-line", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 34 }}>
           {p.name}
         </div>
-        <div style={{ marginTop: 4, fontWeight: 800, color: THEME.brand, fontSize: 15 }}>{priceLine}</div>
+        <div style={{ marginTop: 4, display: "flex", alignItems: "baseline", gap: 6 }}>
+          {priceLine.originalText && <span style={{ fontSize: 12, color: THEME.subtext, textDecoration: "line-through" }}>{priceLine.originalText}</span>}
+          <span style={{ fontWeight: 800, color: THEME.brand, fontSize: 15 }}>{priceLine.text}</span>
+        </div>
         {code && (
           <div style={{ fontSize: 11, color: THEME.subtext, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             Mã {code}
           </div>
         )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 6 }}>
-          {shown.map((v) => (
-            <span
-              key={v.id}
-              title={`Mã: ${v.label}`}
-              style={{
-                ...chip, fontSize: 10.5, padding: "1px 6px",
-                background: v.remaining > 0 ? "#eafaf0" : THEME.chipBg,
-                borderColor: v.remaining > 0 ? "#c9ecd6" : THEME.chipLine,
-                color: v.remaining > 0 ? "#1f7a3d" : THEME.subtext,
-                textDecoration: v.remaining > 0 ? "none" : "line-through",
-              }}
-            >
-              {sizeChip(v)}
-            </span>
-          ))}
+          {shown.length ? (
+            shown.map((v) => (
+              <span key={v.id} title={`Mã: ${v.label}`} style={inStockChipStyle}>
+                {sizeChip(v)}
+              </span>
+            ))
+          ) : (
+            <span style={{ fontSize: 11.5, color: THEME.subtext, fontWeight: 700 }}>Hết hàng</span>
+          )}
           {extra > 0 && <span style={{ ...chip, fontSize: 10.5, padding: "1px 6px" }}>+{extra}</span>}
         </div>
         <button
@@ -452,19 +544,13 @@ function ClosetAddProductForm({ category, askCategory, onAdd, T }) {
   );
 }
 
-function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetVariant, saveClosetVariant, delClosetVariant, bumpClosetVariant, T }) {
+function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetVariant, saveClosetVariant, delClosetVariant, bumpClosetVariant, discount, T }) {
   const { THEME, card, inp, btnSub, btn, iconBtn, chip } = T;
   const [pendingImg, setPendingImg] = useState(null);
   const [editVariantId, setEditVariantId] = useState(null);
   const [nf, setNf] = useState({ code: "", size: "", color: "", price: "", remaining: "" });
   const [editName, setEditName] = useState(false);
-
-  // Mã gốc (VD: WRS00964001) dùng để tìm ảnh sản phẩm thật trên mạng.
-  const searchCode = commonCodePrefix(p.variants || []);
-  function openImageSearch() {
-    const q = [searchCode, p.name.replace(/\n/g, " ")].filter(Boolean).join(" ");
-    window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`, "_blank", "noopener,noreferrer");
-  }
+  const quote = buildClosetQuote(p, discount);
 
   async function onPickImage(e) {
     const file = e.target.files && e.target.files[0];
@@ -492,21 +578,10 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
             <button onClick={onClose} style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.9)", fontSize: 16, cursor: "pointer" }}>
               ✕
             </button>
-            <div style={{ position: "absolute", bottom: 10, right: 10, display: "flex", gap: 6 }}>
-              {searchCode && (
-                <button
-                  onClick={openImageSearch}
-                  title="Tìm ảnh sản phẩm này trên Google bằng mã gốc"
-                  style={{ background: "rgba(255,255,255,0.92)", color: THEME.brand, fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: "5px 12px", border: "none", cursor: "pointer" }}
-                >
-                  🔍 Tìm ảnh
-                </button>
-              )}
-              <label style={{ background: "rgba(255,255,255,0.92)", color: THEME.brand, fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: "5px 12px", cursor: "pointer" }}>
-                📷 {p.image ? "Đổi ảnh" : "Thêm ảnh"}
-                <input type="file" accept="image/*" onChange={onPickImage} style={{ display: "none" }} />
-              </label>
-            </div>
+            <label style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(255,255,255,0.92)", color: THEME.brand, fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: "5px 12px", cursor: "pointer" }}>
+              📷 {p.image ? "Đổi ảnh" : "Thêm ảnh"}
+              <input type="file" accept="image/*" onChange={onPickImage} style={{ display: "none" }} />
+            </label>
           </div>
         </div>
         <div style={{ padding: 16 }}>
@@ -522,6 +597,13 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
             </div>
           </div>
           <div style={{ marginTop: 4, fontSize: 13, color: THEME.subtext }}>{p.category}</div>
+
+          {quote && (
+            <div style={{ marginTop: 10, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", fontSize: 14, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+              <span style={{ flex: 1 }}>{quote}</span>
+              <button style={{ ...iconBtn, width: 28, height: 28 }} title="Sao chép câu báo giá" onClick={() => navigator.clipboard && navigator.clipboard.writeText(quote)}>📋</button>
+            </div>
+          )}
 
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
             {(p.variants || []).map((v) => {
@@ -561,7 +643,19 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
                       {v.color ? <span style={{ ...chip, marginLeft: 6, fontSize: 11, padding: "1px 7px" }}>{v.color}</span> : null}
                     </div>
                     <div style={{ fontSize: 13, color: THEME.subtext }}>
-                      {fmtClosetPrice(v.price)} ·{" "}
+                      {(() => {
+                        const orig = Number(v.price) || 0;
+                        const disc = applyDiscount(orig, discount);
+                        return disc !== orig ? (
+                          <>
+                            <span style={{ textDecoration: "line-through" }}>{fmtClosetPrice(orig)}</span>{" "}
+                            <span style={{ color: "#1f7a3d", fontWeight: 700 }}>{fmtClosetPrice(disc)}</span>
+                          </>
+                        ) : (
+                          fmtClosetPrice(orig)
+                        );
+                      })()}{" "}
+                      ·{" "}
                       <span style={{ color: v.remaining > 0 ? "#1f7a3d" : THEME.brand, fontWeight: 700 }}>
                         {v.remaining > 0 ? `Còn ${v.remaining}` : "Hết hàng"}
                       </span>

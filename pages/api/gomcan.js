@@ -57,6 +57,9 @@ const DEFAULT_DATA = {
   unigu: [],
   giadung: [],
   closet: [],
+  // Chương trình giảm giá áp dụng chung cho tab "Hàng Closet sẵn" — mặc định
+  // tắt, chủ shop tự bật lên khi có đợt khuyến mãi.
+  closetDiscount: { enabled: false, threshold: 500, percent: 5 },
 };
 
 async function readData() {
