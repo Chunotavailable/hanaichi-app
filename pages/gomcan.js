@@ -1,7 +1,7 @@
 // pages/gomcan.js
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { useTheme, makeStyles, ThemeToggle, Loading } from "../lib/theme";
+import { useTheme, makeStyles, Loading } from "../lib/theme";
+import { PageHeader } from "../lib/nav";
 import { playTick, playDelete, playClick } from "../lib/sound";
 
 /* ================== Helpers ================== */
@@ -204,18 +204,7 @@ export default function GomCan() {
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
-      <header style={{ background: `linear-gradient(135deg, ${THEME.brand}18, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: THEME.text, margin: 0, fontFamily: THEME.headingFont }}>🧮 Giá gồm cân</h1>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
-            <Link href="/pricing" style={{ ...btnSub, textDecoration: "none" }}>💰 Báo giá nhanh</Link>
-            <Link href="/todo" style={{ ...btnSub, textDecoration: "none" }}>✅ Việc cần làm</Link>
-            <Link href="/fbcontent" style={{ ...btnSub, textDecoration: "none" }}>✍️ Viết bài FB</Link>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <PageHeader icon="🧮" title="Giá gồm cân" current="/gomcan" maxWidth={900} />
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 18px" }}>
         <input style={{ ...inp, marginBottom: 8 }} placeholder="🔍 Khách hỏi đôi nào, tìm nhanh ở đây..." value={gcQuery} onChange={(e) => setGcQuery(e.target.value)} />

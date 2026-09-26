@@ -1,7 +1,7 @@
 // pages/customers.js — Khách hàng
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { useTheme, makeStyles, ThemeToggle, Loading } from "../lib/theme";
+import { useTheme, makeStyles, Loading } from "../lib/theme";
+import { PageHeader } from "../lib/nav";
 import { playTick, playDelete } from "../lib/sound";
 
 function uid() {
@@ -69,15 +69,7 @@ export default function CustomersPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
-      <header style={{ background: `linear-gradient(135deg, ${THEME.brand}18, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: THEME.text, margin: 0, fontFamily: THEME.headingFont }}>👥 Khách hàng</h1>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <PageHeader icon="👥" title="Khách hàng" current="/customers" maxWidth={800} />
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 18px" }}>
         <div style={{ ...card, padding: 16, marginBottom: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
