@@ -565,7 +565,7 @@ function GiadungCard({ it, idx, onOpen, onFavorite, T }) {
     >
       <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", background: THEME.chipBg }}>
         {it.image ? (
-          <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} />
+          <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", background: "#fff" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>🛍️</div>
         )}
@@ -613,7 +613,7 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
       <div onClick={(e) => e.stopPropagation()} className="hnCard" style={{ ...card, width: "100%", maxWidth: 420, maxHeight: "88vh", overflowY: "auto", padding: 0 }}>
         <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", background: THEME.chipBg }}>
           {it.image ? (
-            <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} />
+            <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", background: "#fff" }} />
           ) : (
             <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>🛍️</div>
           )}

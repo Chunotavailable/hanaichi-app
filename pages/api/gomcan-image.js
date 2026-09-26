@@ -24,7 +24,9 @@ export default async function handler(req, res) {
         allowOverwrite: true,
         contentType: `image/${match[1]}`,
       });
-      return res.status(200).json({ url: blob.url });
+      // Thêm tham số ?v= để "phá cache" của trình duyệt/CDN — nếu không, khi thay ảnh
+      // mới cho cùng 1 sản phẩm (URL không đổi), trình duyệt vẫn hiển thị ảnh cũ đã lưu cache.
+      return res.status(200).json({ url: `${blob.url}?v=${Date.now()}` });
     } catch (e) {
       return res.status(500).json({ error: e.message || "Không lưu được ảnh" });
     }

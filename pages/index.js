@@ -130,6 +130,83 @@ const QUOTES = [
   "Cứ tin rằng sự chăm chỉ hôm nay sẽ không bao giờ là vô ích.",
 ];
 
+// Hiệu ứng cánh hoa anh đào (sakura) rơi nhẹ nhàng, chỉ để trang trí —
+// không chặn thao tác của người dùng (pointerEvents: "none").
+function SakuraFall({ theme: THEME }) {
+  const [petals, setPetals] = useState([]);
+
+  useEffect(() => {
+    const arr = Array.from({ length: 22 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      size: 9 + Math.random() * 9,
+      duration: 9 + Math.random() * 8,
+      delay: Math.random() * 10,
+      swayDuration: 3 + Math.random() * 3,
+      spinDuration: 3.5 + Math.random() * 4,
+      opacity: 0.5 + Math.random() * 0.4,
+    }));
+    setPetals(arr);
+  }, []);
+
+  return (
+    <div aria-hidden style={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 1 }}>
+      {petals.map((p) => (
+        <div
+          key={p.id}
+          style={{ position: "absolute", top: "-8%", left: `${p.left}%`, animation: `sakuraFall ${p.duration}s linear ${p.delay}s infinite` }}
+        >
+          <div style={{ animation: `sakuraSway ${p.swayDuration}s ease-in-out infinite` }}>
+            <div
+              style={{
+                width: p.size,
+                height: p.size,
+                opacity: p.opacity,
+                background: `linear-gradient(135deg, #ffdfe6, ${THEME.primary})`,
+                borderRadius: "0% 70% 0% 70%",
+                boxShadow: "0 0 4px rgba(178,58,72,0.2)",
+                animation: `sakuraSpin ${p.spinDuration}s linear infinite`,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+      <style jsx>{`
+        @keyframes sakuraFall {
+          from {
+            transform: translateY(0);
+          }
+          to {
+            transform: translateY(115vh);
+          }
+        }
+        @keyframes sakuraSway {
+          0%,
+          100% {
+            transform: translateX(-14px);
+          }
+          50% {
+            transform: translateX(14px);
+          }
+        }
+        @keyframes sakuraSpin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          div {
+            animation: none !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 export default function Home() {
   const { theme: THEME } = useTheme();
   const { btnSub } = makeStyles(THEME);
@@ -152,9 +229,11 @@ export default function Home() {
         justifyContent: "center",
         padding: "48px 28px",
         position: "relative",
+        overflow: "hidden",
       }}
     >
-      <div style={{ fontSize: 40, marginBottom: 18 }}>🌸</div>
+      <SakuraFall theme={THEME} />
+      <div style={{ fontSize: 40, marginBottom: 18, position: "relative", zIndex: 2 }}>🌸</div>
       <p
         key={quote}
         className="hnCard"
@@ -168,11 +247,13 @@ export default function Home() {
           lineHeight: 1.5,
           color: THEME.text,
           margin: 0,
+          position: "relative",
+          zIndex: 2,
         }}
       >
         {quote ? `“${quote}”` : ""}
       </p>
-      <div style={{ marginTop: 22, fontSize: 14, color: THEME.subtext, letterSpacing: 1 }}>HANAICHI</div>
+      <div style={{ marginTop: 22, fontSize: 14, color: THEME.subtext, letterSpacing: 1, position: "relative", zIndex: 2 }}>HANAICHI</div>
 
       <div style={{ position: "fixed", left: 18, bottom: 18, zIndex: 50 }}>
         {menuOpen && (
