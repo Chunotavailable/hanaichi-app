@@ -1,15 +1,54 @@
 // pages/api/ai.js
-// Gọi Claude (Anthropic API) để hỗ trợ viết / viết lại bài đăng Facebook.
+// Hỗ trợ viết / viết lại bài đăng Facebook bằng AI. Ưu tiên dùng GEMINI_API_KEY
+// (Google Gemini — MIỄN PHÍ, lấy tại https://aistudio.google.com/apikey, chỉ cần
+// tài khoản Google, không cần thẻ tín dụng). Nếu không có, thử ANTHROPIC_API_KEY
+// (Claude — trả phí theo lượng dùng, lấy tại https://console.anthropic.com/settings/keys).
 //
-// Cần biến môi trường ANTHROPIC_API_KEY (lấy 1 API key tại
-// https://console.anthropic.com/settings/keys — LƯU Ý: đây là key trả phí theo
-// lượng dùng, khác với tài khoản claude.ai thường dùng để chat).
-// Tuỳ chọn thêm biến ANTHROPIC_MODEL nếu muốn đổi model (mặc định "claude-sonnet-5").
-//
-// Nếu CHƯA cấu hình ANTHROPIC_API_KEY, API trả về { text: null, code: "no_key" }
-// (không phải lỗi) để trang tự động chuyển sang chế độ ghép bài thủ công, không AI —
-// giống hệt cách bản HTML cũ tự chuyển chế độ khi chưa mở trong claude.ai.
-const DEFAULT_MODEL = "claude-sonnet-5";
+// Chỉ cần cấu hình ĐÚNG MỘT trong hai biến môi trường trên là dùng được, không cần cả hai.
+// Nếu CHƯA cấu hình biến nào, API trả về { text: null, code: "no_key" } (không phải lỗi)
+// để trang tự động chuyển sang chế độ ghép bài thủ công, không AI.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+
+async function callGemini(prompt, apiKey) {
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    }
+  );
+  if (!r.ok) {
+    const detail = await r.text().catch(() => "");
+    throw Object.assign(new Error(`Gemini API lỗi (${r.status})`), { detail: detail.slice(0, 400) });
+  }
+  const data = await r.json();
+  const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+  return parts.map((p) => p.text || "").join("").trim();
+}
+
+async function callAnthropic(prompt, apiKey) {
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => "");
+    throw Object.assign(new Error(`Anthropic API lỗi (${r.status})`), { detail: detail.slice(0, 400) });
+  }
+  const data = await r.json();
+  return (data.content || []).map((c) => c.text || "").join("").trim();
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -17,8 +56,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!geminiKey && !anthropicKey) {
     return res.status(200).json({ text: null, code: "no_key" });
   }
 
@@ -34,32 +74,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
-        max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    if (!r.ok) {
-      const detail = await r.text().catch(() => "");
-      return res.status(502).json({ error: `Anthropic API lỗi (${r.status})`, detail: detail.slice(0, 400) });
-    }
-
-    const data = await r.json();
-    const text = (data.content || [])
-      .map((c) => c.text || "")
-      .join("")
-      .trim();
+    const text = geminiKey ? await callGemini(prompt, geminiKey) : await callAnthropic(prompt, anthropicKey);
     return res.status(200).json({ text, code: "ok" });
   } catch (e) {
-    return res.status(500).json({ error: e.message || "Lỗi không xác định khi gọi AI" });
+    return res.status(502).json({ error: e.message || "Lỗi không xác định khi gọi AI", detail: e.detail || "" });
   }
 }
