@@ -86,31 +86,41 @@ async function readData() {
 }
 
 // Tự động điền sẵn danh sách "Gia dụng + TPCN" lấy từ file Google Sheet của
-// chủ shop khi tab này đang trống, và khi có thêm sản phẩm mới trong seed
-// (sau này bổ sung thêm sản phẩm) thì TỰ THÊM những sản phẩm còn thiếu vào
-// danh sách đang lưu — CHỈ THÊM MỚI (theo id "gNN"), KHÔNG BAO GIỜ ĐỘNG VÀO
-// hay ghi đè lên các sản phẩm đã có sẵn trong danh sách đang lưu, dù sản
-// phẩm đó có phải hàng seed hay không, và dù nội dung của nó đã bị người
-// dùng sửa (đổi ảnh, sửa giá, sửa note...) hay chưa.
+// chủ shop khi tab này đang trống. Khi có thêm sản phẩm mới trong seed (sau
+// này bổ sung thêm sản phẩm) hoặc khi thứ tự trong seed được sửa lại đúng
+// theo file gốc, thì TỰ ĐỒNG BỘ lại danh sách đang lưu:
+//   - THÊM những sản phẩm còn thiếu (theo id "gNN" chưa từng có).
+//   - SẮP LẠI THỨ TỰ các sản phẩm gốc từ seed theo đúng thứ tự trong
+//     SEED_GIADUNG (để khớp với file gốc của chủ shop).
+//   - Sản phẩm nào người dùng đã tự thêm tay (id ngẫu nhiên, không phải mẫu
+//     "gNN") luôn được giữ nguyên và xếp sau các sản phẩm seed.
+// Quan trọng: KHÔNG BAO GIỜ ghi đè NỘI DUNG của sản phẩm đã có sẵn trong danh
+// sách đang lưu — chỉ đổi VỊ TRÍ của nó trong mảng. Ảnh, giá, ghi chú người
+// dùng tự sửa (dù có phải sản phẩm seed hay không) luôn được giữ nguyên.
 //
 // Trước đây từng dùng cách "so ID xem có phải toàn bộ vẫn là seed cũ chưa ai
-// đụng vào hay không" rồi GHI ĐÈ TOÀN BỘ nếu đúng — nhưng cách đó có lỗi: chỉ
-// cần người dùng sửa NỘI DUNG (ví dụ thêm ảnh) của 1 sản phẩm seed cũ mà
-// KHÔNG đổi id, thì lần đọc sau vẫn bị nhận nhầm là "chưa ai đụng vào" và bị
-// ghi đè mất ảnh/sửa đổi đó. Cách merge theo id dưới đây không có lỗi này vì
-// không bao giờ đụng tới sản phẩm đã tồn tại trong danh sách, chỉ bổ sung
-// thêm những id sản phẩm mới mà danh sách đang lưu chưa có.
+// đụng vào hay không" rồi GHI ĐÈ TOÀN BỘ nếu đúng — cách đó có lỗi: chỉ cần
+// người dùng sửa NỘI DUNG (ví dụ thêm ảnh) của 1 sản phẩm seed cũ mà KHÔNG
+// đổi id, thì lần đọc sau vẫn bị nhận nhầm là "chưa ai đụng vào" và bị ghi đè
+// mất ảnh/sửa đổi đó. Cách merge + sắp lại thứ tự theo id dưới đây không có
+// lỗi này vì luôn lấy NỘI DUNG hiện tại của sản phẩm (nếu đã có), chỉ đổi vị
+// trí hoặc bổ sung thêm khi thiếu.
 function withGiadungSeed(data) {
   const list = data.giadung || [];
   if (list.length === 0) {
     return { data: { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) }, upgraded: false };
   }
-  const existingIds = new Set(list.map((it) => it.id));
-  const missingSeedItems = SEED_GIADUNG.filter((it) => !existingIds.has(it.id));
-  if (missingSeedItems.length === 0) {
+  const byId = new Map(list.map((it) => [it.id, it]));
+  const seedIds = new Set(SEED_GIADUNG.map((it) => it.id));
+  const orderedFromSeed = SEED_GIADUNG.map((seedIt) => byId.get(seedIt.id) || { ...seedIt });
+  const customExtras = list.filter((it) => !seedIds.has(it.id));
+  const merged = [...orderedFromSeed, ...customExtras];
+
+  const unchanged =
+    merged.length === list.length && merged.every((it, i) => it.id === list[i].id);
+  if (unchanged) {
     return { data, upgraded: false };
   }
-  const merged = [...list, ...missingSeedItems.map((it) => ({ ...it }))];
   return { data: { ...data, giadung: merged }, upgraded: true };
 }
 
