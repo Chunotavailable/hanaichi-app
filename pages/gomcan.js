@@ -303,8 +303,11 @@ function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, 
           }
           return (
             <div key={r.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "4px 0", borderBottom: `1px dashed ${THEME.line}` }}>
-              <span style={{ fontSize: 16 }}>¥{r.jpy}{r.note ? <span style={{ color: THEME.subtext, fontSize: 13 }}> ({r.note})</span> : null} → <b style={{ color: THEME.brand }}>{r.vnd}</b></span>
-              <span style={{ display: "flex", gap: 4 }}>
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <span style={{ fontSize: 16 }}>¥{r.jpy} → <b style={{ color: THEME.brand }}>{r.vnd}</b></span>
+                {r.note ? <span style={{ fontSize: 14, color: THEME.text, marginTop: 2 }}>{r.note}</span> : null}
+              </div>
+              <span style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                 <button style={{ ...iconBtn, width: 24, height: 24, fontSize: 12 }} onClick={() => setEditKey({ area: `rate-${cat}`, id: r.id })}>✏️</button>
                 <button style={{ ...iconBtn, width: 24, height: 24, fontSize: 12 }} onClick={() => delRate(cat, r.id)}>✕</button>
               </span>
@@ -553,7 +556,7 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
             <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
               <button style={iconBtn} title="Yêu thích" onClick={onFavorite}>{it.favorite ? "❤️" : "🤍"}</button>
               <button style={iconBtn} title="Sửa" onClick={onEdit}>✏️</button>
-              <button style={iconBtn} title="Xoá" onClick={onDelete}>✕</button>
+              <button style={iconBtn} title="Xoá" onClick={onDelete}>🗑️</button>
             </div>
           </div>
           <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>

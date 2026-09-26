@@ -155,6 +155,11 @@ export default function PricingPage() {
   function delHist(id) {
     persist({ ...data, priceHist: data.priceHist.filter((h) => h.id !== id) });
   }
+  function delAllHist() {
+    if (data.priceHist.length === 0) return;
+    if (!window.confirm("Xoá toàn bộ lịch sử báo giá? Không thể hoàn tác.")) return;
+    persist({ ...data, priceHist: [] });
+  }
 
   if (!loaded) {
     return <Loading />;
@@ -204,7 +209,14 @@ export default function PricingPage() {
         </div>
 
         <div style={{ ...card, padding: 14 }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Lịch sử báo giá gần đây</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
+            <div style={{ fontWeight: 700 }}>Lịch sử báo giá gần đây</div>
+            {data.priceHist.length > 0 && (
+              <button style={{ ...btnSub, flexShrink: 0 }} onClick={delAllHist}>
+                🗑️ Xoá tất cả
+              </button>
+            )}
+          </div>
           {data.priceHist.length === 0 ? (
             <div style={{ color: THEME.subtext, fontSize: 15 }}>Chưa có lịch sử</div>
           ) : (
