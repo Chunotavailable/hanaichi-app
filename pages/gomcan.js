@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
+import { playTick, playDelete, playClick } from "../lib/sound";
 
 /* ================== Helpers ================== */
 function uid() {
@@ -133,6 +134,7 @@ export default function GomCan() {
     if (!jpy || !vnd) return;
     const next = { ...data, oniRates: { ...data.oniRates, [cat]: [...data.oniRates[cat], { id: uid(), jpy, vnd, note: note || "" }] } };
     persist(next);
+    playTick();
   }
   function saveRate(cat, id, patch) {
     const next = { ...data, oniRates: { ...data.oniRates, [cat]: data.oniRates[cat].map((r) => (r.id === id ? { ...r, ...patch } : r)) } };
@@ -141,12 +143,14 @@ export default function GomCan() {
   function delRate(cat, id) {
     const next = { ...data, oniRates: { ...data.oniRates, [cat]: data.oniRates[cat].filter((r) => r.id !== id) } };
     persist(next);
+    playDelete();
   }
 
   /* ---------- Sản phẩm đã note (Oni / Uni+GU) ---------- */
   function addOniItem(areaKey, item) {
     const next = { ...data, [areaKey]: [{ id: uid(), favorite: false, ...item }, ...data[areaKey]] };
     persist(next);
+    playTick();
   }
   function saveOniItem(areaKey, id, patch) {
     const next = { ...data, [areaKey]: data[areaKey].map((it) => (it.id === id ? { ...it, ...patch } : it)) };
@@ -155,16 +159,19 @@ export default function GomCan() {
   function delOniItem(areaKey, id) {
     const next = { ...data, [areaKey]: data[areaKey].filter((it) => it.id !== id) };
     persist(next);
+    playDelete();
   }
   function toggleOniFavorite(areaKey, id) {
     const it = data[areaKey].find((x) => x.id === id);
     saveOniItem(areaKey, id, { favorite: !it.favorite });
+    playClick();
   }
 
   /* ---------- Gia dụng ---------- */
   function addGiadungItem(item) {
     const next = { ...data, giadung: [{ id: uid(), favorite: false, ...item }, ...data.giadung] };
     persist(next);
+    playTick();
   }
   function saveGiadungItem(id, patch) {
     const next = { ...data, giadung: data.giadung.map((it) => (it.id === id ? { ...it, ...patch } : it)) };
@@ -174,10 +181,12 @@ export default function GomCan() {
     deleteGomcanImage(id);
     const next = { ...data, giadung: data.giadung.filter((it) => it.id !== id) };
     persist(next);
+    playDelete();
   }
   function toggleGiadungFavorite(id) {
     const it = data.giadung.find((x) => x.id === id);
     saveGiadungItem(id, { favorite: !it.favorite });
+    playClick();
   }
 
   /* ---------- Tìm kiếm theo tên (đầu trang) ---------- */
@@ -225,7 +234,7 @@ export default function GomCan() {
                 else if (isReady) priceLine = <b style={{ color: THEME.brand }}>{p.vnd || "-"}</b>;
                 else priceLine = p.jpy ? <b style={{ color: THEME.brand }}>{p.jpy}</b> : <span style={{ color: THEME.subtext }}>Tính giá như bình thường</span>;
                 return (
-                  <div key={p.id} style={{ ...card, padding: 12, marginBottom: 8, display: "flex", gap: 12 }}>
+                  <div key={p.id} className="hnCard" style={{ ...card, padding: 12, marginBottom: 8, display: "flex", gap: 12 }}>
                     <div style={thumb}>{p.image ? <img src={p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} /> : "📦"}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700 }}>{p.name} <span style={chip}>{p.sourceLabel}</span>{p.code ? <span style={{ ...chip, marginLeft: 4 }}>Mã: {p.code}</span> : null}</div>
@@ -242,7 +251,7 @@ export default function GomCan() {
 
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
           {[["oni", "Giày Onitsuka gồm cân"], ["giadung", "Gia dụng + TPCN"], ["unigu", "Uni + GU"]].map(([k, label]) => (
-            <div key={k} onClick={() => setSubTab(k)} style={{ ...btnSub, cursor: "pointer", background: subTab === k ? THEME.primary : THEME.chipBg }}>
+            <div key={k} onClick={() => { playClick(); setSubTab(k); }} style={{ ...btnSub, cursor: "pointer", background: subTab === k ? THEME.primary : THEME.chipBg }}>
               {label}
             </div>
           ))}
@@ -355,7 +364,7 @@ function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, 
           }
           const linkOk = it.link && /^https?:\/\//i.test(it.link);
           return (
-            <div key={it.id} style={{ ...card, padding: 10, marginBottom: 8 }}>
+            <div key={it.id} className="hnCard" style={{ ...card, padding: 10, marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700 }}>
@@ -500,7 +509,7 @@ function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavo
   else priceLine = <span style={{ color: THEME.subtext }}>Tính giá như bình thường</span>;
 
   return (
-    <div style={{ ...card, marginBottom: 10, overflow: "hidden" }}>
+    <div className="hnCard" style={{ ...card, marginBottom: 10, overflow: "hidden" }}>
       <div style={{ display: "flex", gap: 12, padding: "12px 12px 6px 12px" }}>
         <div style={thumb}>{it.image ? <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} /> : "🛍️"}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -522,7 +531,7 @@ function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavo
       {quote && (
         <div style={{ margin: "0 12px 10px 12px", background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "6px 10px", fontSize: 13.5, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
           <span style={{ flex: 1 }}>{quote}</span>
-          <button style={{ ...iconBtn, width: 26, height: 26, fontSize: 13 }} onClick={() => navigator.clipboard && navigator.clipboard.writeText(quote)}>📋</button>
+          <button style={{ ...iconBtn, width: 26, height: 26, fontSize: 13 }} onClick={() => { playClick(); navigator.clipboard && navigator.clipboard.writeText(quote); }}>📋</button>
         </div>
       )}
       <div style={{ padding: "6px 12px 10px 12px", borderTop: `1px dashed ${THEME.line}` }}>

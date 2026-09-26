@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
+import { playTick, playSuccess, playDelete, playClick } from "../lib/sound";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -101,6 +102,7 @@ export default function RewritePage() {
 
   function selTpl(id) {
     persistContent({ ...content, tplSel: id });
+    playClick();
   }
   function startEditTpl(id) {
     const t = content.templates.find((x) => x.id === id);
@@ -119,6 +121,7 @@ export default function RewritePage() {
     if (tplSel === id) tplSel = (templates[0] || {}).id || "";
     persistContent({ ...content, templates, tplSel });
     if (tplEdit === id) cancelTplEdit();
+    playDelete();
   }
   function saveTpl() {
     const name = tName.trim();
@@ -138,6 +141,7 @@ export default function RewritePage() {
     }
     persistContent({ ...content, templates, tplSel });
     cancelTplEdit();
+    playTick();
   }
 
   function appendNoteChip(t) {
@@ -173,6 +177,7 @@ export default function RewritePage() {
       } else if (d && d.text) {
         setOutput(removeNha(d.text));
         setMsg("✓ Xong rồi ạ, bác chỉnh thêm trong khung bên dưới nếu muốn.");
+        playSuccess();
       } else {
         setOutput(localFill(selectedTpl, rawV));
         setMsg("Có chút trục trặc khi viết lại (" + (d && d.error ? d.error : "lỗi") + "), bác thử bấm lại giúp em ạ.");
@@ -220,15 +225,18 @@ export default function RewritePage() {
     if (added) {
       persistContent({ ...content, icons });
       setNewIcon("");
+      playTick();
     }
   }
   function delIcon(i) {
     const icons = content.icons.slice();
     icons.splice(i, 1);
     persistContent({ ...content, icons });
+    playClick();
   }
   function copyOutput() {
     if (!output) return;
+    playClick();
     navigator.clipboard.writeText(output).catch(() => {});
   }
 
@@ -269,6 +277,7 @@ export default function RewritePage() {
             {content.templates.map((t) => (
               <div
                 key={t.id}
+                className="hnCard"
                 style={{
                   border: `1px solid ${t.id === content.tplSel ? THEME.brand : THEME.line}`,
                   borderRadius: 12,

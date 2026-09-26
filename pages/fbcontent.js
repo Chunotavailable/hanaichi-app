@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
+import { playTick, playSuccess, playClick } from "../lib/sound";
 
 function removeNha(s) {
   return (s || "")
@@ -84,6 +85,7 @@ export default function FbContentPage() {
   async function genPost() {
     if (fbMode === "group") {
       setOutput(genGroupPost(name, price, sizes));
+      playTick();
       return;
     }
     setBusy(true);
@@ -103,6 +105,7 @@ export default function FbContentPage() {
     }
     setOutput(genPersonalPost(name, price, sizes, note));
     setBusy(false);
+    playSuccess();
   }
 
   function insertIcon(ic) {
@@ -142,6 +145,7 @@ export default function FbContentPage() {
     if (added) {
       persistContent({ ...content, icons });
       setNewIcon("");
+      playTick();
     }
   }
 
@@ -149,10 +153,12 @@ export default function FbContentPage() {
     const icons = content.icons.slice();
     icons.splice(i, 1);
     persistContent({ ...content, icons });
+    playClick();
   }
 
   function copyOutput() {
     if (!output) return;
+    playClick();
     navigator.clipboard.writeText(output).catch(() => {});
   }
 

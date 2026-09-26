@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
+import { playTick, playSuccess, playDelete, playClick } from "../lib/sound";
 
 /* ================== Theme (đồng bộ với trang chính) ================== */
 
@@ -55,6 +56,7 @@ export default function TodoPage() {
     if (!v) return;
     persist({ ...data, todos: [{ id: uid(), text: v, done: false, daily: false }, ...data.todos] });
     setText("");
+    playTick();
   }
 
   function addDailyTask() {
@@ -67,6 +69,7 @@ export default function TodoPage() {
       todos: [{ id: uid(), text: v, done: false, daily: true, templateId: dt.id }, ...data.todos],
     });
     setDailyText("");
+    playTick();
   }
 
   function delDailyTask(id) {
@@ -75,18 +78,24 @@ export default function TodoPage() {
       dailyTasks: data.dailyTasks.filter((d) => d.id !== id),
       todos: data.todos.filter((t) => t.templateId !== id),
     });
+    playDelete();
   }
 
   function toggleTodo(id) {
+    const t = data.todos.find((x) => x.id === id);
     persist({ ...data, todos: data.todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) });
+    if (t && !t.done) playSuccess();
+    else playClick();
   }
 
   function delTodo(id) {
     persist({ ...data, todos: data.todos.filter((t) => t.id !== id) });
+    playDelete();
   }
 
   function clearDone() {
     persist({ ...data, todos: data.todos.filter((t) => !t.done) });
+    playSuccess();
   }
 
   function moveTodo(id, dir) {
@@ -169,7 +178,7 @@ export default function TodoPage() {
                 <div style={{ color: THEME.subtext, fontSize: 14 }}>Chưa có việc cố định nào.</div>
               )}
               {data.dailyTasks.map((dt) => (
-                <div key={dt.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div key={dt.id} className="hnCard" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ flex: 1, fontSize: 16, color: THEME.text }}>🔁 {dt.text}</span>
                   <button style={iconBtn} onClick={() => delDailyTask(dt.id)} aria-label="Xoá việc cố định">
                     ✕
@@ -225,6 +234,7 @@ export default function TodoPage() {
                 onDragStart={() => onDragStart(t.id)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => onDrop(t.id)}
+                className="hnCard hnDone"
                 style={{
                   ...card,
                   padding: "10px 12px",
@@ -233,6 +243,7 @@ export default function TodoPage() {
                   gap: 10,
                   background: t.done ? THEME.chipBg : THEME.surface,
                   cursor: "grab",
+                  opacity: t.done ? 0.75 : 1,
                 }}
               >
                 <input type="checkbox" checked={!!t.done} onChange={() => toggleTodo(t.id)} style={{ width: 18, height: 18, cursor: "pointer", flexShrink: 0 }} />

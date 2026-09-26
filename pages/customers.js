@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
+import { playTick, playDelete } from "../lib/sound";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -51,10 +52,12 @@ export default function CustomersPage() {
     if (!name) return;
     persist({ customers: [{ id: uid(), name, contact: form.contact, order: form.order, note: form.note }, ...data.customers] });
     setForm({ name: "", contact: "", order: "", note: "" });
+    playTick();
   }
 
   function delCustomer(id) {
     persist({ customers: data.customers.filter((c) => c.id !== id) });
+    playDelete();
   }
 
   const qLower = q.toLowerCase();
@@ -98,7 +101,7 @@ export default function CustomersPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {list.map((cu) => (
-              <div key={cu.id} style={{ ...card, padding: 14, display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <div key={cu.id} className="hnCard" style={{ ...card, padding: 14, display: "flex", justifyContent: "space-between", gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 16, color: THEME.text }}>{cu.name}</div>
                   {cu.contact && <div style={{ fontSize: 14, color: THEME.subtext, marginTop: 2 }}>📞 {cu.contact}</div>}

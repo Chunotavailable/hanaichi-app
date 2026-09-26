@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
+import { playTick, playDelete, playSuccess, playClick } from "../lib/sound";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -66,13 +67,16 @@ export default function NewsPage() {
       ],
     });
     setForm({ title: "", note: "", source: "", url: "", date: "" });
+    playTick();
   }
 
   function delNews(id) {
     persist({ newsItems: data.newsItems.filter((n) => n.id !== id) });
+    playDelete();
   }
 
   function copyUpdatePrompt() {
+    playClick();
     navigator.clipboard
       .writeText(UPDATE_PROMPT)
       .then(() => alert("✓ Đã copy — dán câu này vào khung chat với Claude để nhờ cập nhật tin mới, rồi thêm tin vào form bên dưới nhé."))
@@ -92,6 +96,7 @@ export default function NewsPage() {
         setIdeas((s) => ({ ...s, [n.id]: { busy: false, text: "", noKey: true } }));
       } else if (d && d.text) {
         setIdeas((s) => ({ ...s, [n.id]: { busy: false, text: d.text } }));
+        playSuccess();
       } else {
         setIdeas((s) => ({ ...s, [n.id]: { busy: false, text: "", error: (d && d.error) || "lỗi" } }));
       }
@@ -155,7 +160,7 @@ export default function NewsPage() {
             {data.newsItems.map((n) => {
               const idea = ideas[n.id] || {};
               return (
-                <div key={n.id} style={{ ...card, padding: 16 }}>
+                <div key={n.id} className="hnCard" style={{ ...card, padding: 16 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                     <div style={{ fontWeight: 700, fontSize: 16, color: THEME.text, flex: 1, minWidth: 0 }}>{n.title}</div>
                     <button style={btnSub} onClick={() => delNews(n.id)}>

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
+import { playTick, playDelete, playSuccess, playClick } from "../lib/sound";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -146,6 +147,7 @@ export default function WarehousePage() {
     setForm({ name: "", code: "", price: "", note: "" });
     setPendingImg(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    playTick();
   }
 
   function saveProduct(id, patch) {
@@ -154,6 +156,7 @@ export default function WarehousePage() {
   function delProduct(id) {
     deleteImage(id);
     persistProducts(products.filter((p) => p.id !== id));
+    playDelete();
   }
 
   /* ---------- Gộp tìm kiếm: kho tự thêm + toàn bộ Giá gồm cân ---------- */
@@ -220,6 +223,7 @@ export default function WarehousePage() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      playSuccess();
     } catch (e) {
       alert("Không xuất được dữ liệu, thử lại giúp em ạ.");
     }
@@ -241,6 +245,7 @@ export default function WarehousePage() {
         })
       );
       await Promise.all(uploads);
+      playSuccess();
       alert("✓ Đã nhập dữ liệu, tải lại trang để thấy đầy đủ nhé.");
       window.location.reload();
     } catch (e) {
@@ -343,7 +348,7 @@ export default function WarehousePage() {
                 );
               }
               return (
-                <div key={p.id} style={{ ...card, padding: 14, display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <div key={p.id} className="hnCard" style={{ ...card, padding: 14, display: "flex", gap: 14, alignItems: "flex-start" }}>
                   <div style={thumb}>{p.image ? <img src={p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} /> : "📦"}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 16, color: THEME.text }}>

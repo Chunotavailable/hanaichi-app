@@ -1,6 +1,7 @@
 // pages/index.js — Trang chủ / Menu chính
 import Link from "next/link";
 import { useTheme, ThemeToggle } from "../lib/theme";
+import { playClick } from "../lib/sound";
 
 const MENU = [
   { href: "/gomcan", icon: "🧮", title: "Giá gồm cân", desc: "Bảng giá Oni, Uni + GU, Gia dụng + TPCN" },
@@ -38,12 +39,14 @@ export default function Home() {
       </div>
 
       <div className="menuGrid" style={{ width: "100%", maxWidth: 620 }}>
-        {MENU.map((m) => (
+        {MENU.map((m, i) => (
           <Link
             key={m.href}
             href={m.href}
-            className="menuCard"
+            className="menuCard hnCard"
+            onClick={playClick}
             style={{
+              animationDelay: `${i * 0.05}s`,
               textDecoration: "none",
               background: THEME.surface,
               border: `1px solid ${THEME.line}`,
