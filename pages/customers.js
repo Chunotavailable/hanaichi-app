@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { playTick, playDelete } from "../lib/sound";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -52,12 +51,10 @@ export default function CustomersPage() {
     if (!name) return;
     persist({ customers: [{ id: uid(), name, contact: form.contact, order: form.order, note: form.note }, ...data.customers] });
     setForm({ name: "", contact: "", order: "", note: "" });
-    playTick();
   }
 
   function delCustomer(id) {
     persist({ customers: data.customers.filter((c) => c.id !== id) });
-    playDelete();
   }
 
   const qLower = q.toLowerCase();

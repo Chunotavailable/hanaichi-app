@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { playTick, playSuccess, playDelete, playClick } from "../lib/sound";
 
 /* ================== Theme (đồng bộ với trang chính) ================== */
 
@@ -56,7 +55,6 @@ export default function TodoPage() {
     if (!v) return;
     persist({ ...data, todos: [{ id: uid(), text: v, done: false, daily: false }, ...data.todos] });
     setText("");
-    playTick();
   }
 
   function addDailyTask() {
@@ -69,7 +67,6 @@ export default function TodoPage() {
       todos: [{ id: uid(), text: v, done: false, daily: true, templateId: dt.id }, ...data.todos],
     });
     setDailyText("");
-    playTick();
   }
 
   function delDailyTask(id) {
@@ -78,24 +75,18 @@ export default function TodoPage() {
       dailyTasks: data.dailyTasks.filter((d) => d.id !== id),
       todos: data.todos.filter((t) => t.templateId !== id),
     });
-    playDelete();
   }
 
   function toggleTodo(id) {
-    const t = data.todos.find((x) => x.id === id);
     persist({ ...data, todos: data.todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) });
-    if (t && !t.done) playSuccess();
-    else playClick();
   }
 
   function delTodo(id) {
     persist({ ...data, todos: data.todos.filter((t) => t.id !== id) });
-    playDelete();
   }
 
   function clearDone() {
     persist({ ...data, todos: data.todos.filter((t) => !t.done) });
-    playSuccess();
   }
 
   function moveTodo(id, dir) {

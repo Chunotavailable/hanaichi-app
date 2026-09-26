@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { playTick, playSuccess, playDelete, playClick } from "../lib/sound";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -113,7 +112,6 @@ export default function PricingPage() {
     setOrderResult({ total, msg });
     const h = { id: uid(), type: "Order", output: total, note: "", date: Date.now(), jpy: jpyN, rate: rateN, disc: discN, msg };
     persist({ ...data, priceHist: [h, ...data.priceHist], lastRate: rateN });
-    playSuccess();
   }
 
   function calcReady() {
@@ -127,12 +125,10 @@ export default function PricingPage() {
     setReadyResult({ total, msg });
     const h = { id: uid(), type: "Hàng sẵn", output: total, note: "", date: Date.now(), base, msg };
     persist({ ...data, priceHist: [h, ...data.priceHist] });
-    playSuccess();
   }
 
   function copyMsg(msg) {
     if (!msg) return;
-    playClick();
     navigator.clipboard.writeText(msg).catch(() => {});
   }
 
@@ -155,11 +151,9 @@ export default function PricingPage() {
       priceHist: data.priceHist.map((h) => (h.id === id ? { ...h, output: v, note: ehNote.trim() } : h)),
     });
     setEditId(null);
-    playTick();
   }
   function delHist(id) {
     persist({ ...data, priceHist: data.priceHist.filter((h) => h.id !== id) });
-    playDelete();
   }
 
   if (!loaded) {

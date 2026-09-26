@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme, makeStyles } from "../lib/theme";
 import { NAV_ITEMS } from "../lib/nav";
-import { playClick } from "../lib/sound";
 
 const QUOTES = [
   "Không có con đường nào dẫn đến thành công mà không đi qua sự kiên trì.",
@@ -90,7 +89,7 @@ export default function Home() {
             }}
           >
             {NAV_ITEMS.filter((n) => n.href !== "/").map((n) => (
-              <Link key={n.href} href={n.href} style={{ ...btnSub, textDecoration: "none", textAlign: "left" }} onClick={playClick}>
+              <Link key={n.href} href={n.href} style={{ ...btnSub, textDecoration: "none", textAlign: "left" }}>
                 {n.icon} {n.label}
               </Link>
             ))}
@@ -98,7 +97,6 @@ export default function Home() {
         )}
         <button
           onClick={() => {
-            playClick();
             setMenuOpen((v) => !v);
           }}
           title="Chức năng"
