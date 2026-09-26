@@ -6,6 +6,12 @@ export default function Document() {
     <Html lang="vi">
       <Head>
         {/* ===== Favicon & Meta ===== */}
+        {/* Thiếu thẻ viewport này là nguyên nhân gốc gây lệch giao diện trên
+            điện thoại (đặc biệt iPhone): không có nó, trình duyệt di động tự
+            coi trang là trang desktop rộng rồi thu nhỏ lại để vừa màn hình,
+            khiến các phần tử "position: fixed" (nút nhạc, nút thêm nhanh, nút
+            lên đầu trang...) và nhiều chỗ khác bị tính sai vị trí, hiện lệch. */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
         {/* <link rel="icon" href="/favicon.ico" sizes="any" /> */}
         <link rel="icon" type="image/png" href="/favicon.png" />
         <meta name="theme-color" content="#F9CFE1" />

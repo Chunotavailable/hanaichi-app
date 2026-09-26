@@ -203,7 +203,7 @@ export default function GomCan() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700 }}>{p.name} <span style={chip}>{p.sourceLabel}</span>{p.code ? <span style={{ ...chip, marginLeft: 4 }}>Mã: {p.code}</span> : null}</div>
                       <div style={{ marginTop: 4, fontSize: 16 }}>{priceLine}</div>
-                      {p.productNote && <div style={{ marginTop: 4, fontSize: 14, color: THEME.subtext, whiteSpace: "pre-line" }}>{p.productNote}</div>}
+                      {p.productNote && <div style={{ marginTop: 4, fontSize: 14, color: THEME.subtext, whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{p.productNote}</div>}
                       {p.link && (
                         <a href={p.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ fontSize: 13, color: THEME.brand }}>
                           Link gốc ↗
@@ -657,7 +657,7 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
           {it.productNote && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: THEME.subtext, marginBottom: 4 }}>🧾 Tính năng sản phẩm</div>
-              <div style={{ fontSize: 15, color: THEME.text, whiteSpace: "pre-line" }}>{it.productNote}</div>
+              <div style={{ fontSize: 15, color: THEME.text, whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{it.productNote}</div>
             </div>
           )}
         </div>

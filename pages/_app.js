@@ -34,6 +34,8 @@ export default function App({ Component, pageProps }) {
         body {
           margin: 0;
           padding: 0;
+          max-width: 100%;
+          overflow-x: hidden;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         body {

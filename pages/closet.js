@@ -496,7 +496,7 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
             {editName ? (
               <input style={{ ...inp, flex: 1 }} defaultValue={p.name} onBlur={(e) => { saveClosetProduct(p.id, { name: e.target.value }); setEditName(false); }} autoFocus />
             ) : (
-              <h3 style={{ margin: 0, fontSize: 16, lineHeight: 1.35, whiteSpace: "pre-line" }}>{p.name}</h3>
+              <h3 style={{ margin: 0, fontSize: 16, lineHeight: 1.35, whiteSpace: "pre-line", flex: 1, minWidth: 0, overflowWrap: "break-word" }}>{p.name}</h3>
             )}
             <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
               <button style={iconBtn} title="Sửa tên" onClick={() => setEditName(true)}>✏️</button>
