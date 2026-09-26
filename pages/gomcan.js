@@ -635,7 +635,7 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
         </div>
         <div style={{ padding: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 17, lineHeight: 1.35 }}>{it.name}</h3>
+            <h3 style={{ margin: 0, fontSize: 17, lineHeight: 1.35, flex: 1, minWidth: 0, overflowWrap: "break-word" }}>{it.name}</h3>
             <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
               <button style={iconBtn} title="Yêu thích" onClick={onFavorite}>{it.favorite ? "❤️" : "🤍"}</button>
               <button style={iconBtn} title="Sửa" onClick={onEdit}>✏️</button>
