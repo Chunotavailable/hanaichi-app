@@ -10,19 +10,51 @@ export const config = {
 export default async function handler(req, res) {
   if (req.method === "POST") {
     try {
-      const { id, dataUrl } = req.body || {};
-      if (!id || !dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
-        return res.status(400).json({ error: "Thiếu id hoặc ảnh không hợp lệ" });
+      const { id, dataUrl, imageUrl } = req.body || {};
+      if (!id) return res.status(400).json({ error: "Thiếu id" });
+
+      let ext, contentType, buffer;
+
+      if (imageUrl && typeof imageUrl === "string") {
+        // Dán link ảnh từ ngoài (Google Images, web bán hàng...) — tải giúp
+        // ở server (trình duyệt người dùng có thể bị chặn CORS khi tải trực
+        // tiếp từ site khác) rồi lưu lại như ảnh upload bình thường.
+        let url;
+        try {
+          url = new URL(imageUrl);
+        } catch {
+          return res.status(400).json({ error: "Link ảnh không hợp lệ" });
+        }
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+          return res.status(400).json({ error: "Link ảnh không hợp lệ" });
+        }
+        const r = await fetch(url.toString(), {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; HanaichiBot/1.0)" },
+        });
+        if (!r.ok) return res.status(400).json({ error: "Không tải được ảnh từ link này" });
+        const ct = r.headers.get("content-type") || "";
+        const m = ct.match(/^image\/(\w+)/);
+        if (!m) return res.status(400).json({ error: "Link này không phải ảnh" });
+        contentType = `image/${m[1]}`;
+        ext = m[1] === "jpeg" ? "jpg" : m[1];
+        const arrBuf = await r.arrayBuffer();
+        buffer = Buffer.from(arrBuf);
+        if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: "Ảnh quá lớn (trên 8MB)" });
+      } else if (dataUrl && typeof dataUrl === "string" && dataUrl.startsWith("data:image/")) {
+        const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+        if (!match) return res.status(400).json({ error: "Định dạng ảnh không đúng" });
+        ext = match[1] === "jpeg" ? "jpg" : match[1];
+        contentType = `image/${match[1]}`;
+        buffer = Buffer.from(match[2], "base64");
+      } else {
+        return res.status(400).json({ error: "Thiếu ảnh hoặc link ảnh" });
       }
-      const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
-      if (!match) return res.status(400).json({ error: "Định dạng ảnh không đúng" });
-      const ext = match[1] === "jpeg" ? "jpg" : match[1];
-      const buffer = Buffer.from(match[2], "base64");
+
       const blob = await put(`gomcan/images/${id}.${ext}`, buffer, {
         access: "public",
         addRandomSuffix: false,
         allowOverwrite: true,
-        contentType: `image/${match[1]}`,
+        contentType,
       });
       // Thêm tham số ?v= để "phá cache" của trình duyệt/CDN — nếu không, khi thay ảnh
       // mới cho cùng 1 sản phẩm (URL không đổi), trình duyệt vẫn hiển thị ảnh cũ đã lưu cache.

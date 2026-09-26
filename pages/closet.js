@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, ViewModeToggle, gridColumnsFor } from "../lib/gomcanHelpers";
+import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, ViewModeToggle, gridColumnsFor } from "../lib/gomcanHelpers";
 
 // Lấy phần trong ngoặc của mã biến thể để hiện gọn khi cần (VD "WRS...-235
 // (EU 38)" -> "EU 38").
@@ -34,6 +34,16 @@ function commonCodePrefix(variants) {
   const m = prefix.match(/^(.*)[-/\s]/);
   const cleaned = m ? m[1] : "";
   return cleaned.length >= 3 ? cleaned : "";
+}
+// Đoán ra mã sản phẩm để ghép vào từ khóa tìm ảnh: ưu tiên mã dùng chung
+// giữa các biến thể, không có thì lấy phần trước dấu "(" của biến thể đầu.
+function productCodeGuess(p) {
+  const variants = p.variants || [];
+  const shared = commonCodePrefix(variants);
+  if (shared) return shared;
+  const first = (variants[0] && variants[0].label) || "";
+  const m = first.match(/^(.*?)\s*\(/);
+  return (m ? m[1] : first).trim();
 }
 // Phần "size" riêng của 1 biến thể sau khi đã bỏ mã dùng chung — ưu tiên lấy
 // phần chữ trong ngoặc (dễ đọc hơn, VD "EU 38") nếu có.
@@ -689,9 +699,12 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
   const [editVariantId, setEditVariantId] = useState(null);
   const [nf, setNf] = useState({ code: "", size: "", color: "", price: "", remaining: "" });
   const [editName, setEditName] = useState(false);
+  const [imgLinkInput, setImgLinkInput] = useState("");
+  const [importingImg, setImportingImg] = useState(false);
   const xaKho = isXaKho(p);
   const effectiveDiscount = xaKho ? null : discount;
   const quote = buildClosetQuote(p, effectiveDiscount);
+  const searchQuery = `${p.name || ""} ${productCodeGuess(p)}`.trim();
 
   async function onPickImage(e) {
     const file = e.target.files && e.target.files[0];
@@ -703,6 +716,26 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
       saveClosetProduct(p.id, { image: url });
     } catch {
       alert("Không đọc được ảnh này (thường do ảnh chụp thẳng trên iPhone ở định dạng HEIC). Bạn thử lưu ảnh dạng JPG/PNG rồi chọn lại, hoặc chụp màn hình ảnh đó rồi dùng ảnh chụp màn hình nhé.");
+    }
+  }
+
+  function openImageSearch() {
+    const url = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(searchQuery)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function onImportImageLink() {
+    const link = imgLinkInput.trim();
+    if (!link) return;
+    setImportingImg(true);
+    try {
+      const url = await importGomcanImageFromUrl(p.id, link);
+      saveClosetProduct(p.id, { image: url });
+      setImgLinkInput("");
+    } catch {
+      alert("Không lấy được ảnh từ link này. Bạn thử bấm chuột phải vào ảnh trên Google → \"Sao chép địa chỉ liên kết hình ảnh\" rồi dán lại nhé (link phải là link ảnh trực tiếp, không phải link trang web).");
+    } finally {
+      setImportingImg(false);
     }
   }
 
@@ -753,6 +786,25 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
             />
             🏷️ Xả kho (tự tích/bỏ tích, không cần đổi tên sản phẩm)
           </label>
+
+          <div style={{ marginTop: 10, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: THEME.subtext }}>Tìm ảnh theo tên + mã sản phẩm</span>
+              <button style={{ ...btnSub, flexShrink: 0 }} onClick={openImageSearch}>🔍 Tìm ảnh</button>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                style={{ ...inp, flex: 1 }}
+                placeholder="Dán link ảnh vừa tìm được rồi bấm Nhập"
+                value={imgLinkInput}
+                onChange={(e) => setImgLinkInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") onImportImageLink(); }}
+              />
+              <button style={btnSub} disabled={importingImg || !imgLinkInput.trim()} onClick={onImportImageLink}>
+                {importingImg ? "Đang lấy…" : "Nhập ảnh"}
+              </button>
+            </div>
+          </div>
 
           {quote && (
             <div style={{ marginTop: 10, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", fontSize: 14, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
