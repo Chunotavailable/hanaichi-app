@@ -4,17 +4,17 @@ import Link from "next/link";
 
 /* ================== Theme (đồng bộ với trang chính) ================== */
 const THEME = {
-  bg: "#f5f7fb",
-  surface: "#ffffff",
-  text: "#0f172a",
-  subtext: "#5b6475",
-  line: "#e8ebf3",
-  primary: "#F9CFE1",
-  primary600: "#ebabc2ff",
-  brand: "#ee6fa0",
-  chipBg: "#f1f4fb",
-  chipLine: "#dde3f1",
-  glow: "0 8px 28px rgba(17, 34, 68, 0.08)",
+  bg: "#0f1117",
+  surface: "#1b1e29",
+  text: "#f1f2f7",
+  subtext: "#9aa1b8",
+  line: "#2b2f40",
+  primary: "#ff9dc0",
+  primary600: "#ff7fae",
+  brand: "#ff85ae",
+  chipBg: "#242837",
+  chipLine: "#363b52",
+  glow: "0 10px 30px rgba(0, 0, 0, 0.5)",
 };
 
 /* ================== Helpers ================== */
@@ -98,12 +98,12 @@ async function deleteGomcanImage(id) {
 
 /* ================== Styles dùng chung ================== */
 const card = { background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 16, boxShadow: THEME.glow };
-const btn = { background: THEME.primary, color: "#7a2a4a", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 };
-const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 13 };
-const iconBtn = { width: 30, height: 30, borderRadius: 999, background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, cursor: "pointer", fontSize: 13, display: "grid", placeItems: "center" };
-const inp = { width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 14, outline: "none" };
-const chip = { display: "inline-block", background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, color: THEME.brand, borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 600 };
-const thumb = { width: 100, height: 100, minWidth: 100, borderRadius: 14, background: THEME.chipBg, border: `1px solid ${THEME.line}`, display: "grid", placeItems: "center", overflow: "hidden", fontSize: 28 };
+const btn = { background: THEME.primary, color: "#3a0f22", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
+const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 14 };
+const iconBtn = { width: 30, height: 30, borderRadius: 999, background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, cursor: "pointer", fontSize: 14, display: "grid", placeItems: "center" };
+const inp = { width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 16, outline: "none" };
+const chip = { display: "inline-block", background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, color: THEME.brand, borderRadius: 999, padding: "2px 10px", fontSize: 13, fontWeight: 600 };
+const thumb = { width: 150, height: 150, minWidth: 150, borderRadius: 16, background: THEME.chipBg, border: `1px solid ${THEME.line}`, display: "grid", placeItems: "center", overflow: "hidden", fontSize: 40 };
 
 const RATE_CAT = { oniAdult: "adult", oniKid: "kid", unigu: "unigu" };
 
@@ -219,11 +219,11 @@ export default function GomCan() {
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
-      <header style={{ background: `linear-gradient(135deg, ${THEME.primary}, #fff)`, borderBottom: `1px solid ${THEME.line}` }}>
+      <header style={{ background: `linear-gradient(135deg, #241a22, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: THEME.text, margin: 0 }}>🧮 Giá gồm cân</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: THEME.text, margin: 0 }}>🧮 Giá gồm cân</h1>
           <div style={{ display: "flex", gap: 8 }}>
-            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🔍 Tra cứu sản phẩm</Link>
+            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
             <Link href="/todo" style={{ ...btnSub, textDecoration: "none" }}>✅ Việc cần làm</Link>
             <Link href="/fbcontent" style={{ ...btnSub, textDecoration: "none" }}>✍️ Viết bài FB</Link>
           </div>
@@ -235,7 +235,7 @@ export default function GomCan() {
         {gcQuery.trim() && (
           <div style={{ marginBottom: 16 }}>
             {searchResults.length === 0 ? (
-              <div style={{ ...card, padding: 12, color: THEME.subtext, fontSize: 14 }}>Không tìm thấy sản phẩm nào khớp, thử từ khóa khác giúp em ạ</div>
+              <div style={{ ...card, padding: 12, color: THEME.subtext, fontSize: 16 }}>Không tìm thấy sản phẩm nào khớp, thử từ khóa khác giúp em ạ</div>
             ) : (
               searchResults.map((p) => {
                 const isReady = p.kind === "giadung" && p.orderType === "ready";
@@ -248,9 +248,9 @@ export default function GomCan() {
                     <div style={thumb}>{p.image ? <img src={p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} /> : "📦"}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700 }}>{p.name} <span style={chip}>{p.sourceLabel}</span>{p.code ? <span style={{ ...chip, marginLeft: 4 }}>Mã: {p.code}</span> : null}</div>
-                      <div style={{ marginTop: 4, fontSize: 14 }}>{priceLine}</div>
-                      {p.productNote && <div style={{ marginTop: 4, fontSize: 13, color: THEME.subtext, whiteSpace: "pre-line" }}>{p.productNote}</div>}
-                      {p.link && <a href={p.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: THEME.brand }}>Link gốc ↗</a>}
+                      <div style={{ marginTop: 4, fontSize: 16 }}>{priceLine}</div>
+                      {p.productNote && <div style={{ marginTop: 4, fontSize: 14, color: THEME.subtext, whiteSpace: "pre-line" }}>{p.productNote}</div>}
+                      {p.link && <a href={p.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: THEME.brand }}>Link gốc ↗</a>}
                     </div>
                   </div>
                 );
@@ -314,9 +314,9 @@ function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, 
     <div style={{ ...card, padding: 16, marginBottom: 16 }}>
       <h3 style={{ fontWeight: 800, marginTop: 0 }}>{label}</h3>
 
-      <div style={{ fontSize: 13, fontWeight: 700, color: THEME.subtext, marginBottom: 6 }}>📋 Bảng giá theo giá Yên (không gắn sản phẩm cụ thể)</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: THEME.subtext, marginBottom: 6 }}>📋 Bảng giá theo giá Yên (không gắn sản phẩm cụ thể)</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-        {rates.length === 0 && <div style={{ color: THEME.subtext, fontSize: 14 }}>Chưa có dòng giá nào</div>}
+        {rates.length === 0 && <div style={{ color: THEME.subtext, fontSize: 16 }}>Chưa có dòng giá nào</div>}
         {rates.map((r) => {
           const isEdit = editKey && editKey.area === `rate-${cat}` && editKey.id === r.id;
           if (isEdit) {
@@ -331,10 +331,10 @@ function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, 
           }
           return (
             <div key={r.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "4px 0", borderBottom: `1px dashed ${THEME.line}` }}>
-              <span style={{ fontSize: 14 }}>¥{r.jpy}{r.note ? <span style={{ color: THEME.subtext, fontSize: 12 }}> ({r.note})</span> : null} → <b style={{ color: THEME.brand }}>{r.vnd}</b></span>
+              <span style={{ fontSize: 16 }}>¥{r.jpy}{r.note ? <span style={{ color: THEME.subtext, fontSize: 13 }}> ({r.note})</span> : null} → <b style={{ color: THEME.brand }}>{r.vnd}</b></span>
               <span style={{ display: "flex", gap: 4 }}>
-                <button style={{ ...iconBtn, width: 24, height: 24, fontSize: 11 }} onClick={() => setEditKey({ area: `rate-${cat}`, id: r.id })}>✏️</button>
-                <button style={{ ...iconBtn, width: 24, height: 24, fontSize: 11 }} onClick={() => delRate(cat, r.id)}>✕</button>
+                <button style={{ ...iconBtn, width: 24, height: 24, fontSize: 12 }} onClick={() => setEditKey({ area: `rate-${cat}`, id: r.id })}>✏️</button>
+                <button style={{ ...iconBtn, width: 24, height: 24, fontSize: 12 }} onClick={() => delRate(cat, r.id)}>✕</button>
               </span>
             </div>
           );
@@ -348,8 +348,8 @@ function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, 
       <button style={{ ...btnSub, marginBottom: 20 }} onClick={() => { addRate(cat, rf.jpy, rf.vnd, rf.note); setRf({ jpy: "", vnd: "", note: "" }); }}>＋ Thêm dòng giá</button>
 
       <div style={{ borderTop: `1px dashed ${THEME.chipLine}`, paddingTop: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: THEME.subtext, marginBottom: 6 }}>🗂 Sản phẩm đã note ({log.length})</div>
-        {log.length === 0 && <div style={{ color: THEME.subtext, fontSize: 14, marginBottom: 8 }}>Chưa note sản phẩm nào</div>}
+        <div style={{ fontSize: 14, fontWeight: 700, color: THEME.subtext, marginBottom: 6 }}>🗂 Sản phẩm đã note ({log.length})</div>
+        {log.length === 0 && <div style={{ color: THEME.subtext, fontSize: 16, marginBottom: 8 }}>Chưa note sản phẩm nào</div>}
         {log.map((it, i) => {
           const isEdit = editKey && editKey.area === areaKey && editKey.id === it.id;
           if (isEdit) {
@@ -375,10 +375,10 @@ function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, 
                   <div style={{ fontWeight: 700 }}>
                     <span style={{ color: THEME.subtext, fontWeight: 400 }}>{i + 1}.</span> {it.name}
                     {it.code ? <span style={{ ...chip, marginLeft: 4 }}>Mã: {it.code}</span> : null}
-                    {linkOk ? <a href={it.link} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 6, fontSize: 12, color: THEME.brand }}>↗</a> : null}
+                    {linkOk ? <a href={it.link} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 6, fontSize: 13, color: THEME.brand }}>↗</a> : null}
                   </div>
-                  <div style={{ marginTop: 4, color: THEME.subtext, fontSize: 14 }}>
-                    ¥{it.jpy || "-"} → <b style={{ color: THEME.brand, fontSize: 16 }}>{it.vnd || "-"}</b>
+                  <div style={{ marginTop: 4, color: THEME.subtext, fontSize: 16 }}>
+                    ¥{it.jpy || "-"} → <b style={{ color: THEME.brand, fontSize: 18 }}>{it.vnd || "-"}</b>
                     {it.ready ? <span style={{ opacity: 0.8 }}> | Hàng sẵn: {it.ready}</span> : null}
                   </div>
                 </div>
@@ -437,7 +437,7 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
   return (
     <div style={{ ...card, padding: 16, marginBottom: 16 }}>
       <h3 style={{ fontWeight: 800, marginTop: 0 }}>🏠 Gia dụng + Thực phẩm chức năng ({list.length})</h3>
-      {list.length === 0 && <div style={{ color: THEME.subtext, fontSize: 14, marginBottom: 8 }}>Chưa có sản phẩm nào</div>}
+      {list.length === 0 && <div style={{ color: THEME.subtext, fontSize: 16, marginBottom: 8 }}>Chưa có sản phẩm nào</div>}
       {list.map((it, i) => (
         <GiadungRow
           key={it.id} it={it} idx={i + 1}
@@ -458,9 +458,9 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
         <input style={{ ...inp, marginBottom: 8 }} placeholder="Tên sản phẩm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <div style={{ marginBottom: 8 }}>
           <input type="file" accept="image/*" onChange={(e) => onPickImage(e, setPendingImg)} />
-          {pendingImg && <img src={pendingImg} alt="" style={{ maxWidth: 80, maxHeight: 80, borderRadius: 10, marginTop: 6, objectFit: "contain", background: "#fff" }} />}
+          {pendingImg && <img src={pendingImg} alt="" style={{ maxWidth: 130, maxHeight: 130, borderRadius: 10, marginTop: 6, objectFit: "contain", background: "#fff" }} />}
         </div>
-        <div style={{ display: "flex", gap: 16, marginBottom: 8, fontSize: 14 }}>
+        <div style={{ display: "flex", gap: 16, marginBottom: 8, fontSize: 16 }}>
           <label><input type="radio" checked={form.orderType === "order"} onChange={() => setForm({ ...form, orderType: "order" })} /> Hàng order</label>
           <label><input type="radio" checked={form.orderType === "ready"} onChange={() => setForm({ ...form, orderType: "ready" })} /> Hàng sẵn</label>
         </div>
@@ -486,9 +486,9 @@ function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavo
         <input style={{ ...inp, marginBottom: 8 }} defaultValue={it.name} placeholder="Tên sản phẩm" onBlur={(e) => onSave({ name: e.target.value })} />
         <div style={{ marginBottom: 8 }}>
           <input type="file" accept="image/*" onChange={(e) => onPickImage(e, async (dataUrl) => { setEditImg(dataUrl); const url = await uploadGomcanImage(it.id, dataUrl); onSave({ image: url }); })} />
-          {(editImg || it.image) && <img src={editImg || it.image} alt="" style={{ maxWidth: 80, maxHeight: 80, borderRadius: 10, marginTop: 6, objectFit: "contain", background: "#fff" }} />}
+          {(editImg || it.image) && <img src={editImg || it.image} alt="" style={{ maxWidth: 130, maxHeight: 130, borderRadius: 10, marginTop: 6, objectFit: "contain", background: "#fff" }} />}
         </div>
-        <div style={{ display: "flex", gap: 16, marginBottom: 8, fontSize: 14 }}>
+        <div style={{ display: "flex", gap: 16, marginBottom: 8, fontSize: 16 }}>
           <label><input type="radio" defaultChecked={it.orderType !== "ready"} name={`type-${it.id}`} onChange={() => onSave({ orderType: "order" })} /> Hàng order</label>
           <label><input type="radio" defaultChecked={it.orderType === "ready"} name={`type-${it.id}`} onChange={() => onSave({ orderType: "ready" })} /> Hàng sẵn</label>
         </div>
@@ -506,8 +506,8 @@ function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavo
   const quote = buildGiadungQuote(it);
   const linkOk = it.link && /^https?:\/\//i.test(it.link);
   let priceLine;
-  if (isReady) priceLine = <b style={{ color: THEME.brand, fontSize: 16 }}>{it.vnd || "-"}</b>;
-  else if (it.jpy) priceLine = <b style={{ color: THEME.brand, fontSize: 16 }}>{it.jpy}</b>;
+  if (isReady) priceLine = <b style={{ color: THEME.brand, fontSize: 18 }}>{it.vnd || "-"}</b>;
+  else if (it.jpy) priceLine = <b style={{ color: THEME.brand, fontSize: 18 }}>{it.jpy}</b>;
   else priceLine = <span style={{ color: THEME.subtext }}>Tính giá như bình thường</span>;
 
   return (
@@ -523,7 +523,7 @@ function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavo
               <button style={iconBtn} onClick={onDelete}>✕</button>
             </div>
           </div>
-          <div style={{ fontSize: 12, marginTop: 4, display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ fontSize: 13, marginTop: 4, display: "flex", gap: 8, alignItems: "center" }}>
             <span style={chip}>{isReady ? "Hàng sẵn" : "Hàng order"}</span>
             {linkOk && <a href={it.link} target="_blank" rel="noopener noreferrer" style={{ color: THEME.brand }}>Link gốc ↗</a>}
           </div>
@@ -531,13 +531,13 @@ function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavo
         </div>
       </div>
       {quote && (
-        <div style={{ margin: "0 12px 10px 12px", background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "6px 10px", fontSize: 12.5, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+        <div style={{ margin: "0 12px 10px 12px", background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "6px 10px", fontSize: 13.5, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
           <span style={{ flex: 1 }}>{quote}</span>
-          <button style={{ ...iconBtn, width: 26, height: 26, fontSize: 12 }} onClick={() => navigator.clipboard && navigator.clipboard.writeText(quote)}>📋</button>
+          <button style={{ ...iconBtn, width: 26, height: 26, fontSize: 13 }} onClick={() => navigator.clipboard && navigator.clipboard.writeText(quote)}>📋</button>
         </div>
       )}
       <div style={{ padding: "6px 12px 10px 12px", borderTop: `1px dashed ${THEME.line}` }}>
-        <button style={{ background: "none", border: "none", color: THEME.subtext, fontWeight: 600, fontSize: 12, cursor: "pointer", padding: "2px 0" }} onClick={onToggleNote}>
+        <button style={{ background: "none", border: "none", color: THEME.subtext, fontWeight: 600, fontSize: 13, cursor: "pointer", padding: "2px 0" }} onClick={onToggleNote}>
           🧾 Tính năng sản phẩm {noteOpen ? "▲" : "▼"}
         </button>
         {noteOpen ? (
@@ -545,7 +545,7 @@ function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavo
             <textarea style={{ ...inp, minHeight: 70 }} defaultValue={it.productNote || ""} placeholder="Ghi chú riêng cho sản phẩm này: đặc điểm, size, màu, lưu ý khi bán..." onBlur={(e) => onSave({ productNote: e.target.value })} />
           </div>
         ) : it.productNote ? (
-          <div style={{ marginTop: 4, fontSize: 14, color: THEME.subtext, whiteSpace: "pre-line" }}>{it.productNote}</div>
+          <div style={{ marginTop: 4, fontSize: 16, color: THEME.subtext, whiteSpace: "pre-line" }}>{it.productNote}</div>
         ) : null}
       </div>
     </div>

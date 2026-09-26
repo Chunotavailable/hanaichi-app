@@ -4,23 +4,23 @@ import Link from "next/link";
 
 /* ================== Theme (đồng bộ với trang chính) ================== */
 const THEME = {
-  bg: "#f5f7fb",
-  surface: "#ffffff",
-  text: "#0f172a",
-  subtext: "#5b6475",
-  line: "#e8ebf3",
-  primary: "#F9CFE1",
-  brand: "#ee6fa0",
-  chipBg: "#f1f4fb",
-  chipLine: "#dde3f1",
-  glow: "0 8px 28px rgba(17, 34, 68, 0.08)",
+  bg: "#0f1117",
+  surface: "#1b1e29",
+  text: "#f1f2f7",
+  subtext: "#9aa1b8",
+  line: "#2b2f40",
+  primary: "#ff9dc0",
+  brand: "#ff85ae",
+  chipBg: "#242837",
+  chipLine: "#363b52",
+  glow: "0 10px 30px rgba(0, 0, 0, 0.5)",
 };
 
 const card = { background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 16, boxShadow: THEME.glow };
-const btn = { background: THEME.primary, color: "#7a2a4a", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 };
-const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 13 };
-const chipSmall = { ...btnSub, fontSize: 12, padding: "3px 10px" };
-const inp = { width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 14, outline: "none", marginBottom: 8 };
+const btn = { background: THEME.primary, color: "#3a0f22", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
+const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 14 };
+const chipSmall = { ...btnSub, fontSize: 13, padding: "3px 10px" };
+const inp = { width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 16, outline: "none", marginBottom: 8 };
 const textarea = { ...inp, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 };
 
 function uid() {
@@ -258,11 +258,11 @@ export default function RewritePage() {
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
-      <header style={{ background: `linear-gradient(135deg, ${THEME.primary}, #fff)`, borderBottom: `1px solid ${THEME.line}` }}>
+      <header style={{ background: `linear-gradient(135deg, #241a22, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: THEME.text, margin: 0 }}>📝 Sửa bài theo khung</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: THEME.text, margin: 0 }}>📝 Sửa bài theo khung</h1>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🔍 Tra cứu sản phẩm</Link>
+            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
             <Link href="/fbcontent" style={{ ...btnSub, textDecoration: "none" }}>✍️ Viết bài FB</Link>
             <Link href="/todo" style={{ ...btnSub, textDecoration: "none" }}>✅ Việc cần làm</Link>
           </div>
@@ -270,7 +270,7 @@ export default function RewritePage() {
       </header>
 
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px" }}>
-        <p style={{ fontSize: 13, color: THEME.subtext, marginTop: 0 }}>
+        <p style={{ fontSize: 14, color: THEME.subtext, marginTop: 0 }}>
           Lưu sẵn các khung bài hay dùng, gửi ý tưởng thô vào là bài được viết lại đúng khung, đúng giọng em – các bác.
         </p>
 
@@ -279,7 +279,7 @@ export default function RewritePage() {
           <div style={{ fontWeight: 700, marginBottom: 8 }}>📌 Khung bài mẫu của em</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
             {content.templates.length === 0 && (
-              <div style={{ color: THEME.subtext, fontSize: 14 }}>Chưa có khung nào, tạo khung đầu tiên ở bên dưới nhé</div>
+              <div style={{ color: THEME.subtext, fontSize: 16 }}>Chưa có khung nào, tạo khung đầu tiên ở bên dưới nhé</div>
             )}
             {content.templates.map((t) => (
               <div
@@ -295,13 +295,13 @@ export default function RewritePage() {
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => selTpl(t.id)}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>
                     {t.id === content.tplSel ? "🌸 " : ""}
                     {t.name}
                   </div>
                   <div
                     style={{
-                      fontSize: 13,
+                      fontSize: 14,
                       color: THEME.subtext,
                       overflow: "hidden",
                       display: "-webkit-box",
@@ -355,7 +355,7 @@ export default function RewritePage() {
         {/* Bài thô / ý tưởng */}
         <div style={{ ...card, padding: 14, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>📝 Bài thô / ý tưởng</div>
-          <div style={{ fontSize: 13, color: THEME.subtext, marginBottom: 8 }}>
+          <div style={{ fontSize: 14, color: THEME.subtext, marginBottom: 8 }}>
             Khung đang chọn: <b style={{ color: THEME.brand }}>{selectedTpl ? selectedTpl.name : "chưa chọn"}</b>
           </div>
           <textarea
@@ -366,7 +366,7 @@ export default function RewritePage() {
             onChange={(e) => setRaw(e.target.value)}
           />
           <div style={{ fontWeight: 700, marginTop: 10, marginBottom: 4 }}>
-            📎 Lưu ý thêm khi viết <span style={{ fontSize: 13, color: THEME.subtext, fontWeight: 400 }}>(tuỳ chọn)</span>
+            📎 Lưu ý thêm khi viết <span style={{ fontSize: 14, color: THEME.subtext, fontWeight: 400 }}>(tuỳ chọn)</span>
           </div>
           <textarea
             rows={2}
@@ -385,25 +385,25 @@ export default function RewritePage() {
           <button style={{ ...btn, marginTop: 12 }} onClick={doRewrite} disabled={busy}>
             {busy ? "⏳ Đang viết lại..." : "✨ Sửa & viết lại theo khung"}
           </button>
-          {msg && <div style={{ fontSize: 13, color: THEME.subtext, marginTop: 8 }}>{msg}</div>}
+          {msg && <div style={{ fontSize: 14, color: THEME.subtext, marginTop: 8 }}>{msg}</div>}
         </div>
 
         {/* Icon panel */}
         <div style={{ ...card, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: THEME.subtext, marginBottom: 8 }}>Icon cute — bấm để chèn vào bài, bấm ⧉ để copy riêng</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: THEME.subtext, marginBottom: 8 }}>Icon cute — bấm để chèn vào bài, bấm ⧉ để copy riêng</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {content.icons.map((ic, i) => (
               <div key={i} style={{ ...btnSub, display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", cursor: "default" }}>
-                <span style={{ cursor: "pointer", fontSize: 18 }} onClick={() => insertIcon(ic)}>
+                <span style={{ cursor: "pointer", fontSize: 20 }} onClick={() => insertIcon(ic)}>
                   {ic}
                 </span>
                 {iconEdit ? (
-                  <span style={{ cursor: "pointer", fontSize: 12, fontWeight: 700 }} onClick={() => delIcon(i)} title="Xóa icon">
+                  <span style={{ cursor: "pointer", fontSize: 13, fontWeight: 700 }} onClick={() => delIcon(i)} title="Xóa icon">
                     ✕
                   </span>
                 ) : (
                   <span
-                    style={{ cursor: "pointer", fontSize: 11, opacity: 0.6 }}
+                    style={{ cursor: "pointer", fontSize: 12, opacity: 0.6 }}
                     title="Copy riêng"
                     onClick={() => navigator.clipboard.writeText(ic).catch(() => {})}
                   >
@@ -413,7 +413,7 @@ export default function RewritePage() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: THEME.brand, cursor: "pointer" }} onClick={() => setIconEdit((v) => !v)}>
+          <div style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: THEME.brand, cursor: "pointer" }} onClick={() => setIconEdit((v) => !v)}>
             {iconEdit ? "✓ Xong" : "✏️ Sửa danh sách icon"}
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
@@ -434,7 +434,7 @@ export default function RewritePage() {
 
         {/* Bài hoàn chỉnh */}
         <div style={{ ...card, padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: THEME.subtext, marginBottom: 8 }}>Bài hoàn chỉnh</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: THEME.subtext, marginBottom: 8 }}>Bài hoàn chỉnh</div>
           <textarea
             ref={outRef}
             rows={12}

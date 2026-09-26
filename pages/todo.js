@@ -4,24 +4,24 @@ import Link from "next/link";
 
 /* ================== Theme (đồng bộ với trang chính) ================== */
 const THEME = {
-  bg: "#f5f7fb",
-  surface: "#ffffff",
-  text: "#0f172a",
-  subtext: "#5b6475",
-  line: "#e8ebf3",
-  primary: "#F9CFE1",
-  primary600: "#ebabc2ff",
-  brand: "#ee6fa0",
-  chipBg: "#f1f4fb",
-  chipLine: "#dde3f1",
-  glow: "0 8px 28px rgba(17, 34, 68, 0.08)",
+  bg: "#0f1117",
+  surface: "#1b1e29",
+  text: "#f1f2f7",
+  subtext: "#9aa1b8",
+  line: "#2b2f40",
+  primary: "#ff9dc0",
+  primary600: "#ff7fae",
+  brand: "#ff85ae",
+  chipBg: "#242837",
+  chipLine: "#363b52",
+  glow: "0 10px 30px rgba(0, 0, 0, 0.5)",
 };
 
 const card = { background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 16, boxShadow: THEME.glow };
-const btn = { background: THEME.primary, color: "#7a2a4a", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 };
-const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 13 };
-const iconBtn = { width: 30, height: 30, borderRadius: 999, background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, cursor: "pointer", fontSize: 13, display: "grid", placeItems: "center" };
-const inp = { width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 14, outline: "none" };
+const btn = { background: THEME.primary, color: "#3a0f22", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
+const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 14 };
+const iconBtn = { width: 30, height: 30, borderRadius: 999, background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, cursor: "pointer", fontSize: 14, display: "grid", placeItems: "center" };
+const inp = { width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 16, outline: "none" };
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -142,11 +142,11 @@ export default function TodoPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
-      <header style={{ background: `linear-gradient(135deg, ${THEME.primary}, #fff)`, borderBottom: `1px solid ${THEME.line}` }}>
+      <header style={{ background: `linear-gradient(135deg, #241a22, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: THEME.text, margin: 0 }}>✅ Việc cần làm</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: THEME.text, margin: 0 }}>✅ Việc cần làm</h1>
           <div style={{ display: "flex", gap: 8 }}>
-            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🔍 Tra cứu sản phẩm</Link>
+            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
             <Link href="/gomcan" style={{ ...btnSub, textDecoration: "none" }}>🧮 Giá gồm cân</Link>
             <Link href="/fbcontent" style={{ ...btnSub, textDecoration: "none" }}>✍️ Viết bài FB</Link>
           </div>
@@ -172,7 +172,7 @@ export default function TodoPage() {
           </div>
 
           <div
-            style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: THEME.brand, cursor: "pointer" }}
+            style={{ marginTop: 10, fontSize: 14, fontWeight: 600, color: THEME.brand, cursor: "pointer" }}
             onClick={() => setDailyOpen((v) => !v)}
           >
             ⚙️ {dailyOpen ? "Đóng" : "Thiết lập"} việc cố định hàng ngày ({data.dailyTasks.length})
@@ -181,11 +181,11 @@ export default function TodoPage() {
           {dailyOpen && (
             <div style={{ marginTop: 10, borderTop: `1px solid ${THEME.line}`, paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
               {data.dailyTasks.length === 0 && (
-                <div style={{ color: THEME.subtext, fontSize: 13 }}>Chưa có việc cố định nào.</div>
+                <div style={{ color: THEME.subtext, fontSize: 14 }}>Chưa có việc cố định nào.</div>
               )}
               {data.dailyTasks.map((dt) => (
                 <div key={dt.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ flex: 1, fontSize: 14, color: THEME.text }}>🔁 {dt.text}</span>
+                  <span style={{ flex: 1, fontSize: 16, color: THEME.text }}>🔁 {dt.text}</span>
                   <button style={iconBtn} onClick={() => delDailyTask(dt.id)} aria-label="Xoá việc cố định">
                     ✕
                   </button>
@@ -215,7 +215,7 @@ export default function TodoPage() {
             <div style={{ flex: 1, height: 8, borderRadius: 999, background: THEME.chipBg, overflow: "hidden" }}>
               <div style={{ width: `${pct}%`, height: "100%", background: THEME.brand, transition: "width .2s" }} />
             </div>
-            <span style={{ fontSize: 12, color: THEME.subtext, fontWeight: 600, whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 13, color: THEME.subtext, fontWeight: 600, whiteSpace: "nowrap" }}>
               {done}/{total} xong
             </span>
             {done > 0 && (
@@ -228,7 +228,7 @@ export default function TodoPage() {
 
         {/* Danh sách việc */}
         {total === 0 ? (
-          <div style={{ ...card, padding: 16, color: THEME.subtext, fontSize: 14, textAlign: "center" }}>
+          <div style={{ ...card, padding: 16, color: THEME.subtext, fontSize: 16, textAlign: "center" }}>
             Chưa có việc nào. Thêm việc mới ở trên nhé.
           </div>
         ) : (
@@ -256,7 +256,7 @@ export default function TodoPage() {
                     flex: 1,
                     minWidth: 0,
                     wordBreak: "break-word",
-                    fontSize: 14,
+                    fontSize: 16,
                     color: t.done ? THEME.subtext : THEME.text,
                     textDecoration: t.done ? "line-through" : "none",
                   }}
