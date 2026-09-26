@@ -59,6 +59,35 @@ function fmtClosetPrice(price) {
   const n = Number(price) || 0;
   return n.toLocaleString("vi-VN") + "k";
 }
+// ===== Nhập ảnh hàng loạt: khớp 1 dòng "mã: link ảnh" người dùng dán vào với
+// đúng sản phẩm trong danh sách, dựa trên mã sản phẩm xuất hiện trong tên
+// hoặc trong mã các biến thể (không cần khớp chính xác dấu cách/gạch ngang).
+function normCode(s) {
+  return (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+function matchClosetProductsByCode(list, code) {
+  const nc = normCode(code);
+  if (nc.length < 4) return [];
+  return list.filter((p) => {
+    const hay = normCode(p.name + " " + (p.variants || []).map((v) => v.label).join(" "));
+    return hay.includes(nc);
+  });
+}
+// Tách 1 khối text nhiều dòng thành từng dòng {code, url} — link ảnh là phần
+// bắt đầu bằng http(s), phần còn lại trước đó là mã sản phẩm.
+function parseBulkImageLines(text) {
+  return (text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const m = line.match(/(https?:\/\/\S+)/i);
+      if (!m) return { raw: line, code: line, url: "" };
+      const url = m[1];
+      const code = line.slice(0, m.index).replace(/[:\-|,\s]+$/, "").trim();
+      return { raw: line, code, url };
+    });
+}
 // Sản phẩm xả kho: tên có chữ "xả kho" HOẶC được tự tay tích chọn (p.xaKho)
 // — hiện nhãn XẢ KHO + giá tô đỏ ở ngoài, và không được áp chương trình
 // giảm giá chung. Nhận vào cả product object hoặc chuỗi tên (giữ tương thích
@@ -265,6 +294,112 @@ export default function ClosetPage() {
   );
 }
 
+// Modal nhập ảnh hàng loạt: dán 1 danh sách nhiều dòng "mã: link ảnh", app tự
+// khớp từng dòng với đúng sản phẩm rồi nhập ảnh cho tất cả cùng 1 lúc, thay vì
+// phải mở từng sản phẩm ra làm tay 200 lần.
+function BulkImportModal({ list, saveClosetProduct, onClose, T }) {
+  const { THEME, card, inp, btn, btnSub } = T;
+  const [text, setText] = useState("");
+  const [overwrite, setOverwrite] = useState(false);
+  const [rows, setRows] = useState(null); // null = chưa xem trước
+  const [running, setRunning] = useState(false);
+  const [doneCount, setDoneCount] = useState(0);
+
+  function preview() {
+    const parsed = parseBulkImageLines(text).map((r) => {
+      if (!r.url) return { ...r, status: "no-link", matches: [] };
+      const matches = matchClosetProductsByCode(list, r.code);
+      if (!matches.length) return { ...r, status: "not-found", matches: [] };
+      if (matches.length > 1) return { ...r, status: "ambiguous", matches };
+      const p = matches[0];
+      if (p.image && !overwrite) return { ...r, status: "skip-has-image", matches };
+      return { ...r, status: "ok", matches };
+    });
+    setRows(parsed);
+  }
+
+  async function runImport() {
+    setRunning(true);
+    let n = 0;
+    const next = [...rows];
+    for (let i = 0; i < next.length; i++) {
+      const row = next[i];
+      if (row.status !== "ok") continue;
+      try {
+        const url = await importGomcanImageFromUrl(row.matches[0].id, row.url);
+        saveClosetProduct(row.matches[0].id, { image: url });
+        next[i] = { ...row, status: "imported" };
+      } catch {
+        next[i] = { ...row, status: "failed" };
+      }
+      n++;
+      setDoneCount(n);
+      setRows([...next]);
+    }
+    setRunning(false);
+  }
+
+  const STATUS_LABEL = {
+    ok: "✅ Sẵn sàng nhập",
+    imported: "✅ Đã nhập",
+    failed: "❌ Lỗi khi tải ảnh",
+    "not-found": "❓ Không tìm thấy sản phẩm khớp mã",
+    ambiguous: `⚠️ Khớp nhiều sản phẩm — bỏ qua`,
+    "skip-has-image": "⏭️ Đã có ảnh — bỏ qua (tích \"Ghi đè\" để thay)",
+    "no-link": "❌ Không thấy link ảnh trong dòng này",
+  };
+
+  const okCount = rows ? rows.filter((r) => r.status === "ok").length : 0;
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(60,20,25,0.45)", zIndex: 90, display: "grid", placeItems: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="hnCard" style={{ ...card, width: "100%", maxWidth: 640, maxHeight: "88vh", overflowY: "auto", padding: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <h3 style={{ margin: 0, fontSize: 16 }}>📥 Nhập ảnh hàng loạt</h3>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: THEME.chipBg, fontSize: 15, cursor: "pointer" }}>✕</button>
+        </div>
+        <div style={{ fontSize: 13, color: THEME.subtext, marginBottom: 8 }}>
+          Mỗi dòng 1 sản phẩm, theo dạng <b>mã sản phẩm: link ảnh</b>, ví dụ:
+          <div style={{ background: THEME.chipBg, borderRadius: 8, padding: 8, marginTop: 4, fontFamily: "monospace", fontSize: 12 }}>
+            1044A081-250: https://.../anh1.jpg{"\n"}IR7843: https://.../anh2.jpg
+          </div>
+          App sẽ tự tìm sản phẩm có mã đó rồi lấy ảnh về, không cần đúng tuyệt đối dấu cách/gạch ngang.
+        </div>
+        <textarea
+          style={{ ...inp, width: "100%", minHeight: 140, fontFamily: "monospace", fontSize: 12.5 }}
+          placeholder={"Dán danh sách mã + link ảnh vào đây, mỗi dòng 1 sản phẩm..."}
+          value={text}
+          onChange={(e) => { setText(e.target.value); setRows(null); }}
+        />
+        <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13 }}>
+          <input type="checkbox" checked={overwrite} onChange={(e) => { setOverwrite(e.target.checked); setRows(null); }} />
+          Ghi đè cả những sản phẩm đã có ảnh (mặc định chỉ nhập cho sản phẩm còn thiếu ảnh)
+        </label>
+
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <button style={btnSub} onClick={preview} disabled={!text.trim() || running}>👀 Xem trước</button>
+          <button style={btn} onClick={runImport} disabled={!rows || !okCount || running}>
+            {running ? `Đang nhập… (${doneCount}/${okCount})` : `📥 Nhập ${okCount || ""} ảnh`}
+          </button>
+        </div>
+
+        {rows && (
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4, maxHeight: 260, overflowY: "auto" }}>
+            {rows.map((r, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, fontSize: 12, padding: "5px 8px", background: THEME.chipBg, borderRadius: 6, alignItems: "center" }}>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {r.matches && r.matches[0] ? r.matches[0].name : r.code || r.raw}
+                </span>
+                <span style={{ flexShrink: 0, color: THEME.subtext }}>{STATUS_LABEL[r.status] || r.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetProduct, addClosetVariant, saveClosetVariant, delClosetVariant, bumpClosetVariant, discount, saveClosetDiscount, T }) {
   const { THEME, card, btn, btnSub, inp, iconBtn } = T;
   const list = data.closet || [];
@@ -279,6 +414,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
   const [sizeFilter, setSizeFilter] = useState([]); // các số size EU đang chọn — chọn được nhiều size cùng lúc
   const [sortPriceAsc, setSortPriceAsc] = useState(false);
   const [xaKhoFilter, setXaKhoFilter] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   const tokens = norm(q).split(" ").filter(Boolean);
   const searched = !tokens.length
@@ -334,8 +470,15 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
     <div style={{ ...card, padding: 16, marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
         <h3 style={{ fontWeight: 800, margin: 0 }}>👜 Hàng Closet sẵn ({list.length} mẫu)</h3>
-        <ViewModeToggle mode={viewMode} setMode={setViewMode} T={T} />
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <button style={btnSub} onClick={() => setShowBulkImport(true)}>📥 Nhập ảnh hàng loạt</button>
+          <ViewModeToggle mode={viewMode} setMode={setViewMode} T={T} />
+        </div>
       </div>
+
+      {showBulkImport && (
+        <BulkImportModal list={list} saveClosetProduct={saveClosetProduct} onClose={() => setShowBulkImport(false)} T={T} />
+      )}
 
       {/* Chương trình giảm giá áp dụng chung cho cả tab: tích vào là tự động
           giảm giá cho mọi sản phẩm từ mức giá đã đặt, bấm ✏️ để đổi % giảm
