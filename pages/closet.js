@@ -15,6 +15,23 @@ function variantShortLabel(v) {
   const label = (v.label || "").trim();
   return label.length > 22 ? label.slice(0, 20) + "…" : label || "?";
 }
+// Giá trị số của size EU để sắp xếp — hiểu cả size lẻ dạng phân số
+// (VD "EU 37 1/3" = 37.33, "EU36 2/3" = 36.67), không parse được thì xếp cuối.
+function variantSizeSortValue(v) {
+  const label = v.label || "";
+  const m = label.match(/EU\s*([0-9]+)(?:\s*([0-9]+)\s*\/\s*([0-9]+))?/i);
+  if (m) {
+    const base = Number(m[1]) || 0;
+    const frac = m[2] && m[3] ? Number(m[2]) / Number(m[3]) : 0;
+    return base + frac;
+  }
+  return Infinity;
+}
+// Luôn hiện các biến thể theo đúng thứ tự size tăng dần, bất kể thứ tự thêm
+// vào trước sau (VD thêm size 36 2/3 sau cùng vẫn tự nhảy lên trước size 37).
+function sortedClosetVariants(variants) {
+  return [...(variants || [])].sort((a, b) => variantSizeSortValue(a) - variantSizeSortValue(b));
+}
 // Tìm phần mã DÙNG CHUNG cho mọi biến thể của 1 sản phẩm (VD các mã
 // "WRS00964001-235", "WRS00964001-24"... đều chung tiền tố "WRS00964001") —
 // để hiện mã đó ra 1 lần duy nhất, còn từng biến thể chỉ hiện phần size
@@ -758,7 +775,7 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
   const { THEME, card, chip } = T;
   const variants = p.variants || [];
   // Ở ngoài chỉ hiện các size CÒN HÀNG (màu xanh) — size hết hàng không hiện nữa.
-  const inStock = variants.filter((v) => Number(v.remaining) > 0);
+  const inStock = sortedClosetVariants(variants).filter((v) => Number(v.remaining) > 0);
   const shown = inStock.slice(0, 6);
   const extra = inStock.length - shown.length;
   const xaKho = isXaKho(p);
@@ -986,7 +1003,7 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
           )}
 
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
-            {(p.variants || []).map((v) => {
+            {sortedClosetVariants(p.variants).map((v) => {
               const isEdit = editVariantId === v.id;
               if (isEdit) {
                 const parts = splitLabelForEdit(v.label);
