@@ -70,8 +70,9 @@ async function readData() {
     const data = await r.json();
     const merged = { ...DEFAULT_DATA, ...data, oniRates: { ...DEFAULT_DATA.oniRates, ...(data.oniRates || {}) } };
     const { data: seeded1, upgraded: upgraded1 } = withGiadungSeed(merged);
-    const { data: seeded, upgraded: upgraded2 } = withClosetSeed(seeded1);
-    const upgraded = upgraded1 || upgraded2;
+    const { data: split, upgraded: upgradedSplit } = withClosetSplit(seeded1);
+    const { data: seeded, upgraded: upgraded2 } = withClosetSeed(split);
+    const upgraded = upgraded1 || upgradedSplit || upgraded2;
     if (upgraded) {
       // Tự ghi lại ngay bản đã bổ sung để lần đọc sau không phải tính lại nữa.
       try {
@@ -129,6 +130,95 @@ function withGiadungSeed(data) {
     return { data, upgraded: false };
   }
   return { data: { ...data, giadung: merged }, upgraded: true };
+}
+
+// Một số dòng dữ liệu gốc lúc nhập bị gộp nhầm NHIỀU MÃ SẢN PHẨM khác nhau
+// (nhưng chung tên) vào chung 1 sản phẩm — VD 2 màu giày khác mã, hay 1 áo
+// và 1 quần khác hẳn model. Hàm này chạy TRÊN DỮ LIỆU ĐANG LƯU THẬT (giữ
+// nguyên ảnh, giá, số lượng còn lại người dùng đã chỉnh) để tách những
+// trường hợp đó ra thành từng sản phẩm riêng theo đúng mã — tên trùng nhau
+// là bình thường, chỉ cần mỗi mã là 1 sản phẩm riêng. Chạy 1 lần là xong,
+// lần đọc sau các sản phẩm đã tách sẽ không còn bị phát hiện là "cần tách"
+// nữa nên không lặp lại hay tách thêm.
+const CLOSET_SPLIT_EXCLUDE_IDS = new Set([
+  // Sản phẩm băng tay/băng đô nhiều màu, không có "mã sản phẩm" thật (chỉ là
+  // mô tả màu bằng chữ) — giữ nguyên làm 1 sản phẩm nhiều lựa chọn màu.
+  "bang-tay-bang-do-nike-cho-nam-va-nu",
+]);
+function closetVariantCode(label) {
+  const raw = (label || "").trim();
+  const m = raw.match(/^(.*?)\s*\(/);
+  let codePart = m ? m[1].trim() : raw;
+  const sizeLetters = "(?:XS|S|M|L|XL|XXL|\\d?XL)";
+  const re = new RegExp(`-(?:\\d+(?:[.,]\\d+)?|${sizeLetters}|\\d+\\s*/\\s*\\d+|${sizeLetters}\\s*/\\s*${sizeLetters})$`, "i");
+  codePart = codePart.replace(re, "");
+  return codePart.trim();
+}
+function slugifyClosetCode(s) {
+  const base = (s || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[Đđ]/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return base || "x";
+}
+function withClosetSplit(data) {
+  const list = data.closet || [];
+  if (!list.length) return { data, upgraded: false };
+  const byId = new Map(list.map((p) => [p.id, p]));
+  const consumed = new Set();
+  const result = [];
+  let changed = false;
+
+  // Xử lý riêng 1 lỗi cụ thể: mã "1044A081-103" bị chia rải rác giữa 2 sản
+  // phẩm "Asics Gel Resolution X GS" khác nhau lúc nhập liệu trước đây.
+  const gA = byId.get("giay-tennis-pickleball-asics-gel-resolut-3");
+  const gB = byId.get("giay-tennis-pickleball-asics-gel-resolut-4");
+  if (gA && gB) {
+    consumed.add(gA.id);
+    consumed.add(gB.id);
+    const v250 = (gA.variants || []).filter((v) => closetVariantCode(v.label) === "1044A081-250");
+    const v103 = [...(gA.variants || []).filter((v) => closetVariantCode(v.label) === "1044A081-103"), ...(gB.variants || [])];
+    const sameIds = (a, b) => a.length === b.length && a.every((v, i) => v.id === b[i].id);
+    if (!sameIds(v250, gA.variants || []) || !sameIds(v103, gB.variants || [])) {
+      changed = true;
+    }
+    result.push({ ...gA, variants: v250 });
+    result.push({ ...gB, variants: v103 });
+  }
+
+  list.forEach((p) => {
+    if (consumed.has(p.id)) return;
+    if (CLOSET_SPLIT_EXCLUDE_IDS.has(p.id) || (p.variants || []).length < 2) {
+      result.push(p);
+      return;
+    }
+    const groups = new Map();
+    (p.variants || []).forEach((v) => {
+      const code = closetVariantCode(v.label);
+      if (!groups.has(code)) groups.set(code, []);
+      groups.get(code).push(v);
+    });
+    if (groups.size <= 1) {
+      result.push(p);
+      return;
+    }
+    changed = true;
+    let first = true;
+    groups.forEach((vs, code) => {
+      if (first) {
+        result.push({ ...p, variants: vs });
+        first = false;
+      } else {
+        result.push({ ...p, id: `${p.id}--${slugifyClosetCode(code)}`, variants: vs });
+      }
+    });
+  });
+
+  if (!changed) return { data, upgraded: false };
+  return { data: { ...data, closet: result }, upgraded: true };
 }
 
 // Tương tự withGiadungSeed ở trên nhưng cho tab "Hàng Closet sẵn" — mỗi sản
