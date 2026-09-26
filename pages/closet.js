@@ -49,6 +49,30 @@ function fmtClosetPrice(price) {
   const n = Number(price) || 0;
   return n.toLocaleString("vi-VN") + "k";
 }
+// Giới tính suy ra từ tên/danh mục: mã nào không có chữ "nam"/"nữ" thì coi
+// như dùng được cho cả 2 giới (luôn hiện ra dù đang lọc Nam hay Nữ).
+function genderOf(p) {
+  const tokens = norm((p.name || "") + " " + (p.category || "")).split(" ").filter(Boolean);
+  const hasNam = tokens.includes("nam");
+  const hasNu = tokens.includes("nu");
+  if (hasNam && !hasNu) return "nam";
+  if (hasNu && !hasNam) return "nu";
+  return "both";
+}
+// Lấy các số size EU có trong mã/size của 1 sản phẩm — không cần khớp chính
+// xác dấu cách (VD "EU 38", "EU38", "EU 38 2/3" đều nhận ra số "38").
+function euSizesOf(p) {
+  const sizes = new Set();
+  (p.variants || []).forEach((v) => {
+    const m = (v.label || "").match(/EU\s*([0-9]+)/i);
+    if (m) sizes.add(m[1]);
+  });
+  return sizes;
+}
+function minPriceOf(p) {
+  const prices = (p.variants || []).map((v) => Number(v.price) || 0).filter((n) => n > 0);
+  return prices.length ? Math.min(...prices) : Infinity;
+}
 // Tách 1 mã hiển thị (VD "WRS00964001-235 (EU 38)") thành 2 phần riêng để
 // sửa cho dễ: "Mã" (WRS00964001-235) và "Size" (EU 38) — dùng khi mở form
 // sửa 1 mã cụ thể. Mã nào không có ngoặc thì size để trống, mã là cả chuỗi.
@@ -229,14 +253,41 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
   const [viewMode, setViewMode] = useState("small");
   const [activeCat, setActiveCat] = useState(null); // null = xem tất cả danh mục
   const [editingDiscount, setEditingDiscount] = useState(false);
+  const [genderFilter, setGenderFilter] = useState(null); // null | "nam" | "nu"
+  const [sizeFilter, setSizeFilter] = useState([]); // các số size EU đang chọn — chọn được nhiều size cùng lúc
+  const [sortPriceAsc, setSortPriceAsc] = useState(false);
 
   const tokens = norm(q).split(" ").filter(Boolean);
-  const filtered = !tokens.length
+  const searched = !tokens.length
     ? list
     : list.filter((p) => {
         const h = norm(p.name + " " + p.category + " " + (p.variants || []).map((v) => v.label).join(" "));
         return tokens.every((t) => h.includes(t));
       });
+
+  // 3 bộ lọc dưới đây có thể bật cùng lúc 1, 2 hay cả 3 cái — mỗi cái thu hẹp
+  // thêm trên kết quả của cái trước.
+  const genderFiltered = !genderFilter
+    ? searched
+    : searched.filter((p) => {
+        const g = genderOf(p);
+        return g === genderFilter || g === "both";
+      });
+
+  const availableSizes = Array.from(new Set(genderFiltered.flatMap((p) => Array.from(euSizesOf(p))))).sort(
+    (a, b) => Number(a) - Number(b)
+  );
+  // Nếu đổi bộ lọc giới tính khiến 1 size đang chọn không còn xuất hiện nữa
+  // thì tự bỏ qua size đó thay vì lọc ra danh sách rỗng mãi.
+  const effectiveSizeFilter = sizeFilter.filter((s) => availableSizes.includes(s));
+  const sizeFiltered = !effectiveSizeFilter.length
+    ? genderFiltered
+    : genderFiltered.filter((p) => {
+        const sizes = euSizesOf(p);
+        return effectiveSizeFilter.some((s) => sizes.has(s));
+      });
+
+  const filtered = sortPriceAsc ? [...sizeFiltered].sort((a, b) => minPriceOf(a) - minPriceOf(b)) : sizeFiltered;
 
   const categories = [];
   const seen = new Set();
@@ -316,6 +367,51 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
+
+      {/* Bộ lọc: Nam/Nữ, giá thấp-cao, size EU — bật được 1, 2 hay cả 3 cùng lúc. */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+        <button
+          onClick={() => setGenderFilter(genderFilter === "nam" ? null : "nam")}
+          style={{ ...btnSub, background: genderFilter === "nam" ? THEME.primary : THEME.chipBg }}
+        >
+          👨 Nam
+        </button>
+        <button
+          onClick={() => setGenderFilter(genderFilter === "nu" ? null : "nu")}
+          style={{ ...btnSub, background: genderFilter === "nu" ? THEME.primary : THEME.chipBg }}
+        >
+          👩 Nữ
+        </button>
+        <button
+          onClick={() => setSortPriceAsc((v) => !v)}
+          style={{ ...btnSub, background: sortPriceAsc ? THEME.primary : THEME.chipBg }}
+        >
+          💰 Giá thấp → cao
+        </button>
+      </div>
+
+      {availableSizes.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", marginBottom: 10, paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
+          <span style={{ fontSize: 12.5, color: THEME.subtext, flexShrink: 0 }}>Size EU:</span>
+          {availableSizes.map((s) => {
+            const active = effectiveSizeFilter.includes(s);
+            return (
+              <button
+                key={s}
+                onClick={() => setSizeFilter(active ? sizeFilter.filter((x) => x !== s) : [...sizeFilter, s])}
+                style={{ ...btnSub, whiteSpace: "nowrap", flexShrink: 0, padding: "5px 10px", background: active ? THEME.primary : THEME.chipBg }}
+              >
+                {s}
+              </button>
+            );
+          })}
+          {effectiveSizeFilter.length > 0 && (
+            <button onClick={() => setSizeFilter([])} style={{ ...btnSub, whiteSpace: "nowrap", flexShrink: 0, padding: "5px 10px" }}>
+              Xoá size ✕
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Thanh nhấn nhanh chọn danh mục — bấm vào là chỉ hiện đúng danh mục đó,
           khỏi phải kéo tay xuống mới xem được mục khác. */}
