@@ -90,6 +90,18 @@ export default function App({ Component, pageProps }) {
             transform: rotate(360deg);
           }
         }
+        @keyframes hnBlink {
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.35;
+          }
+        }
+        .hnBlink {
+          animation: hnBlink 1.1s ease-in-out infinite;
+        }
         main {
           animation: hnFadeIn 0.25s ease;
         }

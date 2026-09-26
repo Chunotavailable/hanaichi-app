@@ -559,7 +559,7 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
             <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 22 }}>👜</div>
           )}
           {xaKho && (
-            <div style={{ position: "absolute", top: 0, left: 0, background: XA_KHO_COLOR, color: "#fff", fontSize: 8.5, fontWeight: 800, padding: "1px 4px", borderBottomRightRadius: 6 }}>
+            <div className="hnBlink" style={{ position: "absolute", top: 4, left: 4, background: XA_KHO_COLOR, color: "#fff", fontSize: 8.5, fontWeight: 800, padding: "1px 5px", borderRadius: 5 }}>
               XẢ KHO
             </div>
           )}
@@ -595,7 +595,7 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
             <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>👜</div>
           )}
           {xaKho && (
-            <div style={{ position: "absolute", top: 0, left: 0, background: XA_KHO_COLOR, color: "#fff", fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderBottomRightRadius: 8, letterSpacing: 0.3 }}>
+            <div className="hnBlink" style={{ position: "absolute", top: 6, left: 6, background: XA_KHO_COLOR, color: "#fff", fontSize: 10.5, fontWeight: 800, padding: "2px 9px", borderRadius: 7, letterSpacing: 0.3 }}>
               XẢ KHO
             </div>
           )}
@@ -699,7 +699,7 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
               <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>👜</div>
             )}
             {xaKho && (
-              <div style={{ position: "absolute", top: 0, left: 0, background: XA_KHO_COLOR, color: "#fff", fontSize: 12.5, fontWeight: 800, padding: "3px 10px", borderBottomRightRadius: 10, letterSpacing: 0.3 }}>
+              <div className="hnBlink" style={{ position: "absolute", top: 10, left: 10, background: XA_KHO_COLOR, color: "#fff", fontSize: 12.5, fontWeight: 800, padding: "3px 11px", borderRadius: 8, letterSpacing: 0.3 }}>
                 XẢ KHO
               </div>
             )}
