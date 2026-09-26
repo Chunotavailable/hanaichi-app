@@ -49,6 +49,13 @@ function fmtClosetPrice(price) {
   const n = Number(price) || 0;
   return n.toLocaleString("vi-VN") + "k";
 }
+// Sản phẩm xả kho: tên có chữ "xả kho" — hiện nhãn XẢ KHO + giá tô đỏ ở
+// ngoài, và không được áp chương trình giảm giá chung.
+function isXaKho(name) {
+  return norm(name || "").includes("xa kho");
+}
+const XA_KHO_COLOR = "#dc2626";
+
 // Giới tính suy ra từ tên/danh mục: mã nào không có chữ "nam"/"nữ" thì coi
 // như dùng được cho cả 2 giới (luôn hiện ra dù đang lọc Nam hay Nữ).
 function genderOf(p) {
@@ -534,11 +541,13 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
   const inStock = variants.filter((v) => Number(v.remaining) > 0);
   const shown = inStock.slice(0, 6);
   const extra = inStock.length - shown.length;
-  const priceLine = priceRangeLine(variants, discount);
+  const xaKho = isXaKho(p.name);
+  const priceLine = priceRangeLine(variants, xaKho ? null : discount);
   // Mã dùng chung hiện 1 lần duy nhất; mỗi biến thể chỉ còn hiện phần size.
   const code = commonCodePrefix(variants);
   const sizeChip = (v) => (code ? sizePartFor(v.label, code) : v.label);
   const inStockChipStyle = { ...chip, fontSize: 10.5, padding: "1px 6px", background: "#eafaf0", borderColor: "#c9ecd6", color: "#1f7a3d" };
+  const priceColor = xaKho ? XA_KHO_COLOR : THEME.brand;
 
   if (listMode) {
     return (
@@ -549,12 +558,17 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
           ) : (
             <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 22 }}>👜</div>
           )}
+          {xaKho && (
+            <div style={{ position: "absolute", top: 0, left: 0, background: XA_KHO_COLOR, color: "#fff", fontSize: 8.5, fontWeight: 800, padding: "1px 4px", borderBottomRightRadius: 6 }}>
+              XẢ KHO
+            </div>
+          )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 2, minWidth: 0 }}>
             {priceLine.originalText && <span style={{ fontSize: 11, color: THEME.subtext, textDecoration: "line-through", flexShrink: 0 }}>{priceLine.originalText}</span>}
-            <span style={{ fontWeight: 800, color: THEME.brand, fontSize: 14, flexShrink: 0 }}>{priceLine.text}</span>
+            <span style={{ fontWeight: 800, color: priceColor, fontSize: 14, flexShrink: 0 }}>{priceLine.text}</span>
             {code && <span style={{ fontSize: 11, color: THEME.subtext, flexShrink: 0 }}>Mã {code}</span>}
             <div style={{ display: "flex", gap: 4, overflow: "hidden", minWidth: 0 }}>
               {shown.length ? (
@@ -580,6 +594,11 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
           ) : (
             <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>👜</div>
           )}
+          {xaKho && (
+            <div style={{ position: "absolute", top: 0, left: 0, background: XA_KHO_COLOR, color: "#fff", fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderBottomRightRadius: 8, letterSpacing: 0.3 }}>
+              XẢ KHO
+            </div>
+          )}
         </div>
       </div>
       <div style={{ padding: "8px 10px 10px", flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
@@ -588,7 +607,7 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
         </div>
         <div style={{ marginTop: 4, display: "flex", alignItems: "baseline", gap: 6 }}>
           {priceLine.originalText && <span style={{ fontSize: 12, color: THEME.subtext, textDecoration: "line-through" }}>{priceLine.originalText}</span>}
-          <span style={{ fontWeight: 800, color: THEME.brand, fontSize: 15 }}>{priceLine.text}</span>
+          <span style={{ fontWeight: 800, color: priceColor, fontSize: 15 }}>{priceLine.text}</span>
         </div>
         {code && (
           <div style={{ fontSize: 11, color: THEME.subtext, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -652,7 +671,9 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
   const [editVariantId, setEditVariantId] = useState(null);
   const [nf, setNf] = useState({ code: "", size: "", color: "", price: "", remaining: "" });
   const [editName, setEditName] = useState(false);
-  const quote = buildClosetQuote(p, discount);
+  const xaKho = isXaKho(p.name);
+  const effectiveDiscount = xaKho ? null : discount;
+  const quote = buildClosetQuote(p, effectiveDiscount);
 
   async function onPickImage(e) {
     const file = e.target.files && e.target.files[0];
@@ -676,6 +697,11 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
               <img src={pendingImg || p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
             ) : (
               <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>👜</div>
+            )}
+            {xaKho && (
+              <div style={{ position: "absolute", top: 0, left: 0, background: XA_KHO_COLOR, color: "#fff", fontSize: 12.5, fontWeight: 800, padding: "3px 10px", borderBottomRightRadius: 10, letterSpacing: 0.3 }}>
+                XẢ KHO
+              </div>
             )}
             <button onClick={onClose} style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.9)", fontSize: 16, cursor: "pointer" }}>
               ✕
@@ -747,7 +773,7 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
                     <div style={{ fontSize: 13, color: THEME.subtext }}>
                       {(() => {
                         const orig = Number(v.price) || 0;
-                        const disc = applyDiscount(orig, discount);
+                        const disc = applyDiscount(orig, effectiveDiscount);
                         return disc !== orig ? (
                           <>
                             <span style={{ textDecoration: "line-through" }}>{fmtClosetPrice(orig)}</span>{" "}
