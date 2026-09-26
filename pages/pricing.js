@@ -110,7 +110,7 @@ export default function PricingPage() {
     }
     const total = roundUp5k(jpyN * rateN * (1 - discN / 100));
     const msg = `Dạ mã này đang sale còn ${fmtK(total)} + KG ạ`;
-    const altMsg = `Dạ mẫu này giá ${fmtK(total)} + KG ạ`;
+    const altMsg = `Dạ mã này giá ${fmtK(total)} + KG ạ`;
     setOrderResult({ total, msg, altMsg });
     const h = { id: uid(), type: "Order", output: total, note: "", date: Date.now(), jpy: jpyN, rate: rateN, disc: discN, msg, altMsg };
     persist({ ...data, priceHist: [h, ...data.priceHist], lastRate: rateN });
@@ -188,14 +188,18 @@ export default function PricingPage() {
           {orderResult && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontWeight: 800, fontSize: 18, color: THEME.brand }}>Giá: {fmtK(orderResult.total)}</div>
-              <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: 10, marginTop: 6, fontSize: 14 }}>{orderResult.msg}</div>
-              <button style={{ ...btn, marginTop: 8 }} onClick={() => copyMsg(orderResult.msg)}>
-                📋 Copy câu báo giá
-              </button>
-              <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: 10, marginTop: 10, fontSize: 14 }}>{orderResult.altMsg}</div>
-              <button style={{ ...btnSub, marginTop: 8 }} onClick={() => copyMsg(orderResult.altMsg)}>
-                📋 Copy câu (không nhắc sale)
-              </button>
+              <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 14 }}>
+                <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{orderResult.msg}</span>
+                <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy câu báo giá" onClick={() => copyMsg(orderResult.msg)}>
+                  📋
+                </button>
+              </div>
+              <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 14 }}>
+                <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{orderResult.altMsg}</span>
+                <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy câu (không nhắc sale)" onClick={() => copyMsg(orderResult.altMsg)}>
+                  📋
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -209,10 +213,12 @@ export default function PricingPage() {
           {readyResult && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontWeight: 800, fontSize: 18, color: THEME.brand }}>Giá sau giảm 5%: {fmtK(readyResult.total)}</div>
-              <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: 10, marginTop: 6, fontSize: 14 }}>{readyResult.msg}</div>
-              <button style={{ ...btn, marginTop: 8 }} onClick={() => copyMsg(readyResult.msg)}>
-                📋 Copy câu báo giá
-              </button>
+              <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 14 }}>
+                <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{readyResult.msg}</span>
+                <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy câu báo giá" onClick={() => copyMsg(readyResult.msg)}>
+                  📋
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -277,20 +283,33 @@ export default function PricingPage() {
                       Xóa
                     </button>
                   </div>
-                  {h.msg && (
-                    <div style={{ marginTop: 6, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 14 }}>
-                      <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{h.msg}</span>
-                      <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy" onClick={() => copyMsg(h.msg)}>
-                        📋
-                      </button>
-                    </div>
-                  )}
-                  {h.altMsg && (
-                    <div style={{ marginTop: 6, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 14 }}>
-                      <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{h.altMsg}</span>
-                      <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy" onClick={() => copyMsg(h.altMsg)}>
-                        📋
-                      </button>
+                  {(h.msg || h.altMsg) && (
+                    <div style={{ marginTop: 6, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "6px 10px", display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
+                      {h.msg && (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                          <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{h.msg}</span>
+                          <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy câu báo giá" onClick={() => copyMsg(h.msg)}>
+                            📋
+                          </button>
+                        </div>
+                      )}
+                      {h.altMsg && (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 8,
+                            borderTop: h.msg ? `1px dashed ${THEME.chipLine}` : "none",
+                            paddingTop: h.msg ? 4 : 0,
+                          }}
+                        >
+                          <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{h.altMsg}</span>
+                          <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy câu (không nhắc sale)" onClick={() => copyMsg(h.altMsg)}>
+                            📋
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
