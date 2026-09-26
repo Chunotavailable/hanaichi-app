@@ -74,8 +74,22 @@ async function readData() {
 // chủ shop, nhưng chỉ khi tab này đang trống (chưa có sản phẩm nào được
 // thêm/sửa tay) — một khi đã có ít nhất 1 sản phẩm thật, seed này không còn
 // tự điền vào nữa để không đè lên dữ liệu người dùng.
+//
+// Lần đầu chỉ có 37 sản phẩm được điền sẵn (bản seed cũ, OLD_SEED_37 bên
+// dưới). Sau đó có thêm 72 sản phẩm nữa từ 1 sheet bổ sung, nâng SEED_GIADUNG
+// lên 109 sản phẩm. Để bản đã lưu (đang có đúng 37 sản phẩm seed cũ, chưa ai
+// sửa/thêm/xoá gì) tự nâng cấp lên đủ 109 sản phẩm mới mà KHÔNG đụng vào dữ
+// liệu người dùng đã tự chỉnh, chỉ nâng cấp khi dữ liệu đang lưu khớp Y HỆT
+// với bản seed 37 sản phẩm ban đầu (deep-equal) — nghĩa là chắc chắn chưa ai
+// đụng vào.
+const OLD_SEED_37 = SEED_GIADUNG.slice(0, 37);
+
 function withGiadungSeed(data) {
-  if (!data.giadung || data.giadung.length === 0) {
+  const list = data.giadung || [];
+  if (list.length === 0) {
+    return { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) };
+  }
+  if (list.length === OLD_SEED_37.length && JSON.stringify(list) === JSON.stringify(OLD_SEED_37)) {
     return { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) };
   }
   return data;
