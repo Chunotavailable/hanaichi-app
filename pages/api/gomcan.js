@@ -92,21 +92,30 @@ async function readData() {
 // (chưa ai thêm/sửa/xoá tay) — một khi đã có sản phẩm thật của người dùng,
 // seed này không còn tự điền/nâng cấp nữa để không đè lên dữ liệu người dùng.
 //
-// Lần đầu chỉ có 37 sản phẩm được điền sẵn (id dạng "g1".."g37"). Sau đó có
-// thêm 72 sản phẩm nữa từ 1 sheet bổ sung, nâng SEED_GIADUNG lên 109 sản
-// phẩm. Nhận diện "vẫn còn nguyên seed cũ, chưa ai đụng vào" bằng CÁCH SO ID
-// (không so nội dung từng chữ) — chỉ cần mọi id đang lưu đều nằm trong tập id
-// seed cũ và tổng số không vượt quá 37 — vì id do người dùng tự thêm luôn là
-// chuỗi ngẫu nhiên (không bao giờ trùng mẫu "gNN" này), nên không sợ nhầm với
-// sản phẩm thật của người dùng.
-const OLD_SEED_IDS = new Set(SEED_GIADUNG.slice(0, 37).map((it) => it.id));
+// Lịch sử nâng seed:
+// - Lần 1: 37 sản phẩm (id "g1".."g37")
+// - Lần 2: +72 sản phẩm (lên 109 sản phẩm, id tới "g109")
+// - Lần 3: +40 sản phẩm bị thiếu trước đó (lên 149 sản phẩm, id tới "g149")
+//
+// Nhận diện "vẫn còn nguyên 1 mốc seed cũ nào đó, chưa ai đụng vào" bằng CÁCH
+// SO ID (không so nội dung từng chữ) — chỉ cần mọi id đang lưu đều nằm trong
+// tập id của MỘT mốc seed cũ nào đó và tổng số không vượt quá số id của mốc
+// đó — vì id do người dùng tự thêm luôn là chuỗi ngẫu nhiên (không bao giờ
+// trùng mẫu "gNN" này), nên không sợ nhầm với sản phẩm thật của người dùng.
+// Kiểm tra từ mốc nhỏ -> lớn, và luôn nâng thẳng lên seed mới nhất.
+const SEED_MILESTONES = [37, 109, 149].filter((n) => n < SEED_GIADUNG.length);
+const MILESTONE_ID_SETS = SEED_MILESTONES.map(
+  (n) => new Set(SEED_GIADUNG.slice(0, n).map((it) => it.id))
+);
 
 function withGiadungSeed(data) {
   const list = data.giadung || [];
   if (list.length === 0) {
     return { data: { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) }, upgraded: false };
   }
-  const stillPureOldSeed = list.length <= OLD_SEED_IDS.size && list.every((it) => OLD_SEED_IDS.has(it.id));
+  const stillPureOldSeed = MILESTONE_ID_SETS.some(
+    (idSet) => list.length <= idSet.size && list.every((it) => idSet.has(it.id))
+  );
   if (stillPureOldSeed) {
     return { data: { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) }, upgraded: true };
   }
