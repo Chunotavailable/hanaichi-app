@@ -146,7 +146,7 @@ export default function GomCan() {
     if (!tokens.length) return [];
     const all = [];
     [["oniAdult", "Oni · Người lớn"], ["oniKid", "Oni · Trẻ em"], ["unigu", "Uni + GU"]].forEach(([key, label]) => {
-      (data[key] || []).forEach((it) => all.push({ ...it, sourceLabel: label, kind: "oni" }));
+      (data[key] || []).forEach((it) => all.push({ ...it, sourceLabel: label, kind: "oni", areaKey: key }));
     });
     (data.giadung || []).forEach((it) => all.push({ ...it, sourceLabel: "Gia dụng + TPCN", kind: "giadung" }));
     const joined = tokens.join("");
@@ -156,6 +156,25 @@ export default function GomCan() {
     });
   }
   const searchResults = gcQuery.trim() ? searchAll(gcQuery) : [];
+
+  // Bấm vào 1 kết quả tìm kiếm ở đầu trang -> chuyển sang đúng tab và mở
+  // luôn chi tiết/sửa của sản phẩm đó, khỏi phải tự đi tìm lại trong danh sách.
+  function openSearchResult(p) {
+    setGcQuery("");
+    if (p.kind === "giadung") {
+      setSubTab("giadung");
+      setViewGiadungId(p.id);
+      return;
+    }
+    // kind "oni": chuyển đúng tab (oniAdult/oniKid -> "oni", unigu -> "unigu"),
+    // mở sẵn chế độ sửa, rồi cuộn tới đúng dòng đó.
+    setSubTab(p.areaKey === "unigu" ? "unigu" : "oni");
+    setEditKey({ area: p.areaKey, id: p.id });
+    setTimeout(() => {
+      const el = document.getElementById(`oni-item-${p.id}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+  }
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
@@ -174,14 +193,24 @@ export default function GomCan() {
                 if (p.kind === "oni") priceLine = <>¥{p.jpy || "-"} → <b style={{ color: THEME.brand }}>{p.vnd || "-"}</b>{p.ready ? <span style={{ color: THEME.subtext }}> | Hàng sẵn: {p.ready}</span> : null}</>;
                 else priceLine = <b style={{ color: THEME.brand }}>{giadungOuterPrice(p)}</b>;
                 return (
-                  <div key={p.id} className="hnCard" style={{ ...card, padding: 12, marginBottom: 8, display: "flex", gap: 12 }}>
+                  <div
+                    key={p.id}
+                    className="hnCard"
+                    onClick={() => openSearchResult(p)}
+                    style={{ ...card, padding: 12, marginBottom: 8, display: "flex", gap: 12, cursor: "pointer" }}
+                  >
                     <div style={thumb}>{p.image ? <img src={p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} /> : "📦"}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700 }}>{p.name} <span style={chip}>{p.sourceLabel}</span>{p.code ? <span style={{ ...chip, marginLeft: 4 }}>Mã: {p.code}</span> : null}</div>
                       <div style={{ marginTop: 4, fontSize: 16 }}>{priceLine}</div>
                       {p.productNote && <div style={{ marginTop: 4, fontSize: 14, color: THEME.subtext, whiteSpace: "pre-line" }}>{p.productNote}</div>}
-                      {p.link && <a href={p.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: THEME.brand }}>Link gốc ↗</a>}
+                      {p.link && (
+                        <a href={p.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ fontSize: 13, color: THEME.brand }}>
+                          Link gốc ↗
+                        </a>
+                      )}
                     </div>
+                    <div style={{ display: "flex", alignItems: "center", color: THEME.subtext, fontSize: 13, flexShrink: 0 }}>Xem ›</div>
                   </div>
                 );
               })
@@ -339,7 +368,7 @@ function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, 
           const isEdit = editKey && editKey.area === areaKey && editKey.id === it.id;
           if (isEdit) {
             return (
-              <div key={it.id} style={{ ...card, padding: 10, marginBottom: 8, border: `1.5px solid ${THEME.primary600}` }}>
+              <div key={it.id} id={`oni-item-${it.id}`} style={{ ...card, padding: 10, marginBottom: 8, border: `1.5px solid ${THEME.primary600}` }}>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <input style={{ ...inp, minWidth: 120, flex: 1 }} defaultValue={it.name} placeholder="Tên" onBlur={(e) => saveOniItem(areaKey, it.id, { name: e.target.value })} />
                   <input style={{ ...inp, width: 100 }} defaultValue={it.code} placeholder="Mã" onBlur={(e) => saveOniItem(areaKey, it.id, { code: e.target.value })} />
@@ -354,7 +383,7 @@ function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, 
           }
           const linkOk = it.link && /^https?:\/\//i.test(it.link);
           return (
-            <div key={it.id} className="hnCard" style={{ ...card, padding: 10, marginBottom: 8 }}>
+            <div key={it.id} id={`oni-item-${it.id}`} className="hnCard" style={{ ...card, padding: 10, marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700 }}>
