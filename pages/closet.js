@@ -285,6 +285,18 @@ export default function ClosetPage() {
     };
     persist(next);
   }
+  // Sửa giá chung cho cả sản phẩm: áp 1 giá mới cho TẤT CẢ biến thể (size/màu)
+  // của đúng 1 sản phẩm, trong 1 lần lưu duy nhất — tiện khi mọi size đều
+  // cùng 1 giá, khỏi phải sửa từng dòng giá lẻ tẻ.
+  function setAllClosetVariantPrices(productId, price) {
+    const next = {
+      ...data,
+      closet: data.closet.map((p) =>
+        p.id === productId ? { ...p, variants: p.variants.map((v) => ({ ...v, price })) } : p
+      ),
+    };
+    persist(next);
+  }
   function bumpClosetVariant(productId, variantId, delta) {
     const p = data.closet.find((x) => x.id === productId);
     const v = p && p.variants.find((x) => x.id === variantId);
@@ -309,6 +321,7 @@ export default function ClosetPage() {
           delClosetProduct={delClosetProduct}
           addClosetVariant={addClosetVariant}
           saveClosetVariant={saveClosetVariant}
+          setAllClosetVariantPrices={setAllClosetVariantPrices}
           delClosetVariant={delClosetVariant}
           bumpClosetVariant={bumpClosetVariant}
           discount={data.closetDiscount || DEFAULT_DISCOUNT}
@@ -435,7 +448,7 @@ function BulkImportModal({ list, bulkSaveClosetImages, onClose, T }) {
   );
 }
 
-function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClosetImages, delClosetProduct, addClosetVariant, saveClosetVariant, delClosetVariant, bumpClosetVariant, discount, saveClosetDiscount, T }) {
+function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClosetImages, delClosetProduct, addClosetVariant, saveClosetVariant, setAllClosetVariantPrices, delClosetVariant, bumpClosetVariant, discount, saveClosetDiscount, T }) {
   const { THEME, card, btn, btnSub, inp, iconBtn } = T;
   const list = data.closet || [];
   const [q, setQ] = useState("");
@@ -717,6 +730,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
           saveClosetProduct={saveClosetProduct}
           addClosetVariant={addClosetVariant}
           saveClosetVariant={saveClosetVariant}
+          setAllClosetVariantPrices={setAllClosetVariantPrices}
           delClosetVariant={delClosetVariant}
           bumpClosetVariant={bumpClosetVariant}
           discount={discount}
@@ -871,18 +885,23 @@ function ClosetAddProductForm({ category, askCategory, onAdd, T }) {
   );
 }
 
-function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetVariant, saveClosetVariant, delClosetVariant, bumpClosetVariant, discount, T }) {
+function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetVariant, saveClosetVariant, setAllClosetVariantPrices, delClosetVariant, bumpClosetVariant, discount, T }) {
   const { THEME, card, inp, btnSub, btn, iconBtn, chip } = T;
   const [pendingImg, setPendingImg] = useState(null);
   const [editVariantId, setEditVariantId] = useState(null);
   const [nf, setNf] = useState({ code: "", size: "", color: "", price: "", remaining: "" });
   const [editName, setEditName] = useState(false);
-  const [imgLinkInput, setImgLinkInput] = useState("");
-  const [importingImg, setImportingImg] = useState(false);
+  const [commonPrice, setCommonPrice] = useState("");
   const xaKho = isXaKho(p);
   const effectiveDiscount = xaKho ? null : discount;
   const quote = buildClosetQuote(p, effectiveDiscount);
-  const searchQuery = `${p.name || ""} ${productCodeGuess(p)}`.trim();
+
+  function applyCommonPrice() {
+    const price = Number(commonPrice);
+    if (!price || price <= 0) return;
+    setAllClosetVariantPrices(p.id, price);
+    setCommonPrice("");
+  }
 
   async function onPickImage(e) {
     const file = e.target.files && e.target.files[0];
@@ -894,26 +913,6 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
       saveClosetProduct(p.id, { image: url });
     } catch {
       alert("Không đọc được ảnh này (thường do ảnh chụp thẳng trên iPhone ở định dạng HEIC). Bạn thử lưu ảnh dạng JPG/PNG rồi chọn lại, hoặc chụp màn hình ảnh đó rồi dùng ảnh chụp màn hình nhé.");
-    }
-  }
-
-  function openImageSearch() {
-    const url = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(searchQuery)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
-  async function onImportImageLink() {
-    const link = imgLinkInput.trim();
-    if (!link) return;
-    setImportingImg(true);
-    try {
-      const url = await importGomcanImageFromUrl(p.id, link);
-      saveClosetProduct(p.id, { image: url });
-      setImgLinkInput("");
-    } catch {
-      alert("Không lấy được ảnh từ link này. Bạn thử bấm chuột phải vào ảnh trên Google → \"Sao chép địa chỉ liên kết hình ảnh\" rồi dán lại nhé (link phải là link ảnh trực tiếp, không phải link trang web).");
-    } finally {
-      setImportingImg(false);
     }
   }
 
@@ -965,23 +964,18 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
             🏷️ Xả kho (tự tích/bỏ tích, không cần đổi tên sản phẩm)
           </label>
 
-          <div style={{ marginTop: 10, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: THEME.subtext }}>Tìm ảnh theo tên + mã sản phẩm</span>
-              <button style={{ ...btnSub, flexShrink: 0 }} onClick={openImageSearch}>🔍 Tìm ảnh</button>
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <input
-                style={{ ...inp, flex: 1 }}
-                placeholder="Dán link ảnh vừa tìm được rồi bấm Nhập"
-                value={imgLinkInput}
-                onChange={(e) => setImgLinkInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") onImportImageLink(); }}
-              />
-              <button style={btnSub} disabled={importingImg || !imgLinkInput.trim()} onClick={onImportImageLink}>
-                {importingImg ? "Đang lấy…" : "Nhập ảnh"}
-              </button>
-            </div>
+          <div style={{ marginTop: 10, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: 10, display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: THEME.subtext, flexShrink: 0 }}>Sửa giá chung (k):</span>
+            <input
+              style={{ ...inp, flex: 1, minWidth: 70 }}
+              placeholder="VD: 890"
+              value={commonPrice}
+              onChange={(e) => setCommonPrice(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyCommonPrice(); }}
+            />
+            <button style={btnSub} disabled={!commonPrice} onClick={applyCommonPrice}>
+              Áp dụng cho tất cả size
+            </button>
           </div>
 
           {quote && (
