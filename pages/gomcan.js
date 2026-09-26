@@ -563,20 +563,22 @@ function GiadungCard({ it, idx, onOpen, onFavorite, T }) {
       onClick={onOpen}
       style={{ ...card, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}
     >
-      <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", background: THEME.chipBg }}>
-        {it.image ? (
-          <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", background: "#fff" }} />
-        ) : (
-          <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>🛍️</div>
-        )}
-        <button
-          onClick={(e) => { e.stopPropagation(); onFavorite(); }}
-          title="Yêu thích"
-          style={{ position: "absolute", top: 6, right: 6, width: 26, height: 26, borderRadius: 999, border: "none", background: "rgba(255,255,255,0.88)", fontSize: 13, cursor: "pointer", display: "grid", placeItems: "center" }}
-        >
-          {it.favorite ? "❤️" : "🤍"}
-        </button>
-        <span style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,0.85)", color: THEME.subtext, fontSize: 11, fontWeight: 700, borderRadius: 999, padding: "1px 6px" }}>{idx}</span>
+      <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: THEME.chipBg }}>
+        <div style={{ position: "absolute", inset: 0 }}>
+          {it.image ? (
+            <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>🛍️</div>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onFavorite(); }}
+            title="Yêu thích"
+            style={{ position: "absolute", top: 6, right: 6, width: 26, height: 26, borderRadius: 999, border: "none", background: "rgba(255,255,255,0.88)", fontSize: 13, cursor: "pointer", display: "grid", placeItems: "center" }}
+          >
+            {it.favorite ? "❤️" : "🤍"}
+          </button>
+          <span style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,0.85)", color: THEME.subtext, fontSize: 11, fontWeight: 700, borderRadius: 999, padding: "1px 6px" }}>{idx}</span>
+        </div>
       </div>
       <div style={{ padding: "8px 10px 10px", flex: 1, display: "flex", flexDirection: "column" }}>
         <div style={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 34 }}>
@@ -611,18 +613,20 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(60,20,25,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="hnCard" style={{ ...card, width: "100%", maxWidth: 420, maxHeight: "88vh", overflowY: "auto", padding: 0 }}>
-        <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", background: THEME.chipBg }}>
-          {it.image ? (
-            <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", background: "#fff" }} />
-          ) : (
-            <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>🛍️</div>
-          )}
-          <button
-            onClick={onClose}
-            style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.9)", fontSize: 16, cursor: "pointer" }}
-          >
-            ✕
-          </button>
+        <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: THEME.chipBg }}>
+          <div style={{ position: "absolute", inset: 0 }}>
+            {it.image ? (
+              <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
+            ) : (
+              <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>🛍️</div>
+            )}
+            <button
+              onClick={onClose}
+              style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.9)", fontSize: 16, cursor: "pointer" }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
         <div style={{ padding: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
