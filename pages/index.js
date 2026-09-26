@@ -1,18 +1,6 @@
 // pages/index.js — Trang chủ / Menu chính
 import Link from "next/link";
-
-const THEME = {
-  bg: "#0f1117",
-  surface: "#1b1e29",
-  text: "#f1f2f7",
-  subtext: "#9aa1b8",
-  line: "#2b2f40",
-  primary: "#ff9dc0",
-  brand: "#ff85ae",
-  chipBg: "#242837",
-  chipLine: "#363b52",
-  glow: "0 10px 30px rgba(0, 0, 0, 0.5)",
-};
+import { useTheme, ThemeToggle } from "../lib/theme";
 
 const MENU = [
   { href: "/gomcan", icon: "🧮", title: "Giá gồm cân", desc: "Bảng giá Oni, Uni + GU, Gia dụng + TPCN" },
@@ -25,6 +13,8 @@ const MENU = [
 ];
 
 export default function Home() {
+  const { theme: THEME } = useTheme();
+
   return (
     <main
       style={{
@@ -34,11 +24,16 @@ export default function Home() {
         flexDirection: "column",
         alignItems: "center",
         padding: "48px 20px",
+        position: "relative",
       }}
     >
+      <div style={{ position: "absolute", top: 20, right: 20 }}>
+        <ThemeToggle />
+      </div>
+
       <div style={{ textAlign: "center", marginBottom: 40 }}>
         <div style={{ fontSize: 48, marginBottom: 8 }}>🌸</div>
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: THEME.text, margin: 0 }}>Hanaichi</h1>
+        <h1 style={{ fontSize: 36, fontWeight: 700, color: THEME.text, margin: 0, fontFamily: THEME.headingFont }}>Hanaichi</h1>
         <p style={{ fontSize: 17, color: THEME.subtext, marginTop: 8 }}>Chọn mục bạn muốn làm</p>
       </div>
 

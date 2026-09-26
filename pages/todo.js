@@ -1,27 +1,9 @@
 // pages/todo.js
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
 
 /* ================== Theme (đồng bộ với trang chính) ================== */
-const THEME = {
-  bg: "#0f1117",
-  surface: "#1b1e29",
-  text: "#f1f2f7",
-  subtext: "#9aa1b8",
-  line: "#2b2f40",
-  primary: "#ff9dc0",
-  primary600: "#ff7fae",
-  brand: "#ff85ae",
-  chipBg: "#242837",
-  chipLine: "#363b52",
-  glow: "0 10px 30px rgba(0, 0, 0, 0.5)",
-};
-
-const card = { background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 16, boxShadow: THEME.glow };
-const btn = { background: THEME.primary, color: "#3a0f22", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
-const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 14 };
-const iconBtn = { width: 30, height: 30, borderRadius: 999, background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, cursor: "pointer", fontSize: 14, display: "grid", placeItems: "center" };
-const inp = { width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 16, outline: "none" };
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -30,6 +12,8 @@ function uid() {
 const DEFAULT_DATA = { todos: [], dailyTasks: [], todoDate: "" };
 
 export default function TodoPage() {
+  const { theme: THEME, mode, toggleTheme } = useTheme();
+  const { card, btn, btnSub, iconBtn, inp } = makeStyles(THEME);
   const [data, setData] = useState(DEFAULT_DATA);
   const [loaded, setLoaded] = useState(false);
   const [text, setText] = useState("");
@@ -144,11 +128,12 @@ export default function TodoPage() {
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
       <header style={{ background: `linear-gradient(135deg, #241a22, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: THEME.text, margin: 0 }}>✅ Việc cần làm</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: THEME.text, margin: 0, fontFamily: THEME.headingFont }}>✅ Việc cần làm</h1>
           <div style={{ display: "flex", gap: 8 }}>
             <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
             <Link href="/gomcan" style={{ ...btnSub, textDecoration: "none" }}>🧮 Giá gồm cân</Link>
             <Link href="/fbcontent" style={{ ...btnSub, textDecoration: "none" }}>✍️ Viết bài FB</Link>
+            <ThemeToggle />
           </div>
         </div>
       </header>

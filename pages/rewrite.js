@@ -1,27 +1,7 @@
 // pages/rewrite.js — Sửa bài theo khung có sẵn
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-
-/* ================== Theme (đồng bộ với trang chính) ================== */
-const THEME = {
-  bg: "#0f1117",
-  surface: "#1b1e29",
-  text: "#f1f2f7",
-  subtext: "#9aa1b8",
-  line: "#2b2f40",
-  primary: "#ff9dc0",
-  brand: "#ff85ae",
-  chipBg: "#242837",
-  chipLine: "#363b52",
-  glow: "0 10px 30px rgba(0, 0, 0, 0.5)",
-};
-
-const card = { background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 16, boxShadow: THEME.glow };
-const btn = { background: THEME.primary, color: "#3a0f22", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
-const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 14 };
-const chipSmall = { ...btnSub, fontSize: 13, padding: "3px 10px" };
-const inp = { width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 16, outline: "none", marginBottom: 8 };
-const textarea = { ...inp, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 };
+import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -70,6 +50,10 @@ const NOTE_CHIPS = ["Thêm dòng giới thiệu sản phẩm", "Viết ngắn g�
 const DEFAULT_CONTENT = { templates: [], tplSel: "", icons: [] };
 
 export default function RewritePage() {
+  const { theme: THEME, mode, toggleTheme } = useTheme();
+  const { card, btn, btnSub, inp } = makeStyles(THEME);
+  const chipSmall = { ...btnSub, fontSize: 13, padding: "3px 10px" };
+  const textarea = { ...inp, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 };
   const [content, setContent] = useState(DEFAULT_CONTENT);
   const [loaded, setLoaded] = useState(false);
   const [tplEdit, setTplEdit] = useState(null); // id đang sửa, hoặc null = tạo mới
@@ -260,11 +244,12 @@ export default function RewritePage() {
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
       <header style={{ background: `linear-gradient(135deg, #241a22, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: THEME.text, margin: 0 }}>📝 Sửa bài theo khung</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: THEME.text, margin: 0, fontFamily: THEME.headingFont }}>📝 Sửa bài theo khung</h1>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
             <Link href="/fbcontent" style={{ ...btnSub, textDecoration: "none" }}>✍️ Viết bài FB</Link>
             <Link href="/todo" style={{ ...btnSub, textDecoration: "none" }}>✅ Việc cần làm</Link>
+            <ThemeToggle />
           </div>
         </div>
       </header>

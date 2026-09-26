@@ -1,27 +1,7 @@
 // pages/fbcontent.js — Viết bài FB
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-
-/* ================== Theme (đồng bộ với trang chính) ================== */
-const THEME = {
-  bg: "#0f1117",
-  surface: "#1b1e29",
-  text: "#f1f2f7",
-  subtext: "#9aa1b8",
-  line: "#2b2f40",
-  primary: "#ff9dc0",
-  brand: "#ff85ae",
-  chipBg: "#242837",
-  chipLine: "#363b52",
-  glow: "0 10px 30px rgba(0, 0, 0, 0.5)",
-};
-
-const card = { background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 16, boxShadow: THEME.glow };
-const btn = { background: THEME.primary, color: "#3a0f22", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
-const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 14 };
-const btnSubOn = { ...btnSub, background: THEME.brand, color: "#fff", borderColor: THEME.brand };
-const inp = { width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 16, outline: "none", marginBottom: 8 };
-const textarea = { ...inp, marginBottom: 0, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 };
+import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
 
 function removeNha(s) {
   return (s || "")
@@ -56,9 +36,13 @@ Bác nào thích phong cách nhẹ nhàng, dễ phối đồ mà vẫn nổi b�
 const DEFAULT_CONTENT = { templates: [], tplSel: "", icons: [] };
 
 export default function FbContentPage() {
+  const { theme: THEME, mode: themeMode, toggleTheme } = useTheme();
+  const { card, btn, btnSub, inp } = makeStyles(THEME);
+  const btnSubOn = { ...btnSub, background: THEME.brand, color: "#fff", borderColor: THEME.brand };
+  const textarea = { ...inp, marginBottom: 0, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 };
   const [content, setContent] = useState(DEFAULT_CONTENT);
   const [loaded, setLoaded] = useState(false);
-  const [mode, setMode] = useState("group");
+  const [fbMode, setFbMode] = useState("group");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [sizes, setSizes] = useState("");
@@ -98,7 +82,7 @@ export default function FbContentPage() {
   }
 
   async function genPost() {
-    if (mode === "group") {
+    if (fbMode === "group") {
       setOutput(genGroupPost(name, price, sizes));
       return;
     }
@@ -184,21 +168,22 @@ export default function FbContentPage() {
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
       <header style={{ background: `linear-gradient(135deg, #241a22, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: THEME.text, margin: 0 }}>✍️ Viết bài FB</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: THEME.text, margin: 0, fontFamily: THEME.headingFont }}>✍️ Viết bài FB</h1>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
             <Link href="/rewrite" style={{ ...btnSub, textDecoration: "none" }}>📝 Sửa bài theo khung</Link>
             <Link href="/todo" style={{ ...btnSub, textDecoration: "none" }}>✅ Việc cần làm</Link>
+            <ThemeToggle />
           </div>
         </div>
       </header>
 
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <button style={mode === "group" ? btnSubOn : btnSub} onClick={() => setMode("group")}>
+          <button style={fbMode === "group" ? btnSubOn : btnSub} onClick={() => setFbMode("group")}>
             Bài đăng hội nhóm
           </button>
-          <button style={mode === "personal" ? btnSubOn : btnSub} onClick={() => setMode("personal")}>
+          <button style={fbMode === "personal" ? btnSubOn : btnSub} onClick={() => setFbMode("personal")}>
             Bài đăng trang cá nhân
           </button>
         </div>
@@ -210,7 +195,7 @@ export default function FbContentPage() {
           <button style={btn} onClick={genPost} disabled={busy}>
             {busy ? "⏳ Đang tạo bài..." : "Tạo bài viết"}
           </button>
-          {mode === "personal" && (
+          {fbMode === "personal" && (
             <div style={{ fontSize: 13, color: THEME.subtext, marginTop: 6 }}>
               Bài trang cá nhân sẽ được AI thêm 1 câu điểm nổi bật nếu đã cấu hình ANTHROPIC_API_KEY trên Vercel, nếu chưa thì bài vẫn tạo bình thường (không có câu đó).
             </div>

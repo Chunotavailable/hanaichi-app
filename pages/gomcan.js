@@ -1,21 +1,7 @@
 // pages/gomcan.js
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-
-/* ================== Theme (đồng bộ với trang chính) ================== */
-const THEME = {
-  bg: "#0f1117",
-  surface: "#1b1e29",
-  text: "#f1f2f7",
-  subtext: "#9aa1b8",
-  line: "#2b2f40",
-  primary: "#ff9dc0",
-  primary600: "#ff7fae",
-  brand: "#ff85ae",
-  chipBg: "#242837",
-  chipLine: "#363b52",
-  glow: "0 10px 30px rgba(0, 0, 0, 0.5)",
-};
+import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
 
 /* ================== Helpers ================== */
 function uid() {
@@ -96,18 +82,12 @@ async function deleteGomcanImage(id) {
   } catch {}
 }
 
-/* ================== Styles dùng chung ================== */
-const card = { background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 16, boxShadow: THEME.glow };
-const btn = { background: THEME.primary, color: "#3a0f22", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
-const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 14 };
-const iconBtn = { width: 30, height: 30, borderRadius: 999, background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, cursor: "pointer", fontSize: 14, display: "grid", placeItems: "center" };
-const inp = { width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 16, outline: "none" };
-const chip = { display: "inline-block", background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, color: THEME.brand, borderRadius: 999, padding: "2px 10px", fontSize: 13, fontWeight: 600 };
-const thumb = { width: 150, height: 150, minWidth: 150, borderRadius: 16, background: THEME.chipBg, border: `1px solid ${THEME.line}`, display: "grid", placeItems: "center", overflow: "hidden", fontSize: 40 };
-
 const RATE_CAT = { oniAdult: "adult", oniKid: "kid", unigu: "unigu" };
 
 export default function GomCan() {
+  const { theme: THEME, mode, toggleTheme } = useTheme();
+  const { card, btn, btnSub, iconBtn, inp, chip, thumb } = makeStyles(THEME);
+  const T = { THEME, card, btn, btnSub, iconBtn, inp, chip, thumb };
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState("oni");
@@ -221,11 +201,12 @@ export default function GomCan() {
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
       <header style={{ background: `linear-gradient(135deg, #241a22, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: THEME.text, margin: 0 }}>🧮 Giá gồm cân</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: THEME.text, margin: 0, fontFamily: THEME.headingFont }}>🧮 Giá gồm cân</h1>
           <div style={{ display: "flex", gap: 8 }}>
             <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
             <Link href="/todo" style={{ ...btnSub, textDecoration: "none" }}>✅ Việc cần làm</Link>
             <Link href="/fbcontent" style={{ ...btnSub, textDecoration: "none" }}>✍️ Viết bài FB</Link>
+            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -274,12 +255,14 @@ export default function GomCan() {
               editKey={editKey} setEditKey={setEditKey}
               addRate={addRate} saveRate={saveRate} delRate={delRate}
               addOniItem={addOniItem} saveOniItem={saveOniItem} delOniItem={delOniItem} toggleOniFavorite={toggleOniFavorite}
+              T={T}
             />
             <OniCategory
               label="👟 Giày trẻ em" areaKey="oniKid" cat="kid" data={data}
               editKey={editKey} setEditKey={setEditKey}
               addRate={addRate} saveRate={saveRate} delRate={delRate}
               addOniItem={addOniItem} saveOniItem={saveOniItem} delOniItem={delOniItem} toggleOniFavorite={toggleOniFavorite}
+              T={T}
             />
           </>
         )}
@@ -289,6 +272,7 @@ export default function GomCan() {
             editKey={editKey} setEditKey={setEditKey}
             addRate={addRate} saveRate={saveRate} delRate={delRate}
             addOniItem={addOniItem} saveOniItem={saveOniItem} delOniItem={delOniItem} toggleOniFavorite={toggleOniFavorite}
+            T={T}
           />
         )}
         {subTab === "giadung" && (
@@ -296,6 +280,7 @@ export default function GomCan() {
             data={data} editKey={editKey} setEditKey={setEditKey}
             addGiadungItem={addGiadungItem} saveGiadungItem={saveGiadungItem} delGiadungItem={delGiadungItem} toggleGiadungFavorite={toggleGiadungFavorite}
             noteOpenIds={noteOpenIds} setNoteOpenIds={setNoteOpenIds}
+            T={T}
           />
         )}
       </div>
@@ -304,7 +289,8 @@ export default function GomCan() {
 }
 
 /* ================== Oni / Uni+GU Category ================== */
-function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, saveRate, delRate, addOniItem, saveOniItem, delOniItem, toggleOniFavorite }) {
+function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, saveRate, delRate, addOniItem, saveOniItem, delOniItem, toggleOniFavorite, T }) {
+  const { THEME, card, btn, btnSub, iconBtn, inp, chip } = T;
   const rates = data.oniRates[cat] || [];
   const log = sortByFavorite(data[areaKey] || []);
   const [rf, setRf] = useState({ jpy: "", vnd: "", note: "" });
@@ -406,7 +392,8 @@ function OniCategory({ label, areaKey, cat, data, editKey, setEditKey, addRate, 
 }
 
 /* ================== Gia dụng ================== */
-function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadungItem, delGiadungItem, toggleGiadungFavorite, noteOpenIds, setNoteOpenIds }) {
+function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadungItem, delGiadungItem, toggleGiadungFavorite, noteOpenIds, setNoteOpenIds, T }) {
+  const { THEME, card, btn, inp } = T;
   const list = sortByFavorite(data.giadung || []);
   const [form, setForm] = useState({ name: "", link: "", jpy: "", vnd: "", orderType: "order" });
   const [pendingImg, setPendingImg] = useState(null);
@@ -450,6 +437,7 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
           noteOpen={!!noteOpenIds[it.id]}
           onToggleNote={() => setNoteOpenIds((s) => ({ ...s, [it.id]: !s[it.id] }))}
           onPickImage={onPickImage}
+          T={T}
         />
       ))}
 
@@ -477,7 +465,8 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
   );
 }
 
-function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavorite, noteOpen, onToggleNote, onPickImage }) {
+function GiadungRow({ it, idx, editing, onEdit, onDone, onSave, onDelete, onFavorite, noteOpen, onToggleNote, onPickImage, T }) {
+  const { THEME, card, inp, btnSub, iconBtn, chip, thumb } = T;
   const [editImg, setEditImg] = useState(null);
 
   if (editing) {

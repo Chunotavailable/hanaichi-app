@@ -1,27 +1,7 @@
 // pages/warehouse.js — Kho sản phẩm
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-
-const THEME = {
-  bg: "#0f1117",
-  surface: "#1b1e29",
-  text: "#f1f2f7",
-  subtext: "#9aa1b8",
-  line: "#2b2f40",
-  primary: "#ff9dc0",
-  primary600: "#ff7fae",
-  brand: "#ff85ae",
-  chipBg: "#242837",
-  chipLine: "#363b52",
-  glow: "0 10px 30px rgba(0, 0, 0, 0.5)",
-};
-
-const card = { background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 16, boxShadow: THEME.glow };
-const btn = { background: THEME.primary, color: "#3a0f22", border: "none", borderRadius: 12, padding: "10px 14px", fontWeight: 700, cursor: "pointer", fontSize: 15 };
-const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 14 };
-const inp = { width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 16, outline: "none", background: THEME.bg, color: THEME.text, marginBottom: 8 };
-const chip = { display: "inline-block", background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, color: THEME.brand, borderRadius: 999, padding: "2px 10px", fontSize: 13, fontWeight: 600 };
-const thumb = { width: 150, height: 150, minWidth: 150, borderRadius: 16, background: THEME.chipBg, border: `1px solid ${THEME.line}`, display: "grid", placeItems: "center", overflow: "hidden", fontSize: 40 };
+import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -96,6 +76,8 @@ const BACKUP_SECTIONS = [
 ];
 
 export default function WarehousePage() {
+  const { theme: THEME, mode, toggleTheme } = useTheme();
+  const { card, btn, btnSub, inp, chip, thumb } = makeStyles(THEME);
   const [products, setProducts] = useState([]);
   const [gomcanData, setGomcanData] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -279,8 +261,11 @@ export default function WarehousePage() {
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
       <header style={{ background: `linear-gradient(135deg, #241a22, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: THEME.text, margin: 0 }}>📦 Kho sản phẩm</h1>
-          <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: THEME.text, margin: 0, fontFamily: THEME.headingFont }}>📦 Kho sản phẩm</h1>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

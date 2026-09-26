@@ -1,24 +1,7 @@
 // pages/customers.js — Khách hàng
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-
-const THEME = {
-  bg: "#0f1117",
-  surface: "#1b1e29",
-  text: "#f1f2f7",
-  subtext: "#9aa1b8",
-  line: "#2b2f40",
-  primary: "#ff9dc0",
-  brand: "#ff85ae",
-  chipBg: "#242837",
-  chipLine: "#363b52",
-  glow: "0 10px 30px rgba(0, 0, 0, 0.5)",
-};
-
-const card = { background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 16, boxShadow: THEME.glow };
-const btn = { background: THEME.primary, color: "#3a0f22", border: "none", borderRadius: 12, padding: "10px 14px", fontWeight: 700, cursor: "pointer", fontSize: 15 };
-const btnSub = { background: THEME.chipBg, color: THEME.brand, border: `1px solid ${THEME.chipLine}`, borderRadius: 12, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 14 };
-const inp = { width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 10, border: `1px solid ${THEME.line}`, fontSize: 16, outline: "none", background: THEME.bg, color: THEME.text };
+import { useTheme, makeStyles, ThemeToggle } from "../lib/theme";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -27,6 +10,8 @@ function uid() {
 const DEFAULT_DATA = { customers: [] };
 
 export default function CustomersPage() {
+  const { theme: THEME, mode, toggleTheme } = useTheme();
+  const { card, btn, btnSub, inp } = makeStyles(THEME);
   const [data, setData] = useState(DEFAULT_DATA);
   const [loaded, setLoaded] = useState(false);
   const [form, setForm] = useState({ name: "", contact: "", order: "", note: "" });
@@ -87,8 +72,11 @@ export default function CustomersPage() {
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
       <header style={{ background: `linear-gradient(135deg, #241a22, ${THEME.bg})`, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: THEME.text, margin: 0 }}>👥 Khách hàng</h1>
-          <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: THEME.text, margin: 0, fontFamily: THEME.headingFont }}>👥 Khách hàng</h1>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🏠 Trang chủ</Link>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
