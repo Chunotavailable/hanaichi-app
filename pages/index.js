@@ -554,6 +554,8 @@ export default function Home() {
             <h1 style={heroTitle}>Hàng CÓ SẴN</h1>
             <Link href="/gomcan" style={{ ...tabPill(false), textDecoration: "none" }}>🧮 Giá gồm cân</Link>
             <Link href="/todo" style={{ ...tabPill(false), textDecoration: "none" }}>✅ Việc cần làm</Link>
+            <Link href="/fbcontent" style={{ ...tabPill(false), textDecoration: "none" }}>✍️ Viết bài FB</Link>
+            <Link href="/rewrite" style={{ ...tabPill(false), textDecoration: "none" }}>📝 Sửa bài theo khung</Link>
             {lastSync && (
               <span style={syncBadge}>
                 Đồng bộ lúc{" "}

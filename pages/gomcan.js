@@ -225,6 +225,7 @@ export default function GomCan() {
           <div style={{ display: "flex", gap: 8 }}>
             <Link href="/" style={{ ...btnSub, textDecoration: "none" }}>🔍 Tra cứu sản phẩm</Link>
             <Link href="/todo" style={{ ...btnSub, textDecoration: "none" }}>✅ Việc cần làm</Link>
+            <Link href="/fbcontent" style={{ ...btnSub, textDecoration: "none" }}>✍️ Viết bài FB</Link>
           </div>
         </div>
       </header>
