@@ -66,9 +66,7 @@ async function readData() {
     const merged = { ...DEFAULT_DATA, ...data, oniRates: { ...DEFAULT_DATA.oniRates, ...(data.oniRates || {}) } };
     const { data: seeded, upgraded } = withGiadungSeed(merged);
     if (upgraded) {
-      // Tự ghi lại ngay bản đầy đủ để lần đọc sau không phải tính lại nữa,
-      // và một khi đã ghi (số sản phẩm > 37) thì cơ chế nâng cấp bên dưới sẽ
-      // không đụng vào nữa dù người dùng có sửa/thêm gì sau đó.
+      // Tự ghi lại ngay bản đã bổ sung để lần đọc sau không phải tính lại nữa.
       try {
         await put(DATA_PATHNAME, JSON.stringify(seeded), {
           access: "public",
@@ -88,38 +86,32 @@ async function readData() {
 }
 
 // Tự động điền sẵn danh sách "Gia dụng + TPCN" lấy từ file Google Sheet của
-// chủ shop, nhưng chỉ khi tab này đang trống hoặc chỉ toàn sản phẩm seed cũ
-// (chưa ai thêm/sửa/xoá tay) — một khi đã có sản phẩm thật của người dùng,
-// seed này không còn tự điền/nâng cấp nữa để không đè lên dữ liệu người dùng.
+// chủ shop khi tab này đang trống, và khi có thêm sản phẩm mới trong seed
+// (sau này bổ sung thêm sản phẩm) thì TỰ THÊM những sản phẩm còn thiếu vào
+// danh sách đang lưu — CHỈ THÊM MỚI (theo id "gNN"), KHÔNG BAO GIỜ ĐỘNG VÀO
+// hay ghi đè lên các sản phẩm đã có sẵn trong danh sách đang lưu, dù sản
+// phẩm đó có phải hàng seed hay không, và dù nội dung của nó đã bị người
+// dùng sửa (đổi ảnh, sửa giá, sửa note...) hay chưa.
 //
-// Lịch sử nâng seed:
-// - Lần 1: 37 sản phẩm (id "g1".."g37")
-// - Lần 2: +72 sản phẩm (lên 109 sản phẩm, id tới "g109")
-// - Lần 3: +40 sản phẩm bị thiếu trước đó (lên 149 sản phẩm, id tới "g149")
-//
-// Nhận diện "vẫn còn nguyên 1 mốc seed cũ nào đó, chưa ai đụng vào" bằng CÁCH
-// SO ID (không so nội dung từng chữ) — chỉ cần mọi id đang lưu đều nằm trong
-// tập id của MỘT mốc seed cũ nào đó và tổng số không vượt quá số id của mốc
-// đó — vì id do người dùng tự thêm luôn là chuỗi ngẫu nhiên (không bao giờ
-// trùng mẫu "gNN" này), nên không sợ nhầm với sản phẩm thật của người dùng.
-// Kiểm tra từ mốc nhỏ -> lớn, và luôn nâng thẳng lên seed mới nhất.
-const SEED_MILESTONES = [37, 109, 149].filter((n) => n < SEED_GIADUNG.length);
-const MILESTONE_ID_SETS = SEED_MILESTONES.map(
-  (n) => new Set(SEED_GIADUNG.slice(0, n).map((it) => it.id))
-);
-
+// Trước đây từng dùng cách "so ID xem có phải toàn bộ vẫn là seed cũ chưa ai
+// đụng vào hay không" rồi GHI ĐÈ TOÀN BỘ nếu đúng — nhưng cách đó có lỗi: chỉ
+// cần người dùng sửa NỘI DUNG (ví dụ thêm ảnh) của 1 sản phẩm seed cũ mà
+// KHÔNG đổi id, thì lần đọc sau vẫn bị nhận nhầm là "chưa ai đụng vào" và bị
+// ghi đè mất ảnh/sửa đổi đó. Cách merge theo id dưới đây không có lỗi này vì
+// không bao giờ đụng tới sản phẩm đã tồn tại trong danh sách, chỉ bổ sung
+// thêm những id sản phẩm mới mà danh sách đang lưu chưa có.
 function withGiadungSeed(data) {
   const list = data.giadung || [];
   if (list.length === 0) {
     return { data: { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) }, upgraded: false };
   }
-  const stillPureOldSeed = MILESTONE_ID_SETS.some(
-    (idSet) => list.length <= idSet.size && list.every((it) => idSet.has(it.id))
-  );
-  if (stillPureOldSeed) {
-    return { data: { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) }, upgraded: true };
+  const existingIds = new Set(list.map((it) => it.id));
+  const missingSeedItems = SEED_GIADUNG.filter((it) => !existingIds.has(it.id));
+  if (missingSeedItems.length === 0) {
+    return { data, upgraded: false };
   }
-  return { data, upgraded: false };
+  const merged = [...list, ...missingSeedItems.map((it) => ({ ...it }))];
+  return { data: { ...data, giadung: merged }, upgraded: true };
 }
 
 export default async function handler(req, res) {
