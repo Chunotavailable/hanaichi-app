@@ -18,7 +18,6 @@ export default function TodoPage() {
   const [loaded, setLoaded] = useState(false);
   const [text, setText] = useState("");
   const [dailyText, setDailyText] = useState("");
-  const [dailyOpen, setDailyOpen] = useState(false);
   const saveTimer = useRef(null);
   const dragId = useRef(null);
 
@@ -142,42 +141,37 @@ export default function TodoPage() {
             </button>
           </div>
 
-          <div
-            style={{ marginTop: 10, fontSize: 14, fontWeight: 600, color: THEME.brand, cursor: "pointer" }}
-            onClick={() => setDailyOpen((v) => !v)}
-          >
-            ⚙️ {dailyOpen ? "Đóng" : "Thiết lập"} việc cố định hàng ngày ({data.dailyTasks.length})
+          <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600, color: THEME.brand }}>
+            ⚙️ Việc cố định hàng ngày ({data.dailyTasks.length})
           </div>
 
-          {dailyOpen && (
-            <div style={{ marginTop: 10, borderTop: `1px solid ${THEME.line}`, paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-              {data.dailyTasks.length === 0 && (
-                <div style={{ color: THEME.subtext, fontSize: 14 }}>Chưa có việc cố định nào.</div>
-              )}
-              {data.dailyTasks.map((dt) => (
-                <div key={dt.id} className="hnCard" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ flex: 1, fontSize: 16, color: THEME.text }}>🔁 {dt.text}</span>
-                  <button style={iconBtn} onClick={() => delDailyTask(dt.id)} aria-label="Xoá việc cố định">
-                    ✕
-                  </button>
-                </div>
-              ))}
-              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                <input
-                  style={{ ...inp, flex: 1, minWidth: 0 }}
-                  placeholder="Thêm việc cố định mới..."
-                  value={dailyText}
-                  onChange={(e) => setDailyText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") addDailyTask();
-                  }}
-                />
-                <button style={{ ...btn, flexShrink: 0 }} onClick={addDailyTask}>
-                  ＋ Thêm
+          <div style={{ marginTop: 10, borderTop: `1px solid ${THEME.line}`, paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+            {data.dailyTasks.length === 0 && (
+              <div style={{ color: THEME.subtext, fontSize: 14 }}>Chưa có việc cố định nào.</div>
+            )}
+            {data.dailyTasks.map((dt) => (
+              <div key={dt.id} className="hnCard" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ flex: 1, fontSize: 16, color: THEME.text }}>🔁 {dt.text}</span>
+                <button style={iconBtn} onClick={() => delDailyTask(dt.id)} aria-label="Xoá việc cố định">
+                  ✕
                 </button>
               </div>
+            ))}
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <input
+                style={{ ...inp, flex: 1, minWidth: 0 }}
+                placeholder="Thêm việc cố định mới..."
+                value={dailyText}
+                onChange={(e) => setDailyText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addDailyTask();
+                }}
+              />
+              <button style={{ ...btn, flexShrink: 0 }} onClick={addDailyTask}>
+                ＋ Thêm
+              </button>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Thanh tiến độ */}

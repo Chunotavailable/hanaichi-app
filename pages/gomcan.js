@@ -90,7 +90,7 @@ export default function GomCan() {
   const T = { THEME, card, btn, btnSub, iconBtn, inp, chip, thumb };
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [subTab, setSubTab] = useState("oni");
+  const [subTab, setSubTab] = useState("giadung");
   const [gcQuery, setGcQuery] = useState("");
   const [editKey, setEditKey] = useState(null); // { area, id } đang sửa
   const [viewGiadungId, setViewGiadungId] = useState(null); // id sản phẩm đang xem chi tiết
@@ -118,6 +118,20 @@ export default function GomCan() {
         body: JSON.stringify(next),
       }).catch(() => {});
     }, 250);
+  }
+
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function quickAddGiadung() {
+    setSubTab("giadung");
+    setTimeout(() => {
+      const el = document.getElementById("giadung-add-form");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      const inputEl = document.getElementById("giadung-add-name-input");
+      if (inputEl) inputEl.focus();
+    }, 60);
   }
 
   if (loading || !data) {
@@ -159,7 +173,7 @@ export default function GomCan() {
 
   /* ---------- Gia dụng ---------- */
   function addGiadungItem(item) {
-    const next = { ...data, giadung: [{ id: uid(), favorite: false, ...item }, ...data.giadung] };
+    const next = { ...data, giadung: [...data.giadung, { id: uid(), favorite: false, ...item }] };
     persist(next);
   }
   function saveGiadungItem(id, patch) {
@@ -227,7 +241,7 @@ export default function GomCan() {
         )}
 
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          {[["oni", "Giày Onitsuka gồm cân"], ["giadung", "Gia dụng + TPCN"], ["unigu", "Uni + GU"]].map(([k, label]) => (
+          {[["giadung", "Gia dụng + TPCN"], ["oni", "Giày Onitsuka gồm cân"], ["unigu", "Uni + GU"]].map(([k, label]) => (
             <div key={k} onClick={() => setSubTab(k)} style={{ ...btnSub, cursor: "pointer", background: subTab === k ? THEME.primary : THEME.chipBg }}>
               {label}
             </div>
@@ -270,6 +284,53 @@ export default function GomCan() {
           />
         )}
       </div>
+
+      <button
+        onClick={quickAddGiadung}
+        title="Thêm nhanh sản phẩm"
+        style={{
+          position: "fixed",
+          right: 18,
+          bottom: 146,
+          width: 48,
+          height: 48,
+          borderRadius: "50%",
+          background: THEME.brand,
+          color: "#fff",
+          border: "none",
+          fontSize: 20,
+          cursor: "pointer",
+          boxShadow: THEME.glow,
+          zIndex: 45,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        ✏️
+      </button>
+      <button
+        onClick={scrollToTop}
+        title="Lên đầu trang"
+        style={{
+          position: "fixed",
+          right: 18,
+          bottom: 82,
+          width: 48,
+          height: 48,
+          borderRadius: "50%",
+          background: THEME.chipBg,
+          color: THEME.brand,
+          border: `1px solid ${THEME.chipLine}`,
+          fontSize: 20,
+          cursor: "pointer",
+          boxShadow: THEME.glow,
+          zIndex: 45,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        ⬆️
+      </button>
     </main>
   );
 }
@@ -463,9 +524,9 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
         />
       )}
 
-      <div style={{ borderTop: `1px dashed ${THEME.chipLine}`, paddingTop: 12, marginTop: 8 }}>
+      <div id="giadung-add-form" style={{ borderTop: `1px dashed ${THEME.chipLine}`, paddingTop: 12, marginTop: 8 }}>
         <div style={{ fontWeight: 700, marginBottom: 8 }}>➕ Thêm sản phẩm</div>
-        <input style={{ ...inp, marginBottom: 8 }} placeholder="Tên sản phẩm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <input id="giadung-add-name-input" style={{ ...inp, marginBottom: 8 }} placeholder="Tên sản phẩm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <div style={{ marginBottom: 8 }}>
           <input type="file" accept="image/*" onChange={(e) => onPickImage(e, setPendingImg)} />
           {pendingImg && <img src={pendingImg} alt="" style={{ maxWidth: 130, maxHeight: 130, borderRadius: 10, marginTop: 6, objectFit: "contain", background: "#fff" }} />}
