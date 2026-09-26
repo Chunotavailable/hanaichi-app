@@ -130,9 +130,14 @@ function withGiadungSeed(data) {
 
 // Tương tự withGiadungSeed ở trên nhưng cho tab "Hàng Closet sẵn" — mỗi sản
 // phẩm còn có danh sách biến thể (size/màu) riêng bên trong, nên merge thêm
-// một lớp nữa ở cấp biến thể: giữ nguyên biến thể đã có (số lượng còn lại đã
-// được người bán tự sửa tay sau khi bán), chỉ bổ sung biến thể/sản phẩm còn
-// thiếu so với seed, không bao giờ ghi đè nội dung đã lưu.
+// một lớp nữa ở cấp biến thể: chỉ bổ sung biến thể/sản phẩm còn thiếu so với
+// seed, không bao giờ ghi đè NỘI DUNG đã lưu (ảnh, giá, tên...) — TRỪ MỘT
+// NGOẠI LỆ: số lượng "còn lại" (remaining) của biến thể luôn được lấy theo
+// giá trị mới nhất trong SEED_CLOSET, vì sheet gốc dùng chung nhiều người
+// cập nhật số lượng, và mỗi lần chủ shop gửi lại link sheet để đồng bộ, seed
+// sẽ được cập nhật số "còn lại" mới nhất — merge này đưa số đó vào app.
+// (Các trường khác của biến thể như giá, mã vẫn được giữ nguyên nếu đã có,
+// để không mất chỉnh sửa tay của người dùng.)
 function withClosetSeed(data) {
   const list = data.closet || [];
   if (list.length === 0) {
@@ -150,7 +155,12 @@ function withClosetSeed(data) {
     const vById = new Map((existing.variants || []).map((v) => [v.id, v]));
     const seedVIds = new Set(seedP.variants.map((v) => v.id));
     const mergedVariants = [
-      ...seedP.variants.map((sv) => vById.get(sv.id) || { ...sv }),
+      ...seedP.variants.map((sv) => {
+        const ev = vById.get(sv.id);
+        if (!ev) return { ...sv };
+        // Giữ nguyên mọi thứ đã lưu, chỉ đồng bộ lại "còn lại" theo seed mới nhất.
+        return ev.remaining === sv.remaining ? ev : { ...ev, remaining: sv.remaining };
+      }),
       ...(existing.variants || []).filter((v) => !seedVIds.has(v.id)),
     ];
     return { ...existing, variants: mergedVariants };
@@ -160,7 +170,14 @@ function withClosetSeed(data) {
 
   const sameShape = (a, b) =>
     a.length === b.length &&
-    a.every((p, i) => p.id === b[i].id && (p.variants || []).length === (b[i].variants || []).length && (p.variants || []).every((v, j) => v.id === (b[i].variants || [])[j].id));
+    a.every(
+      (p, i) =>
+        p.id === b[i].id &&
+        (p.variants || []).length === (b[i].variants || []).length &&
+        (p.variants || []).every(
+          (v, j) => v.id === (b[i].variants || [])[j].id && v.remaining === (b[i].variants || [])[j].remaining
+        )
+    );
   const unchanged = sameShape(merged, list);
   if (unchanged) {
     return { data, upgraded: false };
