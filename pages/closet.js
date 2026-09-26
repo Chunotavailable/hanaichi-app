@@ -75,7 +75,9 @@ function applyDiscount(price, discount) {
   const threshold = Number(d.threshold) || 0;
   const percent = Number(d.percent) || 0;
   if (threshold > 0 && percent > 0 && price >= threshold) {
-    return Math.round(price * (1 - percent / 100));
+    const raw = price * (1 - percent / 100);
+    // Giá đơn vị "k" = nghìn đồng, nên bội số 5.000đ chính là bội số của 5 ở đây.
+    return Math.ceil(raw / 5) * 5;
   }
   return price;
 }
