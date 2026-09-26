@@ -102,6 +102,10 @@ function buildClosetQuote(p, discount) {
   const priceLine = priceRangeLine(p.variants || [], discount);
   if (priceLine.text === "------") return "";
   const name = (p.name || "").replace(/\n/g, " ").trim();
+  // Sản phẩm đang được giảm giá thì câu báo giá nói rõ luôn cho khách biết.
+  if (priceLine.originalText) {
+    return `Dạ ${name} bên em có sẵn đang được giảm giá còn ${priceLine.text} ạ`;
+  }
   return `Dạ ${name} bên em có sẵn giá ${priceLine.text} ạ`;
 }
 
