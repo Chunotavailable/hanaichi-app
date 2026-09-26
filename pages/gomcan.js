@@ -510,7 +510,7 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
 
   if (listMode) {
     return (
-      <div className="hnCard" onClick={onOpen} style={{ ...card, cursor: "pointer", display: "flex", gap: 10, padding: 10, alignItems: "center" }}>
+      <div className="hnCard" onClick={onOpen} style={{ ...card, minWidth: 0, maxWidth: "100%", cursor: "pointer", display: "flex", gap: 10, padding: 10, alignItems: "center" }}>
         <div style={{ position: "relative", width: 56, height: 56, minWidth: 56, borderRadius: 10, overflow: "hidden", background: THEME.chipBg }}>
           {it.image ? (
             <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
@@ -540,7 +540,7 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
     <div
       className="hnCard"
       onClick={onOpen}
-      style={{ ...card, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}
+      style={{ ...card, minWidth: 0, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}
     >
       <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: THEME.chipBg }}>
         <div style={{ position: "absolute", inset: 0 }}>

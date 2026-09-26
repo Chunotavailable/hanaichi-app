@@ -8,13 +8,42 @@ import { PageHeader } from "../lib/nav";
 import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, ViewModeToggle, gridColumnsFor } from "../lib/gomcanHelpers";
 
 // Lấy phần trong ngoặc của mã biến thể để hiện gọn khi cần (VD "WRS...-235
-// (EU 38)" -> "EU 38"). Hiện KHÔNG dùng nữa cho thẻ ngoài (đã đổi sang hiện
-// nguyên mã) nhưng vẫn giữ lại phòng khi cần dùng ở nơi khác.
+// (EU 38)" -> "EU 38").
 function variantShortLabel(v) {
   const m = (v.label || "").match(/\(([^)]+)\)/);
   if (m) return m[1].trim();
   const label = (v.label || "").trim();
   return label.length > 22 ? label.slice(0, 20) + "…" : label || "?";
+}
+// Tìm phần mã DÙNG CHUNG cho mọi biến thể của 1 sản phẩm (VD các mã
+// "WRS00964001-235", "WRS00964001-24"... đều chung tiền tố "WRS00964001") —
+// để hiện mã đó ra 1 lần duy nhất, còn từng biến thể chỉ hiện phần size
+// riêng, khỏi lặp lại mã dài dòng dài trên từng thẻ size.
+function commonCodePrefix(variants) {
+  const labels = (variants || []).map((v) => (v.label || "").trim()).filter(Boolean);
+  if (labels.length < 2) return "";
+  let prefix = labels[0];
+  for (let i = 1; i < labels.length && prefix; i++) {
+    const b = labels[i];
+    let j = 0;
+    while (j < prefix.length && j < b.length && prefix[j] === b[j]) j++;
+    prefix = prefix.slice(0, j);
+  }
+  // Cắt về đúng ranh giới sạch (trước dấu "-", "/" hoặc khoảng trắng gần nhất)
+  // để không cắt đứt giữa chừng 1 từ/số.
+  const m = prefix.match(/^(.*)[-/\s]/);
+  const cleaned = m ? m[1] : "";
+  return cleaned.length >= 3 ? cleaned : "";
+}
+// Phần "size" riêng của 1 biến thể sau khi đã bỏ mã dùng chung — ưu tiên lấy
+// phần chữ trong ngoặc (dễ đọc hơn, VD "EU 38") nếu có.
+function sizePartFor(label, code) {
+  const raw = (label || "").trim();
+  let rest = code ? raw.slice(code.length) : raw;
+  rest = rest.replace(/^[-/\s]+/, "").trim();
+  const m = rest.match(/\(([^)]+)\)/);
+  if (m) return m[1].trim();
+  return rest || raw || "?";
 }
 function fmtClosetPrice(price) {
   const n = Number(price) || 0;
@@ -28,9 +57,6 @@ function priceRangeLine(variants) {
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   return min === max ? fmtClosetPrice(min) : `${fmtClosetPrice(min)} - ${fmtClosetPrice(max)}`;
-}
-function slugCat(s, i) {
-  return "cat-" + i + "-" + norm(s).replace(/\s+/g, "-");
 }
 
 export default function ClosetPage() {
@@ -143,6 +169,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
   const [confirmDelId, setConfirmDelId] = useState(null);
   const [addingCategory, setAddingCategory] = useState(null); // category đang thêm sản phẩm mới
   const [viewMode, setViewMode] = useState("small");
+  const [activeCat, setActiveCat] = useState(null); // null = xem tất cả danh mục
 
   const tokens = norm(q).split(" ").filter(Boolean);
   const filtered = !tokens.length
@@ -161,10 +188,9 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
     }
   });
 
-  function jumpToCategory(cat, i) {
-    const el = document.getElementById(slugCat(cat, i));
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  // Bấm 1 danh mục thì chỉ hiện đúng danh mục đó (thay vì phải kéo xuống);
+  // bấm lại lần nữa (hoặc bấm "Tất cả") thì quay về xem hết.
+  const shownCategories = activeCat && categories.includes(activeCat) ? [activeCat] : categories;
 
   const viewingProduct = viewId ? list.find((p) => p.id === viewId) : null;
   const confirmDelProduct = confirmDelId ? list.find((p) => p.id === confirmDelId) : null;
@@ -182,7 +208,8 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
         onChange={(e) => setQ(e.target.value)}
       />
 
-      {/* Thanh nhấn nhanh để nhảy tới danh mục, khỏi phải kéo tay xuống */}
+      {/* Thanh nhấn nhanh chọn danh mục — bấm vào là chỉ hiện đúng danh mục đó,
+          khỏi phải kéo tay xuống mới xem được mục khác. */}
       {categories.length > 1 && (
         <div
           style={{
@@ -193,16 +220,23 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
             display: "flex",
             gap: 6,
             overflowX: "auto",
+            maxWidth: "100%",
             padding: "6px 0 10px",
             marginBottom: 6,
             WebkitOverflowScrolling: "touch",
           }}
         >
-          {categories.map((cat, i) => (
+          <button
+            onClick={() => setActiveCat(null)}
+            style={{ ...btnSub, whiteSpace: "nowrap", flexShrink: 0, background: !activeCat ? THEME.primary : THEME.chipBg }}
+          >
+            Tất cả
+          </button>
+          {categories.map((cat) => (
             <button
               key={cat}
-              onClick={() => jumpToCategory(cat, i)}
-              style={{ ...btnSub, whiteSpace: "nowrap", flexShrink: 0 }}
+              onClick={() => setActiveCat(activeCat === cat ? null : cat)}
+              style={{ ...btnSub, whiteSpace: "nowrap", flexShrink: 0, background: activeCat === cat ? THEME.primary : THEME.chipBg }}
             >
               {cat}
             </button>
@@ -212,8 +246,8 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, delClosetPro
 
       {filtered.length === 0 && <div style={{ color: THEME.subtext, fontSize: 16, marginBottom: 8 }}>Không tìm thấy mẫu nào khớp</div>}
 
-      {categories.map((cat, i) => (
-        <div key={cat} id={slugCat(cat, i)} style={{ marginBottom: 20, scrollMarginTop: 8 }}>
+      {shownCategories.map((cat) => (
+        <div key={cat} style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: THEME.brand, marginBottom: 8, borderBottom: `1px dashed ${THEME.chipLine}`, paddingBottom: 4 }}>
             {cat}
           </div>
@@ -293,10 +327,13 @@ function ClosetProductCard({ p, listMode, onOpen, T }) {
   const shown = variants.slice(0, 6);
   const extra = variants.length - shown.length;
   const priceLine = priceRangeLine(variants);
+  // Mã dùng chung hiện 1 lần duy nhất; mỗi biến thể chỉ còn hiện phần size.
+  const code = commonCodePrefix(variants);
+  const sizeChip = (v) => (code ? sizePartFor(v.label, code) : v.label);
 
   if (listMode) {
     return (
-      <div className="hnCard" onClick={onOpen} style={{ ...card, cursor: "pointer", display: "flex", gap: 10, padding: 10, alignItems: "center" }}>
+      <div className="hnCard" onClick={onOpen} style={{ ...card, minWidth: 0, maxWidth: "100%", cursor: "pointer", display: "flex", gap: 10, padding: 10, alignItems: "center" }}>
         <div style={{ position: "relative", width: 56, height: 56, minWidth: 56, borderRadius: 10, overflow: "hidden", background: THEME.chipBg }}>
           {p.image ? (
             <img src={p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
@@ -306,11 +343,14 @@ function ClosetProductCard({ p, listMode, onOpen, T }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 2, flexWrap: "wrap" }}>
-            <span style={{ fontWeight: 800, color: THEME.brand, fontSize: 14 }}>{priceLine}</span>
-            {shown.slice(0, 3).map((v) => (
-              <span key={v.id} style={{ ...chip, fontSize: 10.5, padding: "1px 6px" }}>{v.label}</span>
-            ))}
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 2, minWidth: 0 }}>
+            <span style={{ fontWeight: 800, color: THEME.brand, fontSize: 14, flexShrink: 0 }}>{priceLine}</span>
+            {code && <span style={{ fontSize: 11, color: THEME.subtext, flexShrink: 0 }}>Mã {code}</span>}
+            <div style={{ display: "flex", gap: 4, overflow: "hidden", minWidth: 0 }}>
+              {shown.slice(0, 3).map((v) => (
+                <span key={v.id} style={{ ...chip, fontSize: 10.5, padding: "1px 6px", flexShrink: 0 }}>{sizeChip(v)}</span>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -318,7 +358,7 @@ function ClosetProductCard({ p, listMode, onOpen, T }) {
   }
 
   return (
-    <div className="hnCard" onClick={onOpen} style={{ ...card, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}>
+    <div className="hnCard" onClick={onOpen} style={{ ...card, minWidth: 0, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}>
       <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: THEME.chipBg }}>
         <div style={{ position: "absolute", inset: 0 }}>
           {p.image ? (
@@ -328,11 +368,16 @@ function ClosetProductCard({ p, listMode, onOpen, T }) {
           )}
         </div>
       </div>
-      <div style={{ padding: "8px 10px 10px", flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "8px 10px 10px", flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, whiteSpace: "pre-line", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 34 }}>
           {p.name}
         </div>
         <div style={{ marginTop: 4, fontWeight: 800, color: THEME.brand, fontSize: 15 }}>{priceLine}</div>
+        {code && (
+          <div style={{ fontSize: 11, color: THEME.subtext, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            Mã {code}
+          </div>
+        )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 6 }}>
           {shown.map((v) => (
             <span
@@ -346,7 +391,7 @@ function ClosetProductCard({ p, listMode, onOpen, T }) {
                 textDecoration: v.remaining > 0 ? "none" : "line-through",
               }}
             >
-              {v.label}
+              {sizeChip(v)}
             </span>
           ))}
           {extra > 0 && <span style={{ ...chip, fontSize: 10.5, padding: "1px 6px" }}>+{extra}</span>}
