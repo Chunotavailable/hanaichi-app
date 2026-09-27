@@ -128,6 +128,41 @@ function isXaKho(p) {
   return norm(p || "").includes("xa kho");
 }
 const XA_KHO_COLOR = "#dc2626";
+// Thời lượng 1 nhịp nháy của nhãn "XẢ KHO" (ms) — PHẢI khớp với thời lượng
+// khai báo ở keyframes hnXaKhoPulse trong pages/_app.js.
+const XA_KHO_BLINK_MS = 1300;
+// Đồng bộ nhịp nháy giữa mọi thẻ trên trang: tính animation-delay ÂM dựa
+// theo giờ hệ thống (thay vì để mặc định bắt đầu từ lúc mỗi thẻ được render)
+// — nhờ vậy dù các thẻ hiện ra không cùng lúc (cuộn trang, lọc, mở modal...)
+// thì nhãn vẫn luôn nháy cùng 1 nhịp với nhau, không bị lệch pha trông rối mắt.
+function xaKhoBlinkDelay() {
+  return `-${Date.now() % XA_KHO_BLINK_MS}ms`;
+}
+// Giao diện nhãn "XẢ KHO" nổi bật hơn: nền gradient đỏ cam, viền sáng, icon
+// lửa, có 3 cỡ dùng cho: thẻ dạng danh sách (sm), thẻ lưới (md), modal chi
+// tiết (lg).
+const XA_KHO_BADGE_SIZES = {
+  sm: { fontSize: 8.5, padding: "1px 6px", top: 4, left: 4, radius: 6 },
+  md: { fontSize: 10.5, padding: "2px 10px", top: 6, left: 6, radius: 8 },
+  lg: { fontSize: 12.5, padding: "3px 12px", top: 10, left: 10, radius: 9 },
+};
+function xaKhoBadgeStyle(size) {
+  const s = XA_KHO_BADGE_SIZES[size] || XA_KHO_BADGE_SIZES.md;
+  return {
+    position: "absolute",
+    top: s.top,
+    left: s.left,
+    background: "linear-gradient(135deg, #f87171, #dc2626 55%, #b91c1c)",
+    color: "#fff",
+    fontSize: s.fontSize,
+    fontWeight: 800,
+    padding: s.padding,
+    borderRadius: s.radius,
+    letterSpacing: 0.3,
+    border: "1px solid rgba(255,255,255,0.6)",
+    animationDelay: xaKhoBlinkDelay(),
+  };
+}
 
 // Giới tính suy ra từ tên/danh mục: mã nào không có chữ "nam"/"nữ" thì coi
 // như dùng được cho cả 2 giới (luôn hiện ra dù đang lọc Nam hay Nữ).
@@ -849,8 +884,8 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
             <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 22 }}>👜</div>
           )}
           {xaKho && (
-            <div className="hnBlink" style={{ position: "absolute", top: 4, left: 4, background: XA_KHO_COLOR, color: "#fff", fontSize: 8.5, fontWeight: 800, padding: "1px 5px", borderRadius: 5 }}>
-              XẢ KHO
+            <div className="xaKhoBadge" style={xaKhoBadgeStyle("sm")}>
+              🔥 XẢ KHO
             </div>
           )}
         </div>
@@ -885,8 +920,8 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
             <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>👜</div>
           )}
           {xaKho && (
-            <div className="hnBlink" style={{ position: "absolute", top: 6, left: 6, background: XA_KHO_COLOR, color: "#fff", fontSize: 10.5, fontWeight: 800, padding: "2px 9px", borderRadius: 7, letterSpacing: 0.3 }}>
-              XẢ KHO
+            <div className="xaKhoBadge" style={xaKhoBadgeStyle("md")}>
+              🔥 XẢ KHO
             </div>
           )}
         </div>
@@ -997,8 +1032,8 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
               <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>👜</div>
             )}
             {xaKho && (
-              <div className="hnBlink" style={{ position: "absolute", top: 10, left: 10, background: XA_KHO_COLOR, color: "#fff", fontSize: 12.5, fontWeight: 800, padding: "3px 11px", borderRadius: 8, letterSpacing: 0.3 }}>
-                XẢ KHO
+              <div className="xaKhoBadge" style={xaKhoBadgeStyle("lg")}>
+                🔥 XẢ KHO
               </div>
             )}
             <button onClick={onClose} style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.9)", fontSize: 16, cursor: "pointer" }}>

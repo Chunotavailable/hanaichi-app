@@ -100,6 +100,25 @@ export default function App({ Component, pageProps }) {
         .hnBlink {
           animation: hnBlink 1.1s ease-in-out infinite;
         }
+        /* Nhãn "XẢ KHO": nháy kiểu phồng/xẹp + toả sáng viền ngoài (nổi bật hơn
+           kiểu mờ/tỏ cũ), animation-delay được tính theo giờ hệ thống (xem
+           xaKhoBlinkDelay() trong closet.js) để mọi thẻ trên trang nháy ĐỒNG
+           BỘ cùng 1 nhịp, dù mỗi thẻ được render vào lúc khác nhau. */
+        @keyframes hnXaKhoPulse {
+          0%,
+          100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55), 0 2px 6px rgba(185, 28, 28, 0.35);
+          }
+          50% {
+            transform: scale(1.09);
+            box-shadow: 0 0 0 7px rgba(220, 38, 38, 0), 0 2px 10px rgba(185, 28, 28, 0.55);
+          }
+        }
+        .xaKhoBadge {
+          animation: hnXaKhoPulse 1.3s ease-in-out infinite;
+          will-change: transform, box-shadow;
+        }
         main {
           animation: hnFadeIn 0.25s ease;
         }
