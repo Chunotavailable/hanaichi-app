@@ -178,6 +178,14 @@ function splitLabelForEdit(label) {
   const raw = (label || "").trim();
   const m = raw.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
   if (m) return { code: m[1].trim(), size: m[2].trim() };
+  // Không có ngoặc (mã quần áo kiểu "IW5977-S"): thử tách phần size chữ
+  // (S/M/L/XL/2XL...) ở cuối, tránh hiện dính liền cả mã lẫn size làm 1 cục.
+  const lm = raw.match(/^(.*)-(\d?XL|XXL|XS|S|M|L)$/i);
+  if (lm) {
+    let size = lm[2].toUpperCase();
+    if (size === "XXL") size = "2XL";
+    return { code: lm[1].trim(), size };
+  }
   return { code: raw, size: "" };
 }
 // Ghép lại "Mã" + "Size" thành 1 chuỗi label để lưu và hiển thị/tìm kiếm
