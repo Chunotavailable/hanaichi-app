@@ -283,6 +283,12 @@ export default function ClosetPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const saveTimer = useRef(null);
+  // Hoàn tác xoá trong 10s: khi xoá 1 mã/size, dữ liệu được cập nhật ngay
+  // trên màn hình (ẩn đi luôn) nhưng CHƯA lưu lên server — chỉ thật sự lưu
+  // (và xoá ảnh nếu có) sau 10s không bấm "Hoàn tác". Bấm hoàn tác thì khôi
+  // phục lại đúng dữ liệu trước khi xoá.
+  const undoRef = useRef(null); // { prevData, timer, onCommit }
+  const [undoInfo, setUndoInfo] = useState(null); // { message } — chỉ để hiện thanh thông báo
 
   useEffect(() => {
     (async () => {
@@ -296,16 +302,61 @@ export default function ClosetPage() {
     })();
   }, []);
 
+  // Nếu rời trang khi vẫn còn 1 lượt xoá đang chờ hoàn tác, phải lưu ngay lập
+  // tức thay vì để mất tiêu, vì hẹn giờ setTimeout ở dưới đã không thể chạy
+  // đúng lúc component đã bị gỡ (component unmount không huỷ setTimeout).
+  useEffect(() => {
+    return () => {
+      if (undoRef.current) {
+        clearTimeout(undoRef.current.timer);
+        undoRef.current.onCommit();
+        undoRef.current = null;
+      }
+    };
+  }, []);
+
+  function saveToServer(next) {
+    fetch("/api/gomcan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    }).catch(() => {});
+  }
+
   function persist(next) {
     setData(next);
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      fetch("/api/gomcan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      }).catch(() => {});
-    }, 250);
+    saveTimer.current = setTimeout(() => saveToServer(next), 250);
+  }
+
+  // Xoá kèm hoàn tác: cập nhật giao diện ngay (nextData), nhưng việc lưu thật
+  // sự lên server (onCommit) bị hoãn 10s — trong lúc đó bấm "Hoàn tác" thì
+  // huỷ lượt lưu này và khôi phục lại prevData.
+  function scheduleUndoableDelete({ message, prevData, nextData, onCommit }) {
+    // Nếu đang có 1 lượt xoá khác chưa hết 10s thì lưu luôn lượt đó trước,
+    // tránh chồng nhiều lượt hoàn tác cùng lúc gây rối.
+    if (undoRef.current) {
+      clearTimeout(undoRef.current.timer);
+      undoRef.current.onCommit();
+      undoRef.current = null;
+    }
+    setData(nextData);
+    const timer = setTimeout(() => {
+      onCommit();
+      undoRef.current = null;
+      setUndoInfo(null);
+    }, 10000);
+    undoRef.current = { prevData, timer, onCommit };
+    setUndoInfo({ message });
+  }
+
+  function undoDelete() {
+    if (!undoRef.current) return;
+    clearTimeout(undoRef.current.timer);
+    const { prevData } = undoRef.current;
+    undoRef.current = null;
+    setUndoInfo(null);
+    persist(prevData);
   }
 
   if (loading || !data) {
@@ -334,13 +385,24 @@ export default function ClosetPage() {
     persist(next);
   }
   function delClosetProduct(id) {
-    deleteGomcanImage(id);
+    const prevData = data;
+    const product = data.closet.find((p) => p.id === id);
     // Ghi nhớ lại id đã xoá: nếu đây là 1 mã có sẵn trong dữ liệu mẫu gốc
     // (seed), server sẽ tự "bổ sung lại mã còn thiếu" mỗi khi tải trang —
     // không ghi nhớ thì mã vừa xoá sẽ tự hiện lại ngay sau khi tải lại trang.
     const deletedIds = Array.from(new Set([...(data.closetDeletedIds || []), id]));
     const next = { ...data, closet: data.closet.filter((p) => p.id !== id), closetDeletedIds: deletedIds };
-    persist(next);
+    scheduleUndoableDelete({
+      message: `Đã xoá "${product ? product.name.split("\n")[0] : "sản phẩm"}"`,
+      prevData,
+      nextData: next,
+      // Chỉ thật sự xoá ảnh trên server sau 10s không hoàn tác — hoàn tác thì
+      // ảnh vẫn còn nguyên, khỏi phải tải/nhập lại.
+      onCommit: () => {
+        deleteGomcanImage(id);
+        saveToServer(next);
+      },
+    });
   }
   function addClosetVariant(productId, variant) {
     const next = {
@@ -361,6 +423,9 @@ export default function ClosetPage() {
     persist(next);
   }
   function delClosetVariant(productId, variantId) {
+    const prevData = data;
+    const product = data.closet.find((p) => p.id === productId);
+    const variant = product && product.variants.find((v) => v.id === variantId);
     // Ghi nhớ lại "productId:variantId" đã xoá, cùng lý do như delClosetProduct
     // ở trên — tránh size/mã đã xoá của sản phẩm mẫu gốc tự hiện lại.
     const key = `${productId}:${variantId}`;
@@ -370,7 +435,12 @@ export default function ClosetPage() {
       closet: data.closet.map((p) => (p.id === productId ? { ...p, variants: p.variants.filter((v) => v.id !== variantId) } : p)),
       closetDeletedVariantIds: deletedVariantIds,
     };
-    persist(next);
+    scheduleUndoableDelete({
+      message: `Đã xoá mã "${(variant && variant.label) || ""}"`,
+      prevData,
+      nextData: next,
+      onCommit: () => saveToServer(next),
+    });
   }
   // Sửa giá chung cho cả sản phẩm: áp 1 giá mới cho TẤT CẢ biến thể (size/màu)
   // của đúng 1 sản phẩm, trong 1 lần lưu duy nhất — tiện khi mọi size đều
@@ -416,7 +486,61 @@ export default function ClosetPage() {
           T={T}
         />
       </div>
+      {undoInfo && <UndoToast message={undoInfo.message} onUndo={undoDelete} T={T} />}
     </main>
+  );
+}
+
+// Thanh thông báo "Đã xoá..." nổi ở đáy màn hình kèm nút Hoàn tác, tự đếm
+// ngược 10s (đồng bộ với thời gian hoãn lưu thật ở scheduleUndoableDelete).
+function UndoToast({ message, onUndo, T }) {
+  const { THEME } = T;
+  const [secondsLeft, setSecondsLeft] = useState(10);
+  useEffect(() => {
+    setSecondsLeft(10);
+    const iv = setInterval(() => {
+      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [message]);
+  return (
+    <div
+      className="hnPop"
+      style={{
+        position: "fixed",
+        left: "50%",
+        bottom: 18,
+        transform: "translateX(-50%)",
+        zIndex: 200,
+        background: "#1f2937",
+        color: "#fff",
+        borderRadius: 12,
+        padding: "10px 12px 10px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.28)",
+        maxWidth: "calc(100vw - 32px)",
+      }}
+    >
+      <span style={{ fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{message}</span>
+      <button
+        onClick={onUndo}
+        style={{
+          flexShrink: 0,
+          background: "#fff",
+          color: "#1f2937",
+          border: "none",
+          borderRadius: 8,
+          padding: "6px 12px",
+          fontWeight: 800,
+          fontSize: 13,
+          cursor: "pointer",
+        }}
+      >
+        Hoàn tác ({secondsLeft}s)
+      </button>
+    </div>
   );
 }
 
@@ -833,7 +957,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
 
       <ConfirmDialog
         open={!!confirmDelProduct}
-        message={`Xoá mẫu "${confirmDelProduct ? confirmDelProduct.name.split("\n")[0] : ""}"? Không thể hoàn tác.`}
+        message={`Xoá mẫu "${confirmDelProduct ? confirmDelProduct.name.split("\n")[0] : ""}"? (có 10s để hoàn tác sau khi xoá)`}
         onCancel={() => setConfirmDelId(null)}
         onConfirm={() => {
           delClosetProduct(confirmDelId);
