@@ -60,6 +60,11 @@ const DEFAULT_DATA = {
   // Chương trình giảm giá áp dụng chung cho tab "Hàng Closet sẵn" — mặc định
   // tắt, chủ shop tự bật lên khi có đợt khuyến mãi.
   closetDiscount: { enabled: false, threshold: 500, percent: 5 },
+  // Mã/size của hàng Closet đã bị chủ shop tự xoá tay — withClosetSeed bên
+  // dưới phải tra vào đây để KHÔNG tự thêm lại, nếu không mã seed gốc sẽ
+  // tự hiện lại mỗi khi tải trang (readData chạy merge lại từ SEED_CLOSET).
+  closetDeletedIds: [],
+  closetDeletedVariantIds: [],
 };
 
 async function readData() {
@@ -233,16 +238,26 @@ function withClosetSplit(data) {
 // để không mất chỉnh sửa tay của người dùng.)
 function withClosetSeed(data) {
   const list = data.closet || [];
+  // Mã sản phẩm / biến thể gốc trong seed mà chủ shop đã tự xoá tay — phải
+  // loại các mã này ra khỏi seed trước khi merge, không thì mỗi lần tải lại
+  // trang (readData chạy hàm này lại từ đầu) mã vừa xoá sẽ tự hiện lại.
+  const deletedIds = new Set(data.closetDeletedIds || []);
+  const deletedVariantIds = new Set(data.closetDeletedVariantIds || []);
+  const seedFiltered = SEED_CLOSET.filter((p) => !deletedIds.has(p.id)).map((p) => ({
+    ...p,
+    variants: p.variants.filter((v) => !deletedVariantIds.has(`${p.id}:${v.id}`)),
+  }));
+
   if (list.length === 0) {
     return {
-      data: { ...data, closet: SEED_CLOSET.map((p) => ({ ...p, variants: p.variants.map((v) => ({ ...v })) })) },
+      data: { ...data, closet: seedFiltered.map((p) => ({ ...p, variants: p.variants.map((v) => ({ ...v })) })) },
       upgraded: false,
     };
   }
   const byId = new Map(list.map((p) => [p.id, p]));
-  const seedIds = new Set(SEED_CLOSET.map((p) => p.id));
+  const seedIds = new Set(seedFiltered.map((p) => p.id));
 
-  const orderedFromSeed = SEED_CLOSET.map((seedP) => {
+  const orderedFromSeed = seedFiltered.map((seedP) => {
     const existing = byId.get(seedP.id);
     if (!existing) return { ...seedP, variants: seedP.variants.map((v) => ({ ...v })) };
     const vById = new Map((existing.variants || []).map((v) => [v.id, v]));
@@ -258,7 +273,7 @@ function withClosetSeed(data) {
     ];
     return { ...existing, variants: mergedVariants };
   });
-  const customExtras = list.filter((p) => !seedIds.has(p.id));
+  const customExtras = list.filter((p) => !seedIds.has(p.id) && !deletedIds.has(p.id));
   const merged = [...orderedFromSeed, ...customExtras];
 
   const sameShape = (a, b) =>

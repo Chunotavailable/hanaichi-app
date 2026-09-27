@@ -300,7 +300,11 @@ export default function ClosetPage() {
   }
   function delClosetProduct(id) {
     deleteGomcanImage(id);
-    const next = { ...data, closet: data.closet.filter((p) => p.id !== id) };
+    // Ghi nhớ lại id đã xoá: nếu đây là 1 mã có sẵn trong dữ liệu mẫu gốc
+    // (seed), server sẽ tự "bổ sung lại mã còn thiếu" mỗi khi tải trang —
+    // không ghi nhớ thì mã vừa xoá sẽ tự hiện lại ngay sau khi tải lại trang.
+    const deletedIds = Array.from(new Set([...(data.closetDeletedIds || []), id]));
+    const next = { ...data, closet: data.closet.filter((p) => p.id !== id), closetDeletedIds: deletedIds };
     persist(next);
   }
   function addClosetVariant(productId, variant) {
@@ -322,9 +326,14 @@ export default function ClosetPage() {
     persist(next);
   }
   function delClosetVariant(productId, variantId) {
+    // Ghi nhớ lại "productId:variantId" đã xoá, cùng lý do như delClosetProduct
+    // ở trên — tránh size/mã đã xoá của sản phẩm mẫu gốc tự hiện lại.
+    const key = `${productId}:${variantId}`;
+    const deletedVariantIds = Array.from(new Set([...(data.closetDeletedVariantIds || []), key]));
     const next = {
       ...data,
       closet: data.closet.map((p) => (p.id === productId ? { ...p, variants: p.variants.filter((v) => v.id !== variantId) } : p)),
+      closetDeletedVariantIds: deletedVariantIds,
     };
     persist(next);
   }
