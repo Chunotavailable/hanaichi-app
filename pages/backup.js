@@ -10,6 +10,7 @@ import { PageHeader } from "../lib/nav";
 
 const SECTIONS = [
   { key: "gomcan", url: "/api/gomcan", label: "Giá gồm cân + Hàng Closet sẵn" },
+  { key: "thietbi", url: "/api/thietbi", label: "Thiết bị bếp & vệ sinh" },
   { key: "customers", url: "/api/customers", label: "Khách hàng" },
   { key: "todo", url: "/api/todo", label: "Việc cần làm" },
   { key: "pricing", url: "/api/pricing", label: "Báo giá nhanh" },
@@ -106,8 +107,8 @@ export default function BackupPage() {
         <div style={{ ...card, padding: 16 }}>
           <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6 }}>📤 Tải file sao lưu về máy</div>
           <div style={{ fontSize: 13.5, color: THEME.subtext, lineHeight: 1.6 }}>
-            Gộp toàn bộ dữ liệu hiện tại (Giá gồm cân, Hàng Closet sẵn — cả ảnh lẫn giá đã sửa, Báo giá nhanh, Việc cần
-            làm, Khách hàng) thành 1 file, tải về máy giữ phòng khi cần. Nên bấm định kỳ, đặc biệt sau khi vừa thêm/sửa
+            Gộp toàn bộ dữ liệu hiện tại (Giá gồm cân, Hàng Closet sẵn — cả ảnh lẫn giá đã sửa, Thiết bị bếp & vệ sinh,
+            Báo giá nhanh, Việc cần làm, Khách hàng) thành 1 file, tải về máy giữ phòng khi cần. Nên bấm định kỳ, đặc biệt sau khi vừa thêm/sửa
             nhiều — rồi lưu file đó vào Zalo/Drive/email của bạn cho chắc, không cần lưu trên máy này.
           </div>
           <button style={{ ...btn, marginTop: 10 }} disabled={busy} onClick={downloadBackup}>
