@@ -153,7 +153,7 @@ export default function App({ Component, pageProps }) {
           }
           to {
             opacity: 1;
-            transform: translateY(0);
+            transform: none;
           }
         }
         @keyframes hnFadeIn {
@@ -225,7 +225,10 @@ export default function App({ Component, pageProps }) {
            lên và hiện dần (tiêu đề trước, nội dung sau 1 nhịp), thanh menu đứng
            yên nên cảm giác chuyển mượt thay vì "nhảy" sang trang khác. */
         main > *:not(header):not([style*="fixed"]) {
-          animation: hnPageIn 0.38s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+          /* "backwards" chứ KHÔNG "both": giữ transform sau khi chạy xong sẽ biến
+             khối này thành gốc toạ độ cho mọi thứ position:fixed bên trong
+             (hộp chi tiết sản phẩm bị văng xuống cuối trang). */
+          animation: hnPageIn 0.38s cubic-bezier(0.2, 0.8, 0.25, 1) backwards;
         }
         main > *:not(header):not([style*="fixed"]) ~ *:not([style*="fixed"]) {
           animation-delay: 0.06s;
@@ -237,7 +240,7 @@ export default function App({ Component, pageProps }) {
           }
           to {
             opacity: 1;
-            transform: translateY(0);
+            transform: none;
           }
         }
         /* Tab đang chọn: gạch chân mận vẽ dần từ giữa ra 2 bên. */
@@ -335,7 +338,7 @@ export default function App({ Component, pageProps }) {
           cursor: default;
         }
         .hnCard {
-          animation: hnFadeUp 0.28s ease both;
+          animation: hnFadeUp 0.28s ease backwards;
         }
         .hnPop {
           animation: hnPop 0.28s ease both;
