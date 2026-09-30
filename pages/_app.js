@@ -154,12 +154,24 @@ export default function App({ Component, pageProps }) {
           content-visibility: auto;
           contain-intrinsic-size: auto 78px;
         }
+        /* Menu đầu trang: máy tính thì xuống dòng bình thường (chuột không
+           vuốt ngang được, để 1 hàng sẽ bị cắt mất nút); chỉ điện thoại màn
+           hẹp mới gom thành 1 hàng vuốt ngang cho gọn. */
         .hnNavScroll {
-          scrollbar-width: none;
-          -webkit-overflow-scrolling: touch;
+          flex-wrap: wrap;
         }
-        .hnNavScroll::-webkit-scrollbar {
-          display: none;
+        @media (max-width: 640px) {
+          .hnNavScroll {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            margin: 0 -18px;
+            padding: 0 18px 2px;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+          }
+          .hnNavScroll::-webkit-scrollbar {
+            display: none;
+          }
         }
       `}</style>
       <Component {...pageProps} />
