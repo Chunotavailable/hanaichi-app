@@ -318,6 +318,7 @@ export default function ClosetPage() {
   const [undoInfo, setUndoInfo] = useState(null); // { message } — chỉ để hiện thanh thông báo
   const [loadFailed, setLoadFailed] = useState(false);
   const dataRef = useRef(null);
+  const lastEtagRef = useRef("");
   dataRef.current = data;
   // Chỉ gửi phần thay đổi lên server khi lưu — xem lib/syncer.js.
   const syncerRef = useRef(null);
@@ -379,6 +380,32 @@ export default function ClosetPage() {
       detach();
     };
   }, []);
+
+  // Khách chỉ xem: tự lấy lại dữ liệu mới định kỳ (và khi quay lại tab) để thấy ngay
+  // khi Quản lý bật/tắt giảm giá hoặc sửa số liệu, khỏi phải tải lại trang.
+  useEffect(() => {
+    if (perm.role !== "guest") return;
+    let stop = false;
+    async function refresh() {
+      if (stop || document.visibilityState === "hidden") return;
+      try {
+        const r = await fetch("/api/gomcan", { cache: "no-store" });
+        if (!r.ok || stop) return;
+        const d = await r.json();
+        const et = r.headers.get("x-hn-etag") || "";
+        if (et && et === lastEtagRef.current) return;
+        lastEtagRef.current = et;
+        setData(d);
+      } catch {}
+    }
+    const t = setInterval(refresh, 8000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      stop = true;
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [perm.role]);
 
   function persist(next) {
     setData(next);
