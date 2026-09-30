@@ -16,6 +16,11 @@ const DEFAULT_DATA = {
 
 // Chỉ BỔ SUNG mục mẫu còn thiếu, không ghi đè nội dung đã sửa trên web.
 function withSeed(data) {
+  // Nhóm "Nội bộ" cũ đã đổi tên thành "Tài khoản Zalo".
+  if ((data.replies || []).some((r) => r.id === "r-zalo-tk" && r.group === "Nội bộ")) {
+    const renamed = { ...data, replies: data.replies.map((r) => (r.id === "r-zalo-tk" && r.group === "Nội bộ" ? { ...r, group: "Tài khoản Zalo" } : r)) };
+    return { data: withSeed(renamed).data, upgraded: true };
+  }
   const deletedIds = new Set(data.repliesDeletedIds || []);
   const seed = SEED_REPLIES.filter((r) => !deletedIds.has(r.id));
   const list = data.replies || [];

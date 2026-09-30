@@ -11,7 +11,7 @@ import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
 import { FilterChip, SearchInput, EmptyState, UndoToast } from "../lib/ui";
 import { REPLY_GROUPS } from "../lib/repliesSeed";
-import { Plus, Pencil, Trash2, Copy, Check, SearchX, Lock, ImagePlus, X, Loader2, Maximize2, ArrowUpDown, LayoutList, Store, MessagesSquare, Receipt, Ruler, RefreshCcw, Users, Megaphone, FolderOpen } from "lucide-react";
+import { ArrowUp, Plus, Pencil, Trash2, Copy, Check, SearchX, Lock, ImagePlus, X, Loader2, Maximize2, ArrowUpDown, LayoutList, Store, MessagesSquare, Receipt, Ruler, RefreshCcw, Users, Megaphone, FolderOpen } from "lucide-react";
 
 const GROUP_ICONS = {
   "Tất cả": LayoutList,
@@ -23,7 +23,7 @@ const GROUP_ICONS = {
   "Đổi trả & thanh toán": RefreshCcw,
   "Khách sỉ / CTV": Users,
   "Mẫu đăng bài": Megaphone,
-  "Nội bộ": Lock,
+  "Tài khoản Zalo": Lock,
 };
 function groupIcon(g) {
   return GROUP_ICONS[g] || FolderOpen;
@@ -288,8 +288,32 @@ export default function TraCuuPage() {
           setConfirmDelId(null);
         }}
       />
+      <ScrollTopButton THEME={THEME} />
       {undoInfo && <UndoToast message={undoInfo.message} onUndo={undoDelete} />}
     </main>
+  );
+}
+
+// Nút nổi góc phải dưới: cuộn xuống 1 đoạn thì hiện, bấm để lên đầu trang.
+function ScrollTopButton({ THEME }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setShow(window.scrollY > 400);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  if (!show) return null;
+  return (
+    <button
+      className="hnPop"
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      title="Lên đầu trang"
+      aria-label="Lên đầu trang"
+      style={{ position: "fixed", right: 18, bottom: 22, zIndex: 45, width: 44, height: 44, borderRadius: 14, background: THEME.surface, color: THEME.text, border: `1px solid ${THEME.line}`, cursor: "pointer", boxShadow: "0 6px 18px rgba(44,26,30,0.12)", display: "grid", placeItems: "center" }}
+    >
+      <ArrowUp size={19} />
+    </button>
   );
 }
 
