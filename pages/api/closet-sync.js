@@ -43,10 +43,10 @@ async function syncOnce(action = {}) {
   if (recs.length < 50) throw new Error("File Google Sheet đọc ra quá ít mã — giữ nguyên dữ liệu cũ để an toàn");
   const pend = await readPending();
   const dismissed = new Set(pend.doc.dismissed || []);
-  for (const x of action.reject || []) dismissed.add(`${x.k === "gone" ? "gone" : "add"}:${x.key}`);
-  const approved = { add: [], gone: [] };
-  for (const x of action.approve || []) (x.k === "gone" ? approved.gone : approved.add).push(x.key);
-  const isApproval = approved.add.length + approved.gone.length > 0;
+  for (const x of action.reject || []) dismissed.add(x.k === "price" ? `price:${x.key}:${x.to}` : `${x.k === "gone" ? "gone" : "add"}:${x.key}`);
+  const approved = { add: [], gone: [], price: [] };
+  for (const x of action.approve || []) (x.k === "gone" ? approved.gone : x.k === "price" ? approved.price : approved.add).push(x.key);
+  const isApproval = approved.add.length + approved.gone.length + approved.price.length > 0;
 
   for (let attempt = 0; attempt < 4; attempt++) {
     const doc = await readDoc(DATA_PATHNAME);

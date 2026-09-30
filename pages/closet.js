@@ -554,7 +554,7 @@ export default function ClosetPage() {
         </div>
         {perm.canEdit && sheetSync.pending.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", background: "#fff3d6", border: "1px solid #f0d28a", color: "#6b4a00", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: 14, fontWeight: 600 }}>
-            <span>⚠️ File công ty có {sheetSync.pending.length} thay đổi mã đang chờ bạn duyệt</span>
+            <span>⚠️ File công ty có {sheetSync.pending.length} thay đổi (mã mới/xoá mã/đổi giá) đang chờ bạn duyệt</span>
             <button style={{ ...T.btn, padding: "6px 12px", fontSize: 13 }} onClick={() => { setLogTab("pending"); setShowLog(true); }}>Xem & duyệt</button>
           </div>
         )}
@@ -648,26 +648,26 @@ function ChangeLogModal({ onClose, lastAt, canApprove, onApplied, T }) {
             {pending.length > 0 && (
               <>
                 <div style={{ fontSize: 13, color: THEME.subtext, padding: "4px 0 8px", lineHeight: 1.5 }}>
-                  Mã mới trong file công ty và mã đã bị xoá khỏi file chỉ vào app sau khi bạn duyệt.
+                  Mã mới, mã bị xoá và giá lẻ thay đổi trong file công ty chỉ vào app sau khi bạn duyệt.
                 </div>
                 {canEdit && (
                   <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                    <button style={{ ...btn, padding: "6px 12px", fontSize: 13 }} disabled={busy} onClick={() => act(pending.map((x) => ({ k: x.k, key: x.key })), [])}>Duyệt tất cả ({pending.length})</button>
-                    <button style={{ ...btnSub, padding: "6px 12px", fontSize: 13 }} disabled={busy} onClick={() => act([], pending.map((x) => ({ k: x.k, key: x.key })))}>Bỏ qua tất cả</button>
+                    <button style={{ ...btn, padding: "6px 12px", fontSize: 13 }} disabled={busy} onClick={() => act(pending.map((x) => ({ k: x.k, key: x.key, to: x.to })), [])}>Duyệt tất cả ({pending.length})</button>
+                    <button style={{ ...btnSub, padding: "6px 12px", fontSize: 13 }} disabled={busy} onClick={() => act([], pending.map((x) => ({ k: x.k, key: x.key, to: x.to })))}>Bỏ qua tất cả</button>
                   </div>
                 )}
                 {pending.map((x) => {
-                  const kind = x.k === "gone" ? ["Không còn trong file", THEME.danger] : x.k === "new" ? ["Sản phẩm mới", THEME.success] : ["Mã mới", THEME.success];
+                  const kind = x.k === "price" ? ["Giá lẻ đổi", "#b26a00"] : x.k === "gone" ? ["Không còn trong file", THEME.danger] : x.k === "new" ? ["Sản phẩm mới", THEME.success] : ["Mã mới", THEME.success];
                   return (
                     <div key={x.k + x.key} style={{ padding: "8px 0", borderTop: `1px solid ${THEME.line}`, display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
                       <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.45 }}>
                         <div style={{ color: THEME.subtext }}>{x.p}</div>
-                        <div><b>{x.l}</b> — <span style={{ color: kind[1], fontWeight: 700 }}>{kind[0]}</span>{x.k === "gone" ? ` (đang còn ${x.was})` : ` · còn ${x.to}${x.price ? ` · giá ${x.price}k` : ""}`}</div>
+                        <div><b>{x.l}</b> — <span style={{ color: kind[1], fontWeight: 700 }}>{kind[0]}</span>{x.k === "price" ? `: ${x.from}k → ${x.to}k` : x.k === "gone" ? ` (đang còn ${x.was})` : ` · còn ${x.to}${x.price ? ` · giá ${x.price}k` : ""}`}</div>
                       </div>
                       {canEdit && (
                         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                          <button style={{ ...btn, padding: "5px 10px", fontSize: 12.5 }} disabled={busy} onClick={() => act([{ k: x.k, key: x.key }], [])}>Duyệt</button>
-                          <button style={{ ...btnSub, padding: "5px 10px", fontSize: 12.5 }} disabled={busy} onClick={() => act([], [{ k: x.k, key: x.key }])}>Bỏ qua</button>
+                          <button style={{ ...btn, padding: "5px 10px", fontSize: 12.5 }} disabled={busy} onClick={() => act([{ k: x.k, key: x.key, to: x.to }], [])}>Duyệt</button>
+                          <button style={{ ...btnSub, padding: "5px 10px", fontSize: 12.5 }} disabled={busy} onClick={() => act([], [{ k: x.k, key: x.key, to: x.to }])}>Bỏ qua</button>
                         </div>
                       )}
                     </div>
@@ -957,18 +957,9 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
           )}
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {perm.canEdit && (
-            <button style={btnSub} onClick={() => setShowBulkImport(true)}>
-              <ImageDown size={16} /> Nhập ảnh hàng loạt
-            </button>
-          )}
           <ViewModeToggle mode={viewMode} setMode={setViewMode} T={T} />
         </div>
       </div>
-
-      {showBulkImport && perm.canEdit && (
-        <BulkImportModal list={list} bulkSaveClosetImages={bulkSaveClosetImages} onClose={() => setShowBulkImport(false)} T={T} />
-      )}
 
       <div style={{ ...card, padding: 14, marginBottom: 14 }}>
         <SearchInput value={q} onChange={setQ} placeholder="Tìm theo tên, mã, size, màu... (VD: 38, onitsuka, wilson)" T={T} />
