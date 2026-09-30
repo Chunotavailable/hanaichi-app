@@ -11,7 +11,7 @@ import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
 import { FilterChip, SearchInput, EmptyState, UndoToast } from "../lib/ui";
 import { REPLY_GROUPS } from "../lib/repliesSeed";
-import { Plus, Pencil, Trash2, Copy, Check, SearchX, Lock, ChevronRight, Image as ImageIcon, ImagePlus, X, Loader2, Maximize2, ArrowUpDown, LayoutList, Store, MessagesSquare, Receipt, Ruler, RefreshCcw, Users, Megaphone, FolderOpen } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, Check, SearchX, Lock, ImagePlus, X, Loader2, Maximize2, ArrowUpDown, LayoutList, Store, MessagesSquare, Receipt, Ruler, RefreshCcw, Users, Megaphone, FolderOpen } from "lucide-react";
 
 const GROUP_ICONS = {
   "Tất cả": LayoutList,
@@ -242,7 +242,7 @@ export default function TraCuuPage() {
                   </div>
                   <div style={{ ...card, padding: 0, overflow: "hidden" }}>
                     {items.map((r, i) => (
-                      <ReplyRow key={r.id} r={r} first={i === 0} q={q} groups={groups} saveReply={saveReply} updateImages={updateImages} onDelete={() => setConfirmDelId(r.id)} T={T} />
+                      <ReplyRow key={r.id} r={r} first={i === 0} groups={groups} saveReply={saveReply} updateImages={updateImages} onDelete={() => setConfirmDelId(r.id)} T={T} />
                     ))}
                   </div>
                 </section>
@@ -311,22 +311,16 @@ function CopyButton({ text, T }) {
   );
 }
 
-// Dòng xem trước: ưu tiên dòng có chứa từ đang tìm, không thì dòng đầu tiên.
-function previewLine(content, q) {
-  const lines = (content || "").split("\n").map((l) => l.trim()).filter(Boolean);
-  const nq = norm(q || "");
-  return (nq && lines.find((l) => norm(l).includes(nq))) || lines[0] || "";
-}
-
-// 1 dòng gọn: tiêu đề + 1 dòng xem trước + nút Chép. Bấm vào dòng để mở xem
-// toàn bộ nội dung (và nút Sửa/Xoá với Quản lý).
-function ReplyRow({ r, first, q, groups, saveReply, updateImages, onDelete, T }) {
-  const { THEME, btnSub } = T;
+// 1 mục: tiêu đề + nút Chép (và Sửa/Xoá/Thêm ảnh với Quản lý) ở trên, toàn
+// bộ nội dung và ảnh luôn hiện đầy đủ bên dưới.
+function ReplyRow({ r, first, groups, saveReply, updateImages, onDelete, T }) {
+  const { THEME, iconBtn } = T;
   const perm = usePerm();
-  const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const fileRef = useRef(null);
   const border = first ? "none" : `1px solid ${THEME.line}`;
   const images = r.images || [];
+  const smallIcon = { ...iconBtn, width: 30, height: 30 };
 
   if (editing && perm.canEdit) {
     return (
@@ -348,69 +342,41 @@ function ReplyRow({ r, first, q, groups, saveReply, updateImages, onDelete, T })
   }
 
   return (
-    <div style={{ borderTop: border, background: open ? THEME.surfaceAlt : "transparent" }}>
-      <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        className="hnClickable"
-        onClick={() => setOpen((o) => !o)}
-        onKeyDown={(e) => e.key === "Enter" && setOpen((o) => !o)}
-        style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", cursor: "pointer" }}
-      >
-        <ChevronRight size={16} color={THEME.muted} style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 0.15s ease" }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 14.5, color: THEME.text, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ lineHeight: 1.35 }}>{r.title}</span>
-            {r.private && (
-              <span title="Chế độ Khách không nhìn thấy mục này" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: THEME.subtext, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 999, padding: "0 7px", flexShrink: 0 }}>
-                <Lock size={10} /> Chỉ Quản lý
-              </span>
-            )}
-          </div>
-          {!open && (
-            <div style={{ fontSize: 13, color: THEME.subtext, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1, display: "flex", alignItems: "center", gap: 5 }}>
-              {images.length > 0 && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: THEME.brand, fontWeight: 600, flexShrink: 0 }}>
-                  <ImageIcon size={13} /> {images.length} ảnh
-                </span>
-              )}
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                {previewLine(r.content, q) || (images.length ? "" : "Chưa có ảnh")}
-              </span>
-            </div>
+    <div style={{ borderTop: border, padding: "12px 14px 14px" }} onMouseEnter={() => (pasteTargetId = r.id)} onFocus={() => (pasteTargetId = r.id)}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: r.content || images.length || perm.canEdit ? 8 : 0 }}>
+        <div style={{ flex: 1, minWidth: 0, fontWeight: 650, fontSize: 14.5, color: THEME.brand, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", paddingTop: 4 }}>
+          <span style={{ lineHeight: 1.35 }}>{r.title}</span>
+          {r.private && (
+            <span title="Chế độ Khách không nhìn thấy mục này" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: THEME.subtext, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 999, padding: "0 7px", flexShrink: 0 }}>
+              <Lock size={10} /> Chỉ Quản lý
+            </span>
           )}
         </div>
-        {r.content ? (
-          <span onClick={(e) => e.stopPropagation()}>
-            <CopyButton text={r.content} T={T} />
-          </span>
-        ) : null}
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          {r.content ? <CopyButton text={r.content} T={T} /> : null}
+          {perm.canEdit && (
+            <button title="Thêm ảnh (hoặc rê chuột vào mục rồi Ctrl+V)" aria-label="Thêm ảnh" style={smallIcon} onClick={() => fileRef.current && fileRef.current.click()}>
+              <ImagePlus size={14} />
+            </button>
+          )}
+          {perm.canEdit && (
+            <button title="Sửa" aria-label="Sửa" style={smallIcon} onClick={() => setEditing(true)}>
+              <Pencil size={14} />
+            </button>
+          )}
+          {perm.canDelete && (
+            <button title="Xoá" aria-label="Xoá" style={{ ...smallIcon, color: THEME.danger }} onClick={onDelete}>
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
       </div>
-      {open && (
-        <div className="hnFade" style={{ padding: "0 14px 12px 40px" }}>
-          {r.content ? (
-            <div style={{ fontSize: 14, lineHeight: 1.65, whiteSpace: "pre-wrap", overflowWrap: "anywhere", color: THEME.text, background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: images.length || perm.canEdit ? 10 : 0 }}>
-              <Linkified text={r.content} color={THEME.brand} />
-            </div>
-          ) : null}
-          <ReplyImages r={r} images={images} updateImages={updateImages} T={T} />
-          {(perm.canEdit || perm.canDelete) && (
-            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-              {perm.canEdit && (
-                <button style={{ ...btnSub, padding: "5px 10px", fontSize: 13 }} onClick={() => setEditing(true)}>
-                  <Pencil size={14} /> Sửa
-                </button>
-              )}
-              {perm.canDelete && (
-                <button style={{ ...btnSub, padding: "5px 10px", fontSize: 13, color: THEME.danger }} onClick={onDelete}>
-                  <Trash2 size={14} /> Xoá
-                </button>
-              )}
-            </div>
-          )}
+      {r.content ? (
+        <div style={{ fontSize: 14, lineHeight: 1.65, whiteSpace: "pre-wrap", overflowWrap: "anywhere", color: THEME.text, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 10, padding: "10px 12px" }}>
+          <Linkified text={r.content} color={THEME.brand} />
         </div>
-      )}
+      ) : null}
+      <ReplyImages r={r} images={images} updateImages={updateImages} fileRef={fileRef} T={T} />
     </div>
   );
 }
@@ -420,12 +386,11 @@ function ReplyRow({ r, first, q, groups, saveReply, updateImages, onDelete, T })
 // ảnh chụp màn hình (Ctrl+V) khi mục đang mở.
 // Nhiều mục cùng mở thì ảnh dán vào mục được mở / rê chuột gần nhất.
 let pasteTargetId = null;
-function ReplyImages({ r, images, updateImages, T }) {
+function ReplyImages({ r, images, updateImages, fileRef, T }) {
   const { THEME, btnSub, iconBtn } = T;
   const perm = usePerm();
   const [busy, setBusy] = useState(0);
   const [confirmUrl, setConfirmUrl] = useState(null);
-  const fileRef = useRef(null);
 
   async function addFiles(files) {
     const list = Array.from(files || []).filter((f) => f.type.startsWith("image/"));
@@ -448,7 +413,6 @@ function ReplyImages({ r, images, updateImages, T }) {
 
   useEffect(() => {
     if (!perm.canEdit) return undefined;
-    pasteTargetId = r.id;
     function onPaste(e) {
       if (pasteTargetId !== r.id) return;
       const files = Array.from(e.clipboardData?.items || [])
@@ -464,9 +428,10 @@ function ReplyImages({ r, images, updateImages, T }) {
     return () => document.removeEventListener("paste", onPaste);
   }, [perm.canEdit, r.id]);
 
+  const showDrop = perm.canEdit && !images.length && !r.content;
   if (!images.length && !perm.canEdit) return null;
   return (
-    <div onMouseEnter={() => (pasteTargetId = r.id)} onFocus={() => (pasteTargetId = r.id)}>
+    <div style={{ marginTop: r.content && (images.length || showDrop || busy > 0) ? 10 : 0 }}>
       {images.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {images.map((url) => (
@@ -488,16 +453,20 @@ function ReplyImages({ r, images, updateImages, T }) {
           ))}
         </div>
       )}
-      {perm.canEdit && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: images.length ? 10 : 0, ...(images.length ? {} : { border: `1.5px dashed ${THEME.chipLine}`, borderRadius: 10, padding: "14px 12px", background: THEME.surface }) }}>
-          <button style={{ ...btnSub, padding: "6px 12px", fontSize: 13 }} disabled={busy > 0} onClick={() => fileRef.current && fileRef.current.click()}>
-            {busy > 0 ? <Loader2 size={15} style={{ animation: "hnSpin 0.8s linear infinite" }} /> : <ImagePlus size={15} />}
-            {busy > 0 ? `Đang tải ${busy} ảnh...` : "Thêm ảnh"}
-          </button>
-          <span style={{ fontSize: 12.5, color: THEME.muted }}>hoặc chụp màn hình rồi dán thẳng vào đây (Ctrl+V)</span>
-          <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+      {busy > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: THEME.subtext, marginTop: images.length ? 10 : 0 }}>
+          <Loader2 size={15} style={{ animation: "hnSpin 0.8s linear infinite" }} /> Đang tải {busy} ảnh lên...
         </div>
       )}
+      {showDrop && busy === 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", border: `1.5px dashed ${THEME.chipLine}`, borderRadius: 10, padding: "14px 12px", background: THEME.surfaceAlt }}>
+          <button style={{ ...btnSub, padding: "6px 12px", fontSize: 13 }} onClick={() => fileRef.current && fileRef.current.click()}>
+            <ImagePlus size={15} /> Thêm ảnh
+          </button>
+          <span style={{ fontSize: 12.5, color: THEME.muted }}>hoặc rê chuột vào đây rồi dán ảnh chụp màn hình (Ctrl+V)</span>
+        </div>
+      )}
+      {perm.canEdit && <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />}
       <ConfirmDialog
         open={!!confirmUrl}
         message="Xoá ảnh này khỏi mục?"
