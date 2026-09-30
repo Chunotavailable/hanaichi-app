@@ -13,7 +13,7 @@ export default function Document() {
             lên đầu trang...) và nhiều chỗ khác bị tính sai vị trí, hiện lệch. */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
         {/* <link rel="icon" href="/favicon.ico" sizes="any" /> */}
-        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="icon" type="image/png" href="/favicon.png?v=2" />
         <meta name="theme-color" content="#F9CFE1" />
         <meta name="description" content="Hanaichi - Thời trang có sẵn" />
         <meta property="og:title" content="Hanaichi Web App" />
