@@ -163,7 +163,7 @@ export default function SieuThiPage() {
       }
       if (filter === "con") return !p.oos;
       if (filter === "het") return !!p.oos;
-      if (filter === "sale") return !p.oos && !!(p.sale || p.saleText);
+      if (filter === "sale") return saleActive && !p.oos && !!(p.sale || p.saleText);
       return true;
     });
     if (sort !== "none") {
@@ -266,9 +266,9 @@ export default function SieuThiPage() {
               <FilterChip T={T} small active={!searching && filter === "con"} onClick={() => { setQ(""); setFilter("con"); }}>
                 Còn hàng · {counts.con}
               </FilterChip>
-              {sale && counts.sale > 0 && (
+              {saleActive && counts.sale > 0 && (
                 <FilterChip T={T} small active={!searching && filter === "sale"} tone="danger" onClick={() => { setQ(""); setFilter("sale"); }}>
-                  <Flame size={13} /> {saleActive ? "Đang sale" : "Sale"} · {counts.sale}
+                  <Flame size={13} /> Đang sale · {counts.sale}
                 </FilterChip>
               )}
               <FilterChip T={T} small active={!searching && filter === "all"} onClick={() => { setQ(""); setFilter("all"); }}>
