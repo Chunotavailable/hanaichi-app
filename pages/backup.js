@@ -14,8 +14,9 @@ const SECTIONS = [
   { key: "gomcan", url: "/api/gomcan", label: "Giá gồm cân + Hàng Closet sẵn" },
   { key: "thietbi", url: "/api/thietbi", label: "Thiết bị bếp & vệ sinh" },
   { key: "replies", url: "/api/replies", label: "Tra cứu nhanh" },
-  { key: "customers", url: "/api/customers", label: "Khách hàng" },
-  { key: "todo", url: "/api/todo", label: "Việc cần làm" },
+  // Hai mục cũ không còn trên menu nhưng vẫn lưu kèm phòng khi còn dữ liệu.
+  { key: "customers", url: "/api/customers", label: "Khách hàng (cũ)" },
+  { key: "todo", url: "/api/todo", label: "Việc cần làm (cũ)" },
   { key: "pricing", url: "/api/pricing", label: "Báo giá nhanh" },
 ];
 
@@ -90,7 +91,7 @@ export default function BackupPage() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setMsg({ ok: true, text: failed.length ? `⚠️ Đã sao lưu ${SECTIONS.length} mục và ${Object.keys(images).length}/${urls.length} ảnh. ${failed.length} ảnh không tải được (link ngoài hoặc đã bị xoá): ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? "..." : ""}` : `✅ Đã sao lưu đầy đủ: ${SECTIONS.length} mục dữ liệu + ${Object.keys(images).length} ảnh nằm ngay trong file. Nhớ cất file này vào Zalo/Drive/email cho chắc.` });
+      setMsg({ ok: true, text: failed.length ? `⚠️ Đã sao lưu 6 mục và ${Object.keys(images).length}/${urls.length} ảnh. ${failed.length} ảnh không tải được (link ngoài hoặc đã bị xoá): ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? "..." : ""}` : `✅ Đã sao lưu đầy đủ: 6 mục (Giá gồm cân, Closet, Thiết bị, Tra cứu nhanh, Báo giá nhanh, Giá siêu thị) + ${Object.keys(images).length} ảnh nằm ngay trong file. Nhớ cất file này vào Zalo/Drive/email cho chắc.` });
     } catch (e) {
       setMsg({ ok: false, text: "❌ Không tải được sao lưu, thử lại sau." });
     } finally {
