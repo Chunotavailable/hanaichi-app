@@ -221,8 +221,72 @@ export default function App({ Component, pageProps }) {
           animation: hnXaKhoPulse 1.3s ease-in-out infinite;
           will-change: transform, box-shadow;
         }
-        main {
-          animation: hnFadeIn 0.25s ease;
+        /* Chuyển tab/trang: phần nội dung bên dưới thanh menu trượt nhẹ từ dưới
+           lên và hiện dần (tiêu đề trước, nội dung sau 1 nhịp), thanh menu đứng
+           yên nên cảm giác chuyển mượt thay vì "nhảy" sang trang khác. */
+        main > *:not(header):not([style*="fixed"]) {
+          animation: hnPageIn 0.38s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+        }
+        main > *:not(header):not([style*="fixed"]) ~ *:not([style*="fixed"]) {
+          animation-delay: 0.06s;
+        }
+        @keyframes hnPageIn {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        /* Tab đang chọn: gạch chân mận vẽ dần từ giữa ra 2 bên. */
+        .hnTabs a[aria-current="page"] {
+          background: linear-gradient(#9e2a3b, #9e2a3b) no-repeat center bottom / 100% 2px;
+          animation: hnTabLine 0.35s ease-out both;
+        }
+        @keyframes hnTabLine {
+          from {
+            background-size: 0% 2px;
+          }
+          to {
+            background-size: 100% 2px;
+          }
+        }
+        /* Mở chi tiết sản phẩm / hộp thoại: nền mờ dần + làm nhoè nhẹ phía sau,
+           hộp bật lên từ dưới (điện thoại: trượt lên từ đáy màn hình). */
+        .hnFade:has(> [role="dialog"]) {
+          animation: hnFadeIn 0.22s ease both;
+          backdrop-filter: blur(3px);
+          -webkit-backdrop-filter: blur(3px);
+        }
+        [role="dialog"].hnPop {
+          animation: hnModalIn 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.12) both;
+        }
+        @keyframes hnModalIn {
+          from {
+            opacity: 0;
+            transform: translateY(28px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        @media (max-width: 640px) {
+          [role="dialog"].hnPop {
+            animation-name: hnSheetIn;
+          }
+          @keyframes hnSheetIn {
+            from {
+              opacity: 0;
+              transform: translateY(70px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
         }
         .hnRipple {
           position: fixed;
