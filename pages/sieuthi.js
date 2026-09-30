@@ -38,7 +38,7 @@ function copyText(text) {
   if (navigator.clipboard) navigator.clipboard.writeText(text || "").catch(() => {});
 }
 function mainPrice(p) {
-  return p.price || p.list || null;
+  return p.price || null;
 }
 
 export default function SieuThiPage() {
@@ -238,29 +238,6 @@ export default function SieuThiPage() {
   );
 }
 
-function PriceChip({ label, value, THEME, strike, tone }) {
-  if (!value) return null;
-  const danger = tone === "danger";
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "baseline",
-        gap: 5,
-        fontSize: 12.5,
-        background: danger ? THEME.dangerBg : THEME.surfaceAlt,
-        border: `1px solid ${danger ? "#f3c9cb" : THEME.line}`,
-        color: danger ? THEME.danger : THEME.subtext,
-        borderRadius: 999,
-        padding: "2px 9px",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {label} <b style={{ color: danger ? THEME.danger : THEME.text, fontWeight: 650, textDecoration: strike ? "line-through" : "none" }}>{fmtK(value)}</b>
-    </span>
-  );
-}
-
 function LinkIcon({ href, title, children, THEME }) {
   if (!href) return null;
   return (
@@ -284,9 +261,6 @@ function ProductRow({ p, first, saveProduct, onDelete, T }) {
   const [copied, setCopied] = useState(false);
   const border = first ? "none" : `1px solid ${THEME.line}`;
   const price = mainPrice(p);
-  const hasSocial = !!p.price;
-  const shopee = p.shopeeNew || p.shopeeOld;
-  const discount = p.list && p.price && p.list > p.price ? Math.round((1 - p.price / p.list) * 100) : 0;
   const smallIcon = { ...iconBtn, width: 30, height: 30 };
 
   if (editing && perm.canEdit) {
@@ -325,7 +299,7 @@ function ProductRow({ p, first, saveProduct, onDelete, T }) {
           {price ? (
             <>
               <div style={{ fontWeight: 700, fontSize: 18, color: THEME.brand, lineHeight: 1.2 }}>{fmtK(price)}</div>
-              <div style={{ fontSize: 11.5, color: THEME.muted }}>{hasSocial ? "Giá Social" : "Niêm yết"}</div>
+              <div style={{ fontSize: 11.5, color: THEME.muted }}>Giá Social</div>
             </>
           ) : (
             <div style={{ fontSize: 13, color: THEME.muted }}>Chưa có giá</div>
@@ -334,13 +308,6 @@ function ProductRow({ p, first, saveProduct, onDelete, T }) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-        {hasSocial && p.list ? <PriceChip label="Niêm yết" value={p.list} THEME={THEME} strike /> : null}
-        {discount > 0 && (
-          <span style={{ fontSize: 12, fontWeight: 700, color: THEME.success, background: THEME.successBg, border: `1px solid ${THEME.successLine}`, borderRadius: 999, padding: "2px 8px" }}>-{discount}%</span>
-        )}
-        <PriceChip label="Shopee" value={shopee} THEME={THEME} />
-        <PriceChip label="Lazada" value={p.lazada} THEME={THEME} />
-        <PriceChip label="Xả kho" value={p.clearance} THEME={THEME} tone="danger" />
         <span style={{ flex: 1 }} />
         <LinkIcon href={p.linkWeb} title="Mở trang web Hanaichi" THEME={THEME}><Globe size={13} /> Web</LinkIcon>
         <LinkIcon href={p.linkShopee} title="Mở Shopee" THEME={THEME}>Shopee</LinkIcon>
@@ -383,12 +350,7 @@ function ProductRow({ p, first, saveProduct, onDelete, T }) {
 }
 
 const FIELDS = [
-  ["list", "Giá niêm yết", "money"],
   ["price", "Giá bán Social (web, fb, offline)", "money"],
-  ["shopeeNew", "Giá Shopee mới", "money"],
-  ["shopeeOld", "Giá Shopee cũ", "money"],
-  ["lazada", "Giá Lazada", "money"],
-  ["clearance", "Giá xả kho / xả cận date", "money"],
   ["linkWeb", "Link web", "text"],
   ["linkShopee", "Link Shopee", "text"],
   ["linkLazada", "Link Lazada", "text"],
