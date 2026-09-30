@@ -353,6 +353,11 @@ export default function ClosetPage() {
         }
       }
       setSheetSync((s) => ({ busy: false, at: j.at || new Date().toISOString(), error: "", summary: j.changed ? j.summary : s.summary, pending: j.pending || [] }));
+      // Bấm "Cập nhật ngay" hoặc duyệt xong thì tải lại trang cho sạch số liệu mới.
+      if (force) {
+        try { syncerRef.current.flushNow(); } catch {}
+        setTimeout(() => window.location.reload(), 500);
+      }
       return true;
     } catch (e) {
       setSheetSync((s) => ({ ...s, busy: false, error: (e && e.message) || "Không cập nhật được từ file gốc" }));
