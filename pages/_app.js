@@ -40,7 +40,7 @@ export default function App({ Component, pageProps }) {
           -moz-osx-font-smoothing: grayscale;
         }
         body {
-          background: #f7f2ee;
+          background: #f5ebe3;
           color: #2c1a1e;
           font-size: 15px;
           line-height: 1.5;
@@ -92,8 +92,8 @@ export default function App({ Component, pageProps }) {
         /* Ô thông tin bấm-để-sửa: tô nền nhẹ khi rê chuột để biết là sửa được. */
         @media (hover: hover) {
           .hnEditable:hover {
-            background: #fbf7f4;
-            box-shadow: 0 0 0 6px #fbf7f4;
+            background: #fbf1ea;
+            box-shadow: 0 0 0 6px #fbf1ea;
           }
         }
         /* Hàng nút vuốt ngang (size, danh mục...): ẩn thanh cuộn cho gọn. */

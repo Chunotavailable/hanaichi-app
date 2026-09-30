@@ -755,7 +755,7 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
       <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: THEME.surfaceAlt, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ position: "absolute", inset: 0 }}>
           <SmartImage src={it.image} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} fallback={<ImagePlaceholder icon={Package} size={34} T={T} />} />
-          {favButton({ position: "absolute", top: 8, right: 8, width: 30, height: 30, borderRadius: 999, border: "none", background: "rgba(255,255,255,0.92)", cursor: "pointer", display: "grid", placeItems: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.12)" })}
+          {favButton({ position: "absolute", top: 8, right: 8, width: 30, height: 30, borderRadius: 999, border: "none", background: "rgba(255,250,245,0.92)", cursor: "pointer", display: "grid", placeItems: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.12)" })}
           <span style={{ position: "absolute", top: 8, left: 8, background: "rgba(255,255,255,0.9)", color: THEME.subtext, fontSize: 11, fontWeight: 600, borderRadius: 999, padding: "1px 7px" }}>{idx}</span>
         </div>
       </div>
@@ -796,7 +796,7 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
             <button
               onClick={onClose}
               aria-label="Đóng"
-              style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, borderRadius: 10, border: "none", background: "rgba(255,255,255,0.92)", color: THEME.text, cursor: "pointer", display: "grid", placeItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+              style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, borderRadius: 10, border: "none", background: "rgba(255,250,245,0.92)", color: THEME.text, cursor: "pointer", display: "grid", placeItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
             >
               <X size={18} />
             </button>

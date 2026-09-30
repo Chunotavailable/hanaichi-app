@@ -1204,13 +1204,13 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
             <button
               onClick={onClose}
               aria-label="Đóng"
-              style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, borderRadius: 10, border: "none", background: "rgba(255,255,255,0.92)", color: THEME.text, cursor: "pointer", display: "grid", placeItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+              style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, borderRadius: 10, border: "none", background: "rgba(255,250,245,0.92)", color: THEME.text, cursor: "pointer", display: "grid", placeItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
             >
               <X size={18} />
             </button>
             {perm.canEdit && (
               <label
-                style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(255,255,255,0.94)", color: THEME.text, fontWeight: 600, fontSize: 13, borderRadius: 999, padding: "6px 12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+                style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(255,250,245,0.94)", color: THEME.text, fontWeight: 600, fontSize: 13, borderRadius: 999, padding: "6px 12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
               >
                 <Camera size={15} /> {p.image ? "Đổi ảnh" : "Thêm ảnh"}
                 <input type="file" accept="image/*" onChange={onPickImage} style={{ display: "none" }} />
