@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { useTheme, makeStyles, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
+import { uploadGomcanImage } from "../lib/gomcanHelpers";
 import { Download, Upload, FolderOpen, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 const SECTIONS = [
@@ -17,6 +18,19 @@ const SECTIONS = [
   { key: "todo", url: "/api/todo", label: "Việc cần làm" },
   { key: "pricing", url: "/api/pricing", label: "Báo giá nhanh" },
 ];
+
+function findImageUrls(obj) {
+  const m = JSON.stringify(obj).match(/https?:\/\/[^"\s\\]+?\.(?:png|jpe?g|webp|gif|avif)(?:\?[^"\s\\]*)?/gi) || [];
+  return Array.from(new Set(m));
+}
+function blobToDataUrl(blob) {
+  return new Promise((ok, no) => {
+    const fr = new FileReader();
+    fr.onload = () => ok(fr.result);
+    fr.onerror = no;
+    fr.readAsDataURL(blob);
+  });
+}
 
 function fmtDateStamp(d) {
   return d.toISOString().slice(0, 10);
@@ -42,10 +56,32 @@ export default function BackupPage() {
         if (!r.ok) throw new Error(s.key);
         data[s.key] = await r.json();
       }
-      // Gom thêm danh sách ảnh đang dùng (ảnh nằm ở kho riêng, file sao lưu ghi lại đường dẫn).
-      const imageUrls = Array.from(new Set((JSON.stringify(data).match(/https?:\/\/[^"\s]+\.(?:png|jpe?g|webp|gif|avif)/gi) || [])));
-      const payload = { app: "hanaichi", exportedAt: new Date().toISOString(), data, imageUrls };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      // Bản chụp bảng giá siêu thị (chỉ để lưu tham khảo, khôi phục không cần vì tự lấy lại từ Google Sheet).
+      try {
+        const rs = await fetch("/api/sieuthi", { cache: "no-store" });
+        if (rs.ok) data.sieuthi = await rs.json();
+      } catch {}
+      // Nhúng LUÔN nội dung các ảnh vào file để mất web/kho ảnh vẫn khôi phục được.
+      const urls = findImageUrls(data);
+      const images = {};
+      const failed = [];
+      setMsg({ ok: true, text: `Đang lưu ${urls.length} ảnh vào file sao lưu...` });
+      for (let i = 0; i < urls.length; i += 4) {
+        await Promise.all(
+          urls.slice(i, i + 4).map(async (u) => {
+            try {
+              const r = await fetch(u, { cache: "no-store" });
+              if (!r.ok) throw new Error("x");
+              images[u] = await blobToDataUrl(await r.blob());
+            } catch {
+              failed.push(u);
+            }
+          })
+        );
+      }
+      const imageUrls = urls;
+      const payload = { app: "hanaichi", version: 2, exportedAt: new Date().toISOString(), data, images, imageUrls };
+      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -54,7 +90,7 @@ export default function BackupPage() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setMsg({ ok: true, text: `✅ Đã sao lưu bản mới nhất của tất cả các mục (${SECTIONS.length} mục, ${imageUrls.length} ảnh). Nhớ lưu file này vào Zalo/Drive/email cho chắc.` });
+      setMsg({ ok: true, text: failed.length ? `⚠️ Đã sao lưu ${SECTIONS.length} mục và ${Object.keys(images).length}/${urls.length} ảnh. ${failed.length} ảnh không tải được (link ngoài hoặc đã bị xoá): ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? "..." : ""}` : `✅ Đã sao lưu đầy đủ: ${SECTIONS.length} mục dữ liệu + ${Object.keys(images).length} ảnh nằm ngay trong file. Nhớ cất file này vào Zalo/Drive/email cho chắc.` });
     } catch (e) {
       setMsg({ ok: false, text: "❌ Không tải được sao lưu, thử lại sau." });
     } finally {
@@ -88,8 +124,25 @@ export default function BackupPage() {
     setBusy(true);
     setMsg(null);
     try {
+      // Ảnh nhúng trong file: ảnh nào không còn trên kho thì tải lên lại và đổi đường dẫn trong dữ liệu.
+      let text = JSON.stringify(pendingRestore.data);
+      const imgs = pendingRestore.images || {};
+      let n = 0;
+      for (const [u, du] of Object.entries(imgs)) {
+        let alive = false;
+        try {
+          alive = (await fetch(u, { method: "HEAD" })).ok;
+        } catch {}
+        if (alive) continue;
+        try {
+          n++;
+          const nu = await uploadGomcanImage(`restore-${Date.now().toString(36)}-${n}`, du);
+          text = text.split(JSON.stringify(u).slice(1, -1)).join(JSON.stringify(nu).slice(1, -1));
+        } catch {}
+      }
+      const restored = JSON.parse(text);
       for (const s of SECTIONS) {
-        const body = pendingRestore.data[s.key];
+        const body = restored[s.key];
         if (!body || typeof body !== "object") continue;
         const r = await fetch(s.url, {
           method: "POST",
