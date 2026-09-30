@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, showToast, ViewModeToggle, gridColumnsFor, SmartImage } from "../lib/gomcanHelpers";
+import { goLogin, uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, showToast, ViewModeToggle, gridColumnsFor, SmartImage } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
 import { FilterChip, SearchInput, EmptyState, GroupTitle, ImagePlaceholder, UndoToast } from "../lib/ui";
@@ -333,8 +333,31 @@ export default function ClosetPage() {
       .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }
+  // Đối chiếu với file Google Sheet Closet của công ty (số lượng, thêm/bớt mã).
+  const [sheetSync, setSheetSync] = useState({ busy: false, at: null, error: "", summary: null });
+  async function syncSheet(force) {
+    setSheetSync((s) => ({ ...s, busy: true, error: "" }));
+    try {
+      const r = await fetch(`/api/closet-sync${force ? "?force=1" : ""}`, { cache: "no-store" });
+      if (r.status === 401) return goLogin();
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "Không đọc được file Google Sheet");
+      if (j.changed && !syncerRef.current.hasPending()) {
+        const fr = await fetch("/api/gomcan", { cache: "no-store" }); // không dùng bản tải trước (cũ)
+        if (fr.ok) {
+          const d = await fr.json();
+          syncerRef.current.init(d, fr.headers.get("x-hn-etag") || "");
+          setData(d);
+        }
+      }
+      setSheetSync({ busy: false, at: j.at || new Date().toISOString(), error: "", summary: j.changed ? j.summary : null });
+    } catch (e) {
+      setSheetSync((s) => ({ ...s, busy: false, error: (e && e.message) || "Không cập nhật được từ file gốc" }));
+    }
+  }
   useEffect(() => {
     loadData();
+    syncSheet(false);
     const detach = syncerRef.current.attachLifecycle();
     return () => {
       // Rời trang khi còn 1 lượt xoá chờ hoàn tác -> làm nốt phần xoá ảnh.
@@ -506,6 +529,20 @@ export default function ClosetPage() {
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
       <PageHeader icon="👜" title="Hàng Closet sẵn" current="/closet" maxWidth={900} />
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 18px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", fontSize: 12.5, marginBottom: 10, color: sheetSync.error ? THEME.danger : THEME.muted }}>
+          <span>
+            {sheetSync.error
+              ? `⚠️ ${sheetSync.error} — đang dùng số liệu lần trước`
+              : sheetSync.busy
+              ? "Đang đối chiếu với file gốc của công ty..."
+              : sheetSync.at
+              ? `Tự cập nhật từ file gốc · ${new Date(sheetSync.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}${sheetSync.summary ? ` · đã đổi ${sheetSync.summary.updated} mã, thêm ${sheetSync.summary.added}, không còn ${sheetSync.summary.gone}` : ""}`
+              : ""}
+          </span>
+          <button style={{ ...T.btnSub, padding: "4px 10px", fontSize: 12.5 }} disabled={sheetSync.busy} onClick={() => syncSheet(true)}>
+            {sheetSync.busy ? "Đang cập nhật..." : "Cập nhật ngay"}
+          </button>
+        </div>
         <ClosetSection
           data={data}
           addClosetProduct={addClosetProduct}
@@ -1332,7 +1369,7 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
                           <span style={{ color: THEME.text, fontWeight: 600 }}>{fmtClosetPrice(orig)}</span>
                         )}
                         <span style={{ color: THEME.line }}>•</span>
-                        <span style={{ color: v.remaining > 0 ? THEME.success : THEME.danger, fontWeight: 600 }}>{v.remaining > 0 ? `Còn ${v.remaining}` : "Hết hàng"}</span>
+                        <span style={{ color: v.remaining > 0 ? THEME.success : THEME.danger, fontWeight: 600 }}>{v.remaining > 0 ? `Còn ${v.remaining}` : v.gone ? "Hết hàng · không còn trong sheet" : "Hết hàng"}</span>
                       </div>
                     </div>
                     {perm.canEdit && (

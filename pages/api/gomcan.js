@@ -9,7 +9,7 @@ import { makeDocHandler } from "../../lib/docApi";
 import { SEED_GIADUNG } from "../../lib/giadungSeed";
 import { SEED_CLOSET } from "../../lib/closetSeed";
 
-const DATA_PATHNAME = "gomcan/data.json";
+export const DATA_PATHNAME = "gomcan/data.json";
 
 const DEFAULT_DATA = {
   oniRates: {
@@ -70,7 +70,7 @@ const DEFAULT_DATA = {
 
 // Chuẩn hoá dữ liệu vừa đọc: bổ sung mặc định + chạy các bước merge dữ liệu
 // mẫu (seed) như trước. upgraded = true nếu có bổ sung/sửa gì so với bản lưu.
-function normalize(data) {
+export function normalize(data) {
   const merged = { ...DEFAULT_DATA, ...data, oniRates: { ...DEFAULT_DATA.oniRates, ...(data.oniRates || {}) } };
   const { data: seeded1, upgraded: upgraded1 } = withGiadungSeed(merged);
   const { data: split, upgraded: upgradedSplit } = withClosetSplit(seeded1);
@@ -253,6 +253,8 @@ function withClosetSeed(data) {
         const ev = vById.get(sv.id);
         if (!ev) return { ...sv };
         // Giữ nguyên mọi thứ đã lưu, chỉ đồng bộ lại "còn lại" theo seed mới nhất.
+        // Số liệu đã đồng bộ từ sheet Closet (src:"sheet") thì giữ, không quay về số cũ của seed.
+        if (ev.src === "sheet") return ev;
         return ev.remaining === sv.remaining ? ev : { ...ev, remaining: sv.remaining };
       }),
       ...(existing.variants || []).filter((v) => !seedVIds.has(v.id)),
