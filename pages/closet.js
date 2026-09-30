@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, ViewModeToggle, gridColumnsFor, SmartImage } from "../lib/gomcanHelpers";
+import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, showToast, ViewModeToggle, gridColumnsFor, SmartImage } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
 import { FilterChip, SearchInput, EmptyState, GroupTitle, ImagePlaceholder, UndoToast } from "../lib/ui";
@@ -1161,7 +1161,14 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
     try {
       const dataUrl = await resizeImageFile(file, 1280, 0.85);
       setPendingImg(dataUrl);
-      const url = await uploadGomcanImage(p.id, dataUrl);
+      let url;
+      try {
+        url = await uploadGomcanImage(p.id, dataUrl);
+      } catch {
+        setPendingImg(null);
+        showToast("⚠️ ẢNH CHƯA LƯU được (lỗi mạng?). Hãy chọn lại ảnh.", 9000);
+        return;
+      }
       saveClosetProduct(p.id, { image: url });
     } catch {
       alert("Không đọc được ảnh này (thường do ảnh chụp thẳng trên iPhone ở định dạng HEIC). Bạn thử lưu ảnh dạng JPG/PNG rồi chọn lại, hoặc chụp màn hình ảnh đó rồi dùng ảnh chụp màn hình nhé.");

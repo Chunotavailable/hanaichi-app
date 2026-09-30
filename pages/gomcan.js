@@ -8,6 +8,7 @@ import {
   sortByFavorite,
   resizeImageFile,
   uploadGomcanImage,
+  showToast,
   deleteGomcanImage,
   ViewModeToggle,
   gridColumnsFor,
@@ -581,7 +582,7 @@ function GiadungSection({ data, editKey, setEditKey, addGiadungItem, saveGiadung
     const newId = uid();
     let imageUrl = "";
     if (pendingImg) {
-      try { imageUrl = await uploadGomcanImage(newId, pendingImg); } catch {}
+      try { imageUrl = await uploadGomcanImage(newId, pendingImg); } catch { showToast("⚠️ Sản phẩm đã thêm nhưng ẢNH CHƯA LƯU được (lỗi mạng?). Hãy mở sản phẩm và thêm lại ảnh.", 9000); }
     }
     addGiadungItem({ id: newId, name: form.name, link: form.orderType === "ready" ? "" : form.link, jpy: form.orderType === "ready" ? "" : form.jpy, vnd: form.vnd, orderType: form.orderType, image: imageUrl });
     setForm({ name: "", link: "", jpy: "", vnd: "", orderType: "order" });
@@ -882,8 +883,13 @@ function GiadungEditModal({ it, onDone, onSave, onPickImage, T }) {
               onChange={(e) =>
                 onPickImage(e, async (dataUrl) => {
                   setEditImg(dataUrl);
-                  const url = await uploadGomcanImage(it.id, dataUrl);
-                  onSave({ image: url });
+                  try {
+                    const url = await uploadGomcanImage(it.id, dataUrl);
+                    onSave({ image: url });
+                  } catch {
+                    setEditImg(null);
+                    showToast("⚠️ ẢNH CHƯA LƯU được (lỗi mạng?). Hãy chọn lại ảnh.", 9000);
+                  }
                 })
               }
             />
