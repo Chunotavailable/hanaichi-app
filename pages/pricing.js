@@ -253,7 +253,7 @@ export default function PricingPage() {
           <section style={{ ...card, padding: 18 }}>
             {cardTitle(Plane, "Báo giá hàng Order", "Giá Yên × tỷ giá, trừ % giảm nếu có")}
             <label style={fieldLabel} htmlFor="pr-jpy">Giá Yên (JPY)</label>
-            <input id="pr-jpy" style={{ ...inp, marginBottom: 10, fontSize: 18, fontWeight: 600 }} inputMode="decimal" placeholder="VD: 5000" value={jpy} onChange={(e) => setJpy(e.target.value)} />
+            <input id="pr-jpy" style={{ ...inp, marginBottom: 10, fontSize: 18, fontWeight: 600 }} inputMode="decimal" value={jpy} onChange={(e) => setJpy(e.target.value)} />
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div>
                 <label style={fieldLabel} htmlFor="pr-rate">Tỷ giá</label>
@@ -278,7 +278,7 @@ export default function PricingPage() {
           <section style={{ ...card, padding: 18 }}>
             {cardTitle(PackageCheck, "Báo giá hàng sẵn", "Tự giảm 5%, làm tròn lên 5k")}
             <label style={fieldLabel} htmlFor="pr-ready">Giá gốc (nghìn VNĐ)</label>
-            <input id="pr-ready" style={{ ...inp, fontSize: 18, fontWeight: 600 }} inputMode="decimal" placeholder="VD: 850 = 850.000đ" value={ready} onChange={(e) => setReadyPrice(e.target.value)} />
+            <input id="pr-ready" style={{ ...inp, fontSize: 18, fontWeight: 600 }} inputMode="decimal" value={ready} onChange={(e) => setReadyPrice(e.target.value)} />
             {readyResult && (
               <div style={resultBox}>
                 <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá sau giảm 5%</div>
