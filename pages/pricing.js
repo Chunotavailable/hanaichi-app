@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import { createSyncer, loadDoc } from "../lib/syncer";
-import { usePerm, readRoleCookie } from "../lib/perm";
-import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw } from "lucide-react";
+import { usePerm } from "../lib/perm";
+import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus } from "lucide-react";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -73,8 +73,9 @@ export default function PricingPage() {
   const [ehPrice, setEhPrice] = useState("");
   const [ehNote, setEhNote] = useState("");
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
-  const orderHistTimer = useRef(null);
-  const readyHistTimer = useRef(null);
+  const [noteOrder, setNoteOrder] = useState("");
+  const [noteReady, setNoteReady] = useState("");
+  const [savedFlag, setSavedFlag] = useState(null); // "order" | "ready" — vừa lưu xong
   // Không tải được lịch sử thì KHÔNG được lưu gì lên server — nếu không, lần
   // lưu kế tiếp sẽ ghi đè lịch sử thật trên server bằng danh sách rỗng đang
   // có trên máy. Syncer chỉ bắt đầu gửi sau khi init() (tải thành công), nên
@@ -114,48 +115,49 @@ export default function PricingPage() {
     });
   }
 
-  // Tự động tính giá ngay khi gõ (không cần bấm nút): hiện giá luôn cho mượt,
-  // nhưng chỉ THẬT SỰ lưu vào lịch sử sau khi ngừng gõ ~900ms — nếu lưu ngay
-  // từng phím gõ thì lịch sử sẽ bị spam đầy các giá trị gõ dở (VD gõ "1500"
-  // sẽ tạo ra cả "1k, 15k, 150k, 1500k").
+  // Tự động tính giá ngay khi gõ (không cần bấm nút). Lịch sử thì KHÔNG tự
+  // lưu nữa: chỉ khi bấm "Lưu vào lịch sử" ở mã nào thì mã đó mới được thêm.
+  const orderNum = numOnly(jpy) || 0;
+  const orderRate = numOnly(rate) || 202;
+  const orderDisc = numOnly(disc) || 0;
   useEffect(() => {
-    const jpyN = numOnly(jpy) || 0;
-    if (orderHistTimer.current) clearTimeout(orderHistTimer.current);
-    if (jpyN <= 0) {
+    if (orderNum <= 0) {
       setOrderResult(null);
       return;
     }
-    const rateN = numOnly(rate) || 202;
-    const discN = numOnly(disc) || 0;
-    const total = roundUp5k(jpyN * rateN * (1 - discN / 100));
-    const msg = `Mã này đang sale còn ${fmtK(total)} + KG ạ`;
-    const altMsg = `Mã này giá ${fmtK(total)} + KG ạ`;
-    setOrderResult({ total, msg, altMsg });
-    orderHistTimer.current = setTimeout(() => {
-      if (readRoleCookie() === "guest") return; // Khách: chỉ tính giá, không lưu lịch sử
-      const h = { id: uid(), type: "Order", output: total, note: "", date: Date.now(), jpy: jpyN, rate: rateN, disc: discN, msg, altMsg };
-      persist((prev) => ({ ...prev, priceHist: [h, ...prev.priceHist], lastRate: rateN }));
-    }, 900);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jpy, rate, disc]);
+    const total = roundUp5k(orderNum * orderRate * (1 - orderDisc / 100));
+    setOrderResult({ total, msg: `Mã này đang sale còn ${fmtK(total)} + KG ạ`, altMsg: `Mã này giá ${fmtK(total)} + KG ạ` });
+  }, [orderNum, orderRate, orderDisc]);
 
+  const readyBase = (numOnly(ready) || 0) * 1000;
   useEffect(() => {
-    const base = (numOnly(ready) || 0) * 1000;
-    if (readyHistTimer.current) clearTimeout(readyHistTimer.current);
-    if (base <= 0) {
+    if (readyBase <= 0) {
       setReadyResult(null);
       return;
     }
-    const total = roundUp5k(base * 0.95);
-    const msg = `Bên em sẵn đang giảm còn ${fmtK(total)} ạ`;
-    setReadyResult({ total, msg });
-    readyHistTimer.current = setTimeout(() => {
-      if (readRoleCookie() === "guest") return;
-      const h = { id: uid(), type: "Hàng sẵn", output: total, note: "", date: Date.now(), base, msg };
-      persist((prev) => ({ ...prev, priceHist: [h, ...prev.priceHist] }));
-    }, 900);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+    const total = roundUp5k(readyBase * 0.95);
+    setReadyResult({ total, msg: `Bên em sẵn đang giảm còn ${fmtK(total)} ạ` });
+  }, [readyBase]);
+
+  // Lưu 1 kết quả đang hiện vào lịch sử (kèm ghi chú, VD tên/mã sản phẩm).
+  function saveOrderToHistory() {
+    if (!orderResult || loadFailed) return;
+    const h = { id: uid(), type: "Order", output: orderResult.total, note: noteOrder.trim(), date: Date.now(), jpy: orderNum, rate: orderRate, disc: orderDisc, msg: orderResult.msg, altMsg: orderResult.altMsg };
+    persist((prev) => ({ ...prev, priceHist: [h, ...prev.priceHist], lastRate: orderRate }));
+    setNoteOrder("");
+    flashSaved("order");
+  }
+  function saveReadyToHistory() {
+    if (!readyResult || loadFailed) return;
+    const h = { id: uid(), type: "Hàng sẵn", output: readyResult.total, note: noteReady.trim(), date: Date.now(), base: readyBase, msg: readyResult.msg };
+    persist((prev) => ({ ...prev, priceHist: [h, ...prev.priceHist] }));
+    setNoteReady("");
+    flashSaved("ready");
+  }
+  function flashSaved(which) {
+    setSavedFlag(which);
+    setTimeout(() => setSavedFlag((cur) => (cur === which ? null : cur)), 1800);
+  }
 
   function copyMsg(msg) {
     if (!msg) return;
@@ -235,7 +237,7 @@ export default function PricingPage() {
             }}
           >
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <WifiOff size={17} style={{ flexShrink: 0 }} /> Không tải được lịch sử báo giá — vẫn tính giá bình thường, nhưng tạm chưa lưu lịch sử.
+              <WifiOff size={17} style={{ flexShrink: 0 }} /> Không tải được lịch sử báo giá — vẫn tính giá bình thường, nhưng tạm chưa lưu được vào lịch sử.
             </span>
             <button style={{ ...btnSub, flexShrink: 0 }} onClick={loadData}>
               <RotateCw size={15} /> Thử lại
@@ -264,6 +266,7 @@ export default function PricingPage() {
                 <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(orderResult.total)}</div>
                 <MsgRow text={orderResult.msg} T={T} />
                 <MsgRow text={orderResult.altMsg} T={T} />
+                {perm.canEdit && <SaveRow note={noteOrder} setNote={setNoteOrder} onSave={saveOrderToHistory} saved={savedFlag === "order"} disabled={loadFailed} T={T} />}
               </div>
             )}
           </section>
@@ -277,6 +280,7 @@ export default function PricingPage() {
                 <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá sau giảm 5%</div>
                 <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(readyResult.total)}</div>
                 <MsgRow text={readyResult.msg} T={T} />
+                {perm.canEdit && <SaveRow note={noteReady} setNote={setNoteReady} onSave={saveReadyToHistory} saved={savedFlag === "ready"} disabled={loadFailed} T={T} />}
               </div>
             )}
           </section>
@@ -285,7 +289,7 @@ export default function PricingPage() {
         <section style={{ ...card, padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8 }}>
             <div style={{ fontWeight: 700, fontSize: 15.5, display: "flex", alignItems: "center", gap: 8 }}>
-              <History size={18} color={THEME.brand} /> Lịch sử báo giá gần đây
+              <History size={18} color={THEME.brand} /> Lịch sử báo giá đã lưu
             </div>
             {perm.isAdmin && data.priceHist.length > 0 && (
               <button style={{ ...btnSub, flexShrink: 0, color: THEME.danger }} onClick={delAllHist}>
@@ -294,10 +298,12 @@ export default function PricingPage() {
             )}
           </div>
           {perm.role === "guest" && (
-            <div style={{ fontSize: 13, color: THEME.subtext, marginBottom: 10 }}>Chế độ Khách: giá vừa tính sẽ không được lưu vào lịch sử.</div>
+            <div style={{ fontSize: 13, color: THEME.subtext, marginBottom: 10 }}>Chế độ Khách: chỉ tính giá và copy, không lưu được vào lịch sử.</div>
           )}
           {data.priceHist.length === 0 ? (
-            <div style={{ color: THEME.subtext, fontSize: 14 }}>Chưa có lịch sử</div>
+            <div style={{ color: THEME.subtext, fontSize: 14 }}>
+              Chưa lưu mã nào. {perm.canEdit ? "Tính giá xong, bấm “Lưu vào lịch sử” ở mã nào cần nhớ." : ""}
+            </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {data.priceHist.slice(0, 20).map((h) => {
@@ -382,6 +388,25 @@ export default function PricingPage() {
         onConfirm={confirmDelAllHist}
       />
     </main>
+  );
+}
+
+// Ô ghi chú (tuỳ chọn) + nút lưu kết quả đang hiện vào lịch sử.
+function SaveRow({ note, setNote, onSave, saved, disabled, T }) {
+  const { THEME, btn, btnSub, inp } = T;
+  return (
+    <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+      <input
+        style={{ ...inp, flex: 1, minWidth: 140 }}
+        placeholder="Ghi chú (VD: mã áo)"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && onSave()}
+      />
+      <button style={saved ? { ...btnSub, color: THEME.success, flexShrink: 0 } : { ...btn, flexShrink: 0 }} disabled={disabled} onClick={onSave} title={disabled ? "Chưa tải được lịch sử nên tạm chưa lưu được" : undefined}>
+        {saved ? <Check size={16} /> : <BookmarkPlus size={16} />} {saved ? "Đã lưu" : "Lưu vào lịch sử"}
+      </button>
+    </div>
   );
 }
 
