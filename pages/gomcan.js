@@ -16,6 +16,7 @@ import {
 } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
+import { useSheetSync, SheetSyncBar, SheetSyncModal } from "../lib/SheetSyncUI";
 import { FilterChip, SearchInput, EmptyState, GroupTitle, ImagePlaceholder, UndoToast } from "../lib/ui";
 import {
   House,
@@ -104,6 +105,21 @@ export default function GomCan() {
       detach();
     };
   }, []);
+
+  // Đối chiếu tab Gia dụng + TPCN với Google Sheet BẢNG GIÁ GỒM CÂN.
+  async function reloadAfterSync() {
+    if (syncerRef.current.hasPending()) return;
+    const fr = await fetch("/api/gomcan", { cache: "no-store" }); // không dùng bản tải trước (cũ)
+    if (!fr.ok) return;
+    const d = await fr.json();
+    syncerRef.current.init(d, fr.headers.get("x-hn-etag") || "");
+    setData(d);
+  }
+  const [gdSync, runGdSync] = useSheetSync("/api/giadung-sync", reloadAfterSync);
+  const [gdModal, setGdModal] = useState(null); // null | "pending" | "log"
+  useEffect(() => {
+    runGdSync(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function persist(next) {
     setData(next);
@@ -358,6 +374,9 @@ export default function GomCan() {
         )}
         {subTab === "unigu" && <OniCategory label="Uniqlo + GU" areaKey="unigu" cat="unigu" {...oniProps} />}
         {subTab === "giadung" && (
+          <SheetSyncBar st={gdSync} run={runGdSync} canEdit={perm.canEdit} onOpen={setGdModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated} sản phẩm`} />
+        )}
+        {subTab === "giadung" && (
           <GiadungSection
             data={data} editKey={editKey} setEditKey={setEditKey}
             addGiadungItem={addGiadungItem} saveGiadungItem={saveGiadungItem} delGiadungItem={delGiadungItem} toggleGiadungFavorite={toggleGiadungFavorite}
@@ -366,6 +385,35 @@ export default function GomCan() {
           />
         )}
       </div>
+
+      {gdModal && (
+        <SheetSyncModal
+          onClose={() => setGdModal(null)}
+          changesUrl="/api/giadung-sync?log=1"
+          st={gdSync}
+          run={runGdSync}
+          canEdit={perm.canEdit}
+          initialTab={gdModal}
+          refOf={(x) => ({ k: x.k, key: x.key, sig: x.sig })}
+          pendingView={(x, TH) =>
+            x.k === "new"
+              ? { kind: "Sản phẩm mới", color: TH.success, text: `· Yên: ${x.jpy || "—"} · Giá gồm cân: ${x.vnd || "—"}` }
+              : x.k === "gone"
+              ? { kind: "Không còn trong file", color: TH.danger, text: "" }
+              : { kind: "Thay đổi", color: "#b26a00", text: "\n" + Object.entries(x.f).map(([k, [a, b]]) => `${{ name: "Tên", link: "Link", jpy: "Giá Yên", vnd: "Giá gồm cân" }[k] || k}: ${a || "—"} → ${b || "—"}`).join("\n") }
+          }
+          logView={(it, TH) =>
+            it.k === "new"
+              ? { text: `Sản phẩm mới · ${it.to || ""}`, color: TH.success }
+              : it.k === "gone"
+              ? { text: "Không còn trong file", color: TH.danger }
+              : it.k === "back"
+              ? { text: "Có lại trong file", color: TH.success }
+              : { text: Object.entries(it.f || {}).map(([k, [a, b]]) => `${{ name: "Tên", link: "Link", jpy: "Giá Yên", vnd: "Giá gồm cân" }[k] || k}: ${a || "—"} → ${b || "—"}`).join("\n"), color: TH.text }
+          }
+          T={T}
+        />
+      )}
 
       <div style={{ position: "fixed", right: 18, bottom: 22, zIndex: 45, display: "flex", flexDirection: "column", gap: 10 }}>
         <button
@@ -740,7 +788,7 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
           <SmartImage src={it.image} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} fallback={<ImagePlaceholder icon={Package} size={22} T={T} />} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
+          <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}{it.gone && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: T.THEME.danger, border: `1px solid ${T.THEME.danger}`, borderRadius: 999, padding: "0 6px", whiteSpace: "nowrap" }}>Không còn trong file</span>}</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 3 }}>
             {typeChip}
             <span style={{ fontWeight: 700, color: THEME.brand, fontSize: 14.5 }}>{priceLine}</span>
@@ -761,7 +809,7 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
         </div>
       </div>
       <div style={{ padding: "10px 11px 12px", flex: 1, display: "flex", flexDirection: "column" }}>
-        <div style={{ fontWeight: 600, fontSize: 13.5, lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 36 }}>{it.name}</div>
+        <div style={{ fontWeight: 600, fontSize: 13.5, lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 36 }}>{it.name}{it.gone && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: T.THEME.danger, border: `1px solid ${T.THEME.danger}`, borderRadius: 999, padding: "0 6px", whiteSpace: "nowrap" }}>Không còn trong file</span>}</div>
         <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontWeight: 700, color: THEME.brand, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{priceLine}</span>
         </div>
@@ -805,7 +853,7 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
         </div>
         <div style={{ padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, lineHeight: 1.35, flex: 1, minWidth: 0, overflowWrap: "break-word" }}>{it.name}</h3>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, lineHeight: 1.35, flex: 1, minWidth: 0, overflowWrap: "break-word" }}>{it.name}{it.gone && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: T.THEME.danger, border: `1px solid ${T.THEME.danger}`, borderRadius: 999, padding: "0 6px", whiteSpace: "nowrap" }}>Không còn trong file</span>}</h3>
             {perm.canEdit && (
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                 <button style={{ ...iconBtn, color: it.favorite ? THEME.brand : THEME.subtext }} title="Yêu thích" aria-pressed={!!it.favorite} onClick={onFavorite}>
