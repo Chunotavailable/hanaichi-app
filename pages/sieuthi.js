@@ -163,7 +163,7 @@ export default function SieuThiPage() {
       }
       if (filter === "con") return !p.oos;
       if (filter === "het") return !!p.oos;
-      if (filter === "sale") return saleActive && !p.oos && !!(p.sale || p.saleText);
+      if (filter === "sale") return !p.oos && !!(p.sale || p.saleText);
       return true;
     });
     if (sort !== "none") {
@@ -266,9 +266,9 @@ export default function SieuThiPage() {
               <FilterChip T={T} small active={!searching && filter === "con"} onClick={() => { setQ(""); setFilter("con"); }}>
                 Còn hàng · {counts.con}
               </FilterChip>
-              {saleActive && counts.sale > 0 && (
+              {sale && counts.sale > 0 && (
                 <FilterChip T={T} small active={!searching && filter === "sale"} tone="danger" onClick={() => { setQ(""); setFilter("sale"); }}>
-                  <Flame size={13} /> Đang sale · {counts.sale}
+                  <Flame size={13} /> {saleActive ? "Đang sale" : "Sale"} · {counts.sale}
                 </FilterChip>
               )}
               <FilterChip T={T} small active={!searching && filter === "all"} onClick={() => { setQ(""); setFilter("all"); }}>
@@ -313,7 +313,7 @@ export default function SieuThiPage() {
       <style jsx global>{`
         .stRow {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 84px 84px;
+          grid-template-columns: minmax(0, 1fr) 128px 84px;
           column-gap: 12px;
           align-items: center;
         }
@@ -363,13 +363,8 @@ function ProductRow({ p, first, sale, saleActive, tokens, T }) {
           <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.38, color: THEME.text, overflowWrap: "anywhere" }}>
             <Highlight text={p.name} tokens={tokens} color="#fbe3a6" />
           </div>
-          {onSale || hasLinks ? (
+          {hasLinks ? (
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2px 10px", marginTop: 3, fontSize: 12.5, color: THEME.muted }}>
-              {onSale && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700, color: THEME.danger }}>
-                  <Flame size={12} /> {p.sale ? "Sale" : `Sale: ${p.saleText}`}
-                </span>
-              )}
               {[["Web", p.linkWeb], ["Shopee", p.linkShopee], ["Lazada", p.linkLazada]]
                 .filter(([, h]) => h)
                 .map(([label, h]) => (
@@ -382,13 +377,16 @@ function ProductRow({ p, first, sale, saleActive, tokens, T }) {
         </div>
 
         <div className="stPrice" style={{ opacity: p.oos ? 0.7 : 1 }}>
-          {shownPrice ? (
-            <>
-              <div style={{ fontWeight: 700, fontSize: 17, lineHeight: 1.15, color: p.oos ? THEME.subtext : saleNow ? THEME.danger : THEME.brand }}>{fmtK(shownPrice)}</div>
-              {saleNow && p.price ? <div style={{ fontSize: 12.5, color: THEME.muted }}><s>{fmtK(p.price)}</s></div> : null}
-            </>
-          ) : (
+          {p.price ? (
+            <div style={{ fontWeight: 700, fontSize: 17, lineHeight: 1.15, color: p.oos ? THEME.subtext : THEME.brand }}>{fmtK(p.price)}</div>
+          ) : !hasSale ? (
             <div style={{ fontSize: 13, color: THEME.muted }}>Chưa có giá</div>
+          ) : null}
+          {hasSale && !p.oos && (
+            <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.3, marginTop: 2, color: saleActive ? THEME.danger : THEME.subtext }}>
+              <Flame size={11} style={{ verticalAlign: -1 }} /> {p.sale ? fmtK(p.sale) : p.saleText}
+              {sale ? <span style={{ fontWeight: 600, color: THEME.muted }}> · {saleShort(sale.label)}</span> : null}
+            </div>
           )}
         </div>
 
