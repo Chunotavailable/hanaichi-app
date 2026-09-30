@@ -247,7 +247,11 @@ export default function TraCuuPage() {
               </div>
             </div>
 
-            {groups.map((g) => {
+            {(nq
+              ? // Đang tìm: nhóm nào có mục khớp TIÊU ĐỀ thì lên trước (VD bảng size Adidas trước mục chỉ nhắc Adidas trong nội dung).
+                [...groups.filter((g) => filtered.some((r) => (r.group || "Khác") === g && norm(r.title).includes(nq))), ...groups.filter((g) => !filtered.some((r) => (r.group || "Khác") === g && norm(r.title).includes(nq)))]
+              : groups
+            ).map((g) => {
               const items = filtered.filter((r) => (r.group || "Khác") === g);
               if (!items.length) return null;
               const Icon = groupIcon(g);
