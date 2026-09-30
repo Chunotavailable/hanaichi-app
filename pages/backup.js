@@ -12,6 +12,7 @@ import { Download, Upload, FolderOpen, AlertTriangle, CheckCircle2 } from "lucid
 const SECTIONS = [
   { key: "gomcan", url: "/api/gomcan", label: "Giá gồm cân + Hàng Closet sẵn" },
   { key: "thietbi", url: "/api/thietbi", label: "Thiết bị bếp & vệ sinh" },
+  { key: "sieuthi", url: "/api/sieuthi", label: "Giá siêu thị" },
   { key: "replies", url: "/api/replies", label: "Tra cứu nhanh" },
   { key: "customers", url: "/api/customers", label: "Khách hàng" },
   { key: "todo", url: "/api/todo", label: "Việc cần làm" },
