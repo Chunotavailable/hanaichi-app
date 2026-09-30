@@ -144,7 +144,8 @@ export default function TraCuuPage() {
   const groups = [...REPLY_GROUPS.filter((g) => present.includes(g)), ...present.filter((g) => !REPLY_GROUPS.includes(g))];
   const nq = norm(q);
   const filtered = list.filter((r) => {
-    if (group !== "Tất cả" && (r.group || "Khác") !== group) return false;
+    // Đang gõ tìm kiếm thì tìm trong TẤT CẢ các nhóm, không bị giới hạn ở nhóm đang chọn.
+    if (!nq && group !== "Tất cả" && (r.group || "Khác") !== group) return false;
     if (!nq) return true;
     return norm(`${r.title} ${r.content} ${r.group}`).includes(nq);
   });
@@ -185,12 +186,15 @@ export default function TraCuuPage() {
             <div style={{ ...card, padding: 6 }}>
               {["Tất cả", ...groups].map((g) => {
                 const Icon = groupIcon(g);
-                const active = group === g;
+                const active = nq ? g === "Tất cả" : group === g;
                 const count = g === "Tất cả" ? list.length : list.filter((r) => (r.group || "Khác") === g).length;
                 return (
                   <button
                     key={g}
-                    onClick={() => setGroup(g)}
+                    onClick={() => {
+                      setQ("");
+                      setGroup(g);
+                    }}
                     aria-pressed={active}
                     style={{
                       width: "100%",
@@ -223,7 +227,15 @@ export default function TraCuuPage() {
               {/* Điện thoại: nhóm hiện thành hàng nút vuốt ngang. */}
               <div className="hnHScroll tcChips" style={{ display: "flex", gap: 6, marginTop: 10, overflowX: "auto" }}>
                 {["Tất cả", ...groups].map((g) => (
-                  <FilterChip key={g} T={T} active={group === g} onClick={() => setGroup(g)}>
+                  <FilterChip
+                    key={g}
+                    T={T}
+                    active={nq ? g === "Tất cả" : group === g}
+                    onClick={() => {
+                      setQ("");
+                      setGroup(g);
+                    }}
+                  >
                     {g}
                   </FilterChip>
                 ))}

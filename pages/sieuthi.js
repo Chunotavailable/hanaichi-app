@@ -272,9 +272,6 @@ export default function SieuThiPage() {
               <FilterChip T={T} small active={!searching && filter === "all"} onClick={() => { setQ(""); setFilter("all"); }}>
                 Tất cả · {counts.all}
               </FilterChip>
-              <FilterChip T={T} small active={!searching && filter === "het"} tone="danger" onClick={() => { setQ(""); setFilter("het"); }}>
-                Hết hàng · {counts.het}
-              </FilterChip>
               <FilterChip T={T} small active={sort !== "none"} onClick={() => setSort((x) => (x === "none" ? "asc" : x === "asc" ? "desc" : "none"))}>
                 <ArrowUpDown size={13} /> {sortLabel}
               </FilterChip>
@@ -398,13 +395,7 @@ function ProductRow({ p, first, sale, saleActive, tokens, T }) {
           {shownPrice ? (
             <>
               <div style={{ fontWeight: 700, fontSize: 19, lineHeight: 1.15, color: p.oos ? THEME.subtext : saleNow ? THEME.danger : THEME.brand }}>{fmtK(shownPrice)}</div>
-              {saleNow && p.price ? (
-                <div style={{ fontSize: 12, color: THEME.muted }}>
-                  Giá Social <s>{fmtK(p.price)}</s>
-                </div>
-              ) : (
-                <div style={{ fontSize: 11.5, color: THEME.muted }}>Giá Social</div>
-              )}
+              {saleNow && p.price ? <div style={{ fontSize: 12.5, color: THEME.muted }}><s>{fmtK(p.price)}</s></div> : null}
             </>
           ) : (
             <div style={{ fontSize: 13, color: THEME.muted }}>Chưa có giá</div>
