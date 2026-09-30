@@ -5,7 +5,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, ViewModeToggle, gridColumnsFor, SmartImage, loadJson, saveJson } from "../lib/gomcanHelpers";
+import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, ViewModeToggle, gridColumnsFor, SmartImage } from "../lib/gomcanHelpers";
+import { createSyncer, loadDoc } from "../lib/syncer";
 
 // Lấy phần trong ngoặc của mã biến thể để hiện gọn khi cần (VD "WRS...-235
 // (EU 38)" -> "EU 38").
@@ -282,78 +283,74 @@ export default function ClosetPage() {
   const T = { THEME, card, btn, btnSub, iconBtn, inp, chip, thumb };
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const saveTimer = useRef(null);
-  // Hoàn tác xoá trong 10s: khi xoá 1 mã/size, dữ liệu được cập nhật ngay
-  // trên màn hình (ẩn đi luôn) nhưng CHƯA lưu lên server — chỉ thật sự lưu
-  // (và xoá ảnh nếu có) sau 10s không bấm "Hoàn tác". Bấm hoàn tác thì khôi
-  // phục lại đúng dữ liệu trước khi xoá.
-  const undoRef = useRef(null); // { prevData, timer, onCommit }
+  // Hoàn tác xoá trong 10s: xoá thì lưu ngay như mọi thay đổi khác; bấm
+  // "Hoàn tác" thì chèn lại đúng món vừa xoá vào vị trí cũ (dựa trên dữ liệu
+  // HIỆN TẠI — không quay về bản chụp cũ, để không làm mất những gì vừa sửa
+  // thêm trong 10s đó). Riêng việc xoá ẢNH trên server là không lấy lại
+  // được nên mới phải chờ hết 10s không hoàn tác mới làm (onCommit).
+  const undoRef = useRef(null); // { restore, timer, onCommit }
   const [undoInfo, setUndoInfo] = useState(null); // { message } — chỉ để hiện thanh thông báo
   const [loadFailed, setLoadFailed] = useState(false);
+  const dataRef = useRef(null);
+  dataRef.current = data;
+  // Chỉ gửi phần thay đổi lên server khi lưu — xem lib/syncer.js.
+  const syncerRef = useRef(null);
+  if (!syncerRef.current) syncerRef.current = createSyncer("/api/gomcan", { onServerData: setData });
 
   function loadData() {
     setLoading(true);
     setLoadFailed(false);
-    loadJson("/api/gomcan")
-      .then((d) => setData(d))
+    loadDoc("/api/gomcan")
+      .then(({ data: d, etag }) => {
+        syncerRef.current.init(d, etag);
+        setData(d);
+      })
       .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }
   useEffect(() => {
     loadData();
-  }, []);
-
-  // Nếu rời trang khi vẫn còn 1 lượt xoá đang chờ hoàn tác, phải lưu ngay lập
-  // tức thay vì để mất tiêu, vì hẹn giờ setTimeout ở dưới đã không thể chạy
-  // đúng lúc component đã bị gỡ (component unmount không huỷ setTimeout).
-  useEffect(() => {
+    const detach = syncerRef.current.attachLifecycle();
     return () => {
+      // Rời trang khi còn 1 lượt xoá chờ hoàn tác -> làm nốt phần xoá ảnh.
       if (undoRef.current) {
         clearTimeout(undoRef.current.timer);
         undoRef.current.onCommit();
         undoRef.current = null;
       }
+      detach();
     };
   }, []);
 
-  function saveToServer(next) {
-    saveJson("/api/gomcan", next);
-  }
-
   function persist(next) {
     setData(next);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => saveToServer(next), 250);
+    syncerRef.current.schedule(next);
   }
 
-  // Xoá kèm hoàn tác: cập nhật giao diện ngay (nextData), nhưng việc lưu thật
-  // sự lên server (onCommit) bị hoãn 10s — trong lúc đó bấm "Hoàn tác" thì
-  // huỷ lượt lưu này và khôi phục lại prevData.
-  function scheduleUndoableDelete({ message, prevData, nextData, onCommit }) {
-    // Nếu đang có 1 lượt xoá khác chưa hết 10s thì lưu luôn lượt đó trước,
-    // tránh chồng nhiều lượt hoàn tác cùng lúc gây rối.
+  function scheduleUndoableDelete({ message, nextData, restore, onCommit = () => {} }) {
+    // Đang có 1 lượt xoá khác chưa hết 10s thì chốt luôn lượt đó.
     if (undoRef.current) {
       clearTimeout(undoRef.current.timer);
       undoRef.current.onCommit();
       undoRef.current = null;
     }
-    setData(nextData);
+    persist(nextData);
     const timer = setTimeout(() => {
       onCommit();
       undoRef.current = null;
       setUndoInfo(null);
     }, 10000);
-    undoRef.current = { prevData, timer, onCommit };
+    undoRef.current = { restore, timer, onCommit };
     setUndoInfo({ message });
   }
 
   function undoDelete() {
     if (!undoRef.current) return;
     clearTimeout(undoRef.current.timer);
-    const { prevData } = undoRef.current;
+    const { restore } = undoRef.current;
     undoRef.current = null;
     setUndoInfo(null);
-    persist(prevData);
+    persist(restore(dataRef.current));
   }
 
   if (loadFailed && !loading) {
@@ -378,30 +375,35 @@ export default function ClosetPage() {
   // sẽ ghi đè mất kết quả của lần trước, cuối cùng chỉ còn đúng 1 ảnh được lưu.
   function bulkSaveClosetImages(updates) {
     const byId = new Map(updates.map((u) => [u.id, u.image]));
+    // Dùng dataRef (dữ liệu hiện tại) vì hàm này chạy sau cả 1 vòng tải ảnh
+    // dài — "data" lúc bắt đầu vòng lặp có thể đã cũ.
+    const cur = dataRef.current;
     const next = {
-      ...data,
-      closet: data.closet.map((p) => (byId.has(p.id) ? { ...p, image: byId.get(p.id) } : p)),
+      ...cur,
+      closet: cur.closet.map((p) => (byId.has(p.id) ? { ...p, image: byId.get(p.id) } : p)),
     };
     persist(next);
   }
   function delClosetProduct(id) {
-    const prevData = data;
-    const product = data.closet.find((p) => p.id === id);
+    const index = data.closet.findIndex((p) => p.id === id);
+    const product = data.closet[index];
+    if (!product) return;
     // Ghi nhớ lại id đã xoá: nếu đây là 1 mã có sẵn trong dữ liệu mẫu gốc
     // (seed), server sẽ tự "bổ sung lại mã còn thiếu" mỗi khi tải trang —
     // không ghi nhớ thì mã vừa xoá sẽ tự hiện lại ngay sau khi tải lại trang.
     const deletedIds = Array.from(new Set([...(data.closetDeletedIds || []), id]));
     const next = { ...data, closet: data.closet.filter((p) => p.id !== id), closetDeletedIds: deletedIds };
     scheduleUndoableDelete({
-      message: `Đã xoá "${product ? product.name.split("\n")[0] : "sản phẩm"}"`,
-      prevData,
+      message: `Đã xoá "${product.name.split("\n")[0]}"`,
       nextData: next,
+      restore: (cur) => {
+        const list = cur.closet.filter((p) => p.id !== id);
+        list.splice(Math.min(index, list.length), 0, product);
+        return { ...cur, closet: list, closetDeletedIds: (cur.closetDeletedIds || []).filter((x) => x !== id) };
+      },
       // Chỉ thật sự xoá ảnh trên server sau 10s không hoàn tác — hoàn tác thì
       // ảnh vẫn còn nguyên, khỏi phải tải/nhập lại.
-      onCommit: () => {
-        deleteGomcanImage(id);
-        saveToServer(next);
-      },
+      onCommit: () => deleteGomcanImage(id),
     });
   }
   function addClosetVariant(productId, variant) {
@@ -423,9 +425,10 @@ export default function ClosetPage() {
     persist(next);
   }
   function delClosetVariant(productId, variantId) {
-    const prevData = data;
     const product = data.closet.find((p) => p.id === productId);
-    const variant = product && product.variants.find((v) => v.id === variantId);
+    const vIndex = product ? product.variants.findIndex((v) => v.id === variantId) : -1;
+    const variant = vIndex >= 0 ? product.variants[vIndex] : null;
+    if (!variant) return;
     // Ghi nhớ lại "productId:variantId" đã xoá, cùng lý do như delClosetProduct
     // ở trên — tránh size/mã đã xoá của sản phẩm mẫu gốc tự hiện lại.
     const key = `${productId}:${variantId}`;
@@ -436,10 +439,18 @@ export default function ClosetPage() {
       closetDeletedVariantIds: deletedVariantIds,
     };
     scheduleUndoableDelete({
-      message: `Đã xoá mã "${(variant && variant.label) || ""}"`,
-      prevData,
+      message: `Đã xoá mã "${variant.label || ""}"`,
       nextData: next,
-      onCommit: () => saveToServer(next),
+      restore: (cur) => ({
+        ...cur,
+        closet: cur.closet.map((p) => {
+          if (p.id !== productId) return p;
+          const vs = p.variants.filter((v) => v.id !== variantId);
+          vs.splice(Math.min(vIndex, vs.length), 0, variant);
+          return { ...p, variants: vs };
+        }),
+        closetDeletedVariantIds: (cur.closetDeletedVariantIds || []).filter((x) => x !== key),
+      }),
     });
   }
   // Sửa giá chung cho cả sản phẩm: áp 1 giá mới cho TẤT CẢ biến thể (size/màu)

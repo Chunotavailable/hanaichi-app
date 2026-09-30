@@ -5,7 +5,7 @@
 //
 // Cần biến môi trường BLOB_READ_WRITE_TOKEN. Khi bạn tạo 1 Blob Store trên Vercel và gắn
 // vào project, biến này được Vercel tự thêm vào — không cần tự tạo token thủ công.
-import { put, head } from "@vercel/blob";
+import { makeDocHandler } from "../../lib/docApi";
 import { SEED_GIADUNG } from "../../lib/giadungSeed";
 import { SEED_CLOSET } from "../../lib/closetSeed";
 
@@ -67,35 +67,17 @@ const DEFAULT_DATA = {
   closetDeletedVariantIds: [],
 };
 
-async function readData() {
-  try {
-    const meta = await head(DATA_PATHNAME);
-    const r = await fetch(meta.url, { cache: "no-store" });
-    if (!r.ok) return withGiadungSeed(DEFAULT_DATA).data;
-    const data = await r.json();
-    const merged = { ...DEFAULT_DATA, ...data, oniRates: { ...DEFAULT_DATA.oniRates, ...(data.oniRates || {}) } };
-    const { data: seeded1, upgraded: upgraded1 } = withGiadungSeed(merged);
-    const { data: split, upgraded: upgradedSplit } = withClosetSplit(seeded1);
-    const { data: seeded, upgraded: upgraded2 } = withClosetSeed(split);
-    const upgraded = upgraded1 || upgradedSplit || upgraded2;
-    if (upgraded) {
-      // Tự ghi lại ngay bản đã bổ sung để lần đọc sau không phải tính lại nữa.
-      try {
-        await put(DATA_PATHNAME, JSON.stringify(seeded), {
-          access: "public",
-          addRandomSuffix: false,
-          allowOverwrite: true,
-          contentType: "application/json",
-        });
-      } catch (e) {
-        // không ghi được thì thôi, lần đọc sau sẽ tự thử lại
-      }
-    }
-    return seeded;
-  } catch (e) {
-    // Chưa có file nào được lưu (lần đầu) -> trả về mặc định
-    return withClosetSeed(withGiadungSeed(DEFAULT_DATA).data).data;
-  }
+// Chuẩn hoá dữ liệu vừa đọc: bổ sung mặc định + chạy các bước merge dữ liệu
+// mẫu (seed) như trước. upgraded = true nếu có bổ sung/sửa gì so với bản lưu.
+function normalize(data) {
+  const merged = { ...DEFAULT_DATA, ...data, oniRates: { ...DEFAULT_DATA.oniRates, ...(data.oniRates || {}) } };
+  const { data: seeded1, upgraded: upgraded1 } = withGiadungSeed(merged);
+  const { data: split, upgraded: upgradedSplit } = withClosetSplit(seeded1);
+  const { data: seeded, upgraded: upgraded2 } = withClosetSeed(split);
+  return { data: seeded, upgraded: upgraded1 || upgradedSplit || upgraded2 };
+}
+function defaults() {
+  return withClosetSeed(withGiadungSeed(DEFAULT_DATA).data).data;
 }
 
 // Tự động điền sẵn danh sách "Gia dụng + TPCN" lấy từ file Google Sheet của
@@ -293,28 +275,7 @@ function withClosetSeed(data) {
   return { data: { ...data, closet: merged }, upgraded: true };
 }
 
-export default async function handler(req, res) {
-  if (req.method === "GET") {
-    const data = await readData();
-    return res.status(200).json(data);
-  }
-  if (req.method === "POST" || req.method === "PUT") {
-    try {
-      const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-      if (!body || typeof body !== "object") {
-        return res.status(400).json({ error: "Dữ liệu không hợp lệ" });
-      }
-      await put(DATA_PATHNAME, JSON.stringify(body), {
-        access: "public",
-        addRandomSuffix: false,
-        allowOverwrite: true,
-        contentType: "application/json",
-      });
-      return res.status(200).json({ ok: true });
-    } catch (e) {
-      return res.status(500).json({ error: e.message || "Không lưu được" });
-    }
-  }
-  res.setHeader("Allow", ["GET", "POST", "PUT"]);
-  return res.status(405).json({ error: "Method not allowed" });
-}
+export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
+
+// GET / PATCH (chỉ gửi phần sửa) / POST (cả khối) — xem lib/docApi.js.
+export default makeDocHandler({ pathname: DATA_PATHNAME, normalize, defaults });

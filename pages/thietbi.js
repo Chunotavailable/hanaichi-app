@@ -6,7 +6,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { uid, norm, loadJson, saveJson } from "../lib/gomcanHelpers";
+import { uid, norm } from "../lib/gomcanHelpers";
+import { createSyncer, loadDoc } from "../lib/syncer";
 
 function copyText(text) {
   if (navigator.clipboard) navigator.clipboard.writeText(text || "").catch(() => {});
@@ -69,65 +70,63 @@ export default function ThietBiPage() {
   const T = { THEME, card, btn, btnSub, iconBtn, inp, chip };
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const saveTimer = useRef(null);
-  const undoRef = useRef(null);
+  const undoRef = useRef(null); // { restore, timer }
   const [undoInfo, setUndoInfo] = useState(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const dataRef = useRef(null);
+  dataRef.current = data;
+  // Chỉ gửi phần thay đổi lên server khi lưu — xem lib/syncer.js.
+  const syncerRef = useRef(null);
+  if (!syncerRef.current) syncerRef.current = createSyncer("/api/thietbi", { onServerData: setData });
 
   function loadData() {
     setLoading(true);
     setLoadFailed(false);
-    loadJson("/api/thietbi")
-      .then((d) => setData(d))
+    loadDoc("/api/thietbi")
+      .then(({ data: d, etag }) => {
+        syncerRef.current.init(d, etag);
+        setData(d);
+      })
       .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }
   useEffect(() => {
     loadData();
-  }, []);
-
-  useEffect(() => {
+    const detach = syncerRef.current.attachLifecycle();
     return () => {
-      if (undoRef.current) {
-        clearTimeout(undoRef.current.timer);
-        undoRef.current.onCommit();
-        undoRef.current = null;
-      }
+      if (undoRef.current) clearTimeout(undoRef.current.timer);
+      detach();
     };
   }, []);
 
-  function saveToServer(next) {
-    saveJson("/api/thietbi", next);
-  }
   function persist(next) {
     setData(next);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => saveToServer(next), 250);
+    syncerRef.current.schedule(next);
   }
-  // Xoá kèm hoàn tác 10s — cùng cơ chế đã dùng ở hàng Closet sẵn (xem
-  // pages/closet.js để rõ vì sao cần hoãn lưu thật sự thay vì lưu ngay).
-  function scheduleUndoableDelete({ message, prevData, nextData, onCommit }) {
-    if (undoRef.current) {
-      clearTimeout(undoRef.current.timer);
-      undoRef.current.onCommit();
-      undoRef.current = null;
-    }
-    setData(nextData);
+  // Xoá kèm hoàn tác 10s — cùng cơ chế với hàng Closet sẵn: xoá thì lưu
+  // ngay, hoàn tác thì chèn lại đúng món đó vào dữ liệu hiện tại.
+  function scheduleUndoableDelete({ message, nextData, restore }) {
+    if (undoRef.current) clearTimeout(undoRef.current.timer);
+    persist(nextData);
     const timer = setTimeout(() => {
-      onCommit();
       undoRef.current = null;
       setUndoInfo(null);
     }, 10000);
-    undoRef.current = { prevData, timer, onCommit };
+    undoRef.current = { restore, timer };
     setUndoInfo({ message });
   }
   function undoDelete() {
     if (!undoRef.current) return;
     clearTimeout(undoRef.current.timer);
-    const { prevData } = undoRef.current;
+    const { restore } = undoRef.current;
     undoRef.current = null;
     setUndoInfo(null);
-    persist(prevData);
+    persist(restore(dataRef.current));
+  }
+  function reinsert(list, item, index) {
+    const out = (list || []).filter((x) => x.id !== item.id);
+    out.splice(Math.min(index, out.length), 0, item);
+    return out;
   }
 
   if (loadFailed && !loading) return <LoadError onRetry={loadData} />;
@@ -142,15 +141,19 @@ export default function ThietBiPage() {
     persist(next);
   }
   function delProduct(id) {
-    const prevData = data;
-    const product = data.thietbi.find((p) => p.id === id);
+    const index = data.thietbi.findIndex((p) => p.id === id);
+    const product = data.thietbi[index];
+    if (!product) return;
     const deletedIds = Array.from(new Set([...(data.thietbiDeletedIds || []), id]));
     const next = { ...data, thietbi: data.thietbi.filter((p) => p.id !== id), thietbiDeletedIds: deletedIds };
     scheduleUndoableDelete({
-      message: `Đã xoá "${product ? product.name.split("\n")[0] : "sản phẩm"}"`,
-      prevData,
+      message: `Đã xoá "${product.name.split("\n")[0]}"`,
       nextData: next,
-      onCommit: () => saveToServer(next),
+      restore: (cur) => ({
+        ...cur,
+        thietbi: reinsert(cur.thietbi, product, index),
+        thietbiDeletedIds: (cur.thietbiDeletedIds || []).filter((x) => x !== id),
+      }),
     });
   }
   function addFaq(item) {
@@ -162,15 +165,19 @@ export default function ThietBiPage() {
     persist(next);
   }
   function delFaq(id) {
-    const prevData = data;
-    const faq = data.thietbiFaq.find((f) => f.id === id);
+    const index = data.thietbiFaq.findIndex((f) => f.id === id);
+    const faq = data.thietbiFaq[index];
+    if (!faq) return;
     const deletedFaqIds = Array.from(new Set([...(data.thietbiFaqDeletedIds || []), id]));
     const next = { ...data, thietbiFaq: data.thietbiFaq.filter((f) => f.id !== id), thietbiFaqDeletedIds: deletedFaqIds };
     scheduleUndoableDelete({
-      message: `Đã xoá mẫu câu "${faq ? faq.title : ""}"`,
-      prevData,
+      message: `Đã xoá mẫu câu "${faq.title}"`,
       nextData: next,
-      onCommit: () => saveToServer(next),
+      restore: (cur) => ({
+        ...cur,
+        thietbiFaq: reinsert(cur.thietbiFaq, faq, index),
+        thietbiFaqDeletedIds: (cur.thietbiFaqDeletedIds || []).filter((x) => x !== id),
+      }),
     });
   }
 

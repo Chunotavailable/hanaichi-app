@@ -12,9 +12,8 @@ import {
   ViewModeToggle,
   gridColumnsFor,
   SmartImage,
-  loadJson,
-  saveJson,
 } from "../lib/gomcanHelpers";
+import { createSyncer, loadDoc } from "../lib/syncer";
 
 /* ================== Helpers ================== */
 function buildGiadungQuote(it) {
@@ -47,25 +46,30 @@ export default function GomCan() {
   const [gcQuery, setGcQuery] = useState("");
   const [editKey, setEditKey] = useState(null); // { area, id } đang sửa
   const [viewGiadungId, setViewGiadungId] = useState(null); // id sản phẩm đang xem chi tiết
-  const saveTimer = useRef(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  // Chỉ gửi phần thay đổi lên server khi lưu — xem lib/syncer.js.
+  const syncerRef = useRef(null);
+  if (!syncerRef.current) syncerRef.current = createSyncer("/api/gomcan", { onServerData: setData });
 
   function loadData() {
     setLoading(true);
     setLoadFailed(false);
-    loadJson("/api/gomcan")
-      .then((d) => setData(d))
+    loadDoc("/api/gomcan")
+      .then(({ data: d, etag }) => {
+        syncerRef.current.init(d, etag);
+        setData(d);
+      })
       .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }
   useEffect(() => {
     loadData();
+    return syncerRef.current.attachLifecycle();
   }, []);
 
   function persist(next) {
     setData(next);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => saveJson("/api/gomcan", next), 250);
+    syncerRef.current.schedule(next);
   }
 
   function scrollToTop() {

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { loadJson, saveJson } from "../lib/gomcanHelpers";
+import { createSyncer, loadDoc } from "../lib/syncer";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -69,32 +69,32 @@ export default function PricingPage() {
   const [ehPrice, setEhPrice] = useState("");
   const [ehNote, setEhNote] = useState("");
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
-  const saveTimer = useRef(null);
   const orderHistTimer = useRef(null);
   const readyHistTimer = useRef(null);
   // Không tải được lịch sử thì KHÔNG được lưu gì lên server — nếu không, lần
-  // lưu tự động kế tiếp sẽ ghi đè lịch sử thật trên server bằng danh sách
-  // rỗng đang có trên máy. Máy tính giá thì vẫn dùng bình thường.
+  // lưu kế tiếp sẽ ghi đè lịch sử thật trên server bằng danh sách rỗng đang
+  // có trên máy. Syncer chỉ bắt đầu gửi sau khi init() (tải thành công), nên
+  // tự động được bảo vệ. Máy tính giá thì vẫn dùng bình thường.
   const [loadFailed, setLoadFailed] = useState(false);
-  const loadFailedRef = useRef(false);
+  // Chỉ gửi phần thay đổi lên server khi lưu — xem lib/syncer.js.
+  const syncerRef = useRef(null);
+  if (!syncerRef.current) syncerRef.current = createSyncer("/api/pricing", { onServerData: setData });
 
   function loadData() {
-    loadJson("/api/pricing")
-      .then((d) => {
+    loadDoc("/api/pricing")
+      .then(({ data: d, etag }) => {
         const next = { ...DEFAULT_DATA, ...d };
+        syncerRef.current.init(next, etag);
         setData(next);
         if (next.lastRate) setRate(String(next.lastRate));
-        loadFailedRef.current = false;
         setLoadFailed(false);
       })
-      .catch(() => {
-        loadFailedRef.current = true;
-        setLoadFailed(true);
-      })
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoaded(true));
   }
   useEffect(() => {
     loadData();
+    return syncerRef.current.attachLifecycle();
   }, []);
 
   // Nhận cả giá trị thường lẫn hàm cập nhật kiểu setState(prev => ...) — dùng
@@ -105,10 +105,7 @@ export default function PricingPage() {
   function persist(nextOrFn) {
     setData((prev) => {
       const next = typeof nextOrFn === "function" ? nextOrFn(prev) : nextOrFn;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      if (!loadFailedRef.current) {
-        saveTimer.current = setTimeout(() => saveJson("/api/pricing", next), 250);
-      }
+      syncerRef.current.schedule(next);
       return next;
     });
   }

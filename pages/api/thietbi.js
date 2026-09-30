@@ -1,8 +1,7 @@
 // pages/api/thietbi.js
-// Lưu/đọc dữ liệu "Thiết bị bếp & vệ sinh" bằng Vercel Blob — cùng cơ chế các
-// API khác trong app (xem pages/api/gomcan.js để hiểu chi tiết vì sao merge
-// theo cách này).
-import { put, head } from "@vercel/blob";
+// Lưu/đọc dữ liệu "Thiết bị bếp & vệ sinh" bằng Vercel Blob — hỗ trợ chỉ gửi
+// phần sửa (PATCH), xem lib/docApi.js.
+import { makeDocHandler } from "../../lib/docApi";
 import { SEED_THIETBI, SEED_THIETBI_FAQ } from "../../lib/thietbiSeed";
 
 const DATA_PATHNAME = "thietbi/data.json";
@@ -15,32 +14,6 @@ const DEFAULT_DATA = {
   thietbiDeletedIds: [],
   thietbiFaqDeletedIds: [],
 };
-
-async function readData() {
-  try {
-    const meta = await head(DATA_PATHNAME);
-    const r = await fetch(meta.url, { cache: "no-store" });
-    if (!r.ok) return withSeed(DEFAULT_DATA).data;
-    const raw = await r.json();
-    const merged = { ...DEFAULT_DATA, ...raw };
-    const { data, upgraded } = withSeed(merged);
-    if (upgraded) {
-      try {
-        await put(DATA_PATHNAME, JSON.stringify(data), {
-          access: "public",
-          addRandomSuffix: false,
-          allowOverwrite: true,
-          contentType: "application/json",
-        });
-      } catch (e) {
-        // không ghi được thì thôi, lần đọc sau tự thử lại
-      }
-    }
-    return data;
-  } catch (e) {
-    return withSeed(DEFAULT_DATA).data;
-  }
-}
 
 // Chỉ BỔ SUNG sản phẩm/câu hỏi mẫu còn thiếu so với seed, không bao giờ ghi
 // đè nội dung đã lưu (giá, ảnh, mô tả... nếu chủ shop đã tự sửa), và loại hẳn
@@ -71,28 +44,13 @@ function withSeed(data) {
   return { data: { ...data, thietbi: mergedProducts, thietbiFaq: mergedFaq }, upgraded: true };
 }
 
-export default async function handler(req, res) {
-  if (req.method === "GET") {
-    const data = await readData();
-    return res.status(200).json(data);
-  }
-  if (req.method === "POST" || req.method === "PUT") {
-    try {
-      const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-      if (!body || typeof body !== "object") {
-        return res.status(400).json({ error: "Dữ liệu không hợp lệ" });
-      }
-      await put(DATA_PATHNAME, JSON.stringify(body), {
-        access: "public",
-        addRandomSuffix: false,
-        allowOverwrite: true,
-        contentType: "application/json",
-      });
-      return res.status(200).json({ ok: true });
-    } catch (e) {
-      return res.status(500).json({ error: e.message || "Không lưu được" });
-    }
-  }
-  res.setHeader("Allow", ["GET", "POST", "PUT"]);
-  return res.status(405).json({ error: "Method not allowed" });
+function normalize(raw) {
+  return withSeed({ ...DEFAULT_DATA, ...raw });
 }
+function defaults() {
+  return withSeed(DEFAULT_DATA).data;
+}
+
+export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
+
+export default makeDocHandler({ pathname: DATA_PATHNAME, normalize, defaults });
