@@ -671,7 +671,7 @@ function ChangeLogModal({ onClose, lastAt, pending = [], canEdit, busy, initialT
                   </div>
                 )}
                 {pending.map((x) => {
-                  const kind = x.k === "price" ? ["Giá lẻ đổi", "#b26a00"] : x.k === "gone" ? ["Không còn trong file", THEME.danger] : x.k === "new" ? ["Sản phẩm mới", THEME.success] : ["Mã mới", THEME.success];
+                  const kind = x.k === "price" ? [x.xa ? "Giá xả" : "Giá lẻ đổi", "#b26a00"] : x.k === "gone" ? ["Không còn trong file", THEME.danger] : x.k === "new" ? ["Sản phẩm mới", THEME.success] : ["Mã mới", THEME.success];
                   return (
                     <div key={x.k + x.key} style={{ padding: "8px 0", borderTop: `1px solid ${THEME.line}`, display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
                       <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.45 }}>

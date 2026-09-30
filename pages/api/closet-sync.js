@@ -4,7 +4,7 @@
 // khi mở và khi bấm "Cập nhật ngay". Gọi dồn dập không sao: có giới hạn tần
 // suất và dùng chung 1 lần chạy nếu đang chạy.
 import { readDoc, writeDoc, isPrecondition } from "../../lib/blobDoc";
-import { fetchClosetCsv, parseClosetRows, mergeClosetFromSheet } from "../../lib/closetSheet";
+import { loadClosetSource, parseClosetRows, mergeClosetFromSheet } from "../../lib/closetSheet";
 import { normalize, DATA_PATHNAME } from "./gomcan";
 import { SEED_CLOSET } from "../../lib/closetSeed";
 
@@ -39,7 +39,7 @@ async function readPending() {
 
 // action: { approve: [{k,key}], reject: [{k,key}] } — chỉ có khi chủ shop bấm duyệt/bỏ qua.
 async function syncOnce(action = {}) {
-  const recs = parseClosetRows(await fetchClosetCsv());
+  const recs = parseClosetRows(await loadClosetSource());
   if (recs.length < 50) throw new Error("File Google Sheet đọc ra quá ít mã — giữ nguyên dữ liệu cũ để an toàn");
   const pend = await readPending();
   const dismissed = new Set(pend.doc.dismissed || []);
