@@ -12,6 +12,7 @@ import { Download, Upload, FolderOpen, AlertTriangle, CheckCircle2 } from "lucid
 const SECTIONS = [
   { key: "gomcan", url: "/api/gomcan", label: "Giá gồm cân + Hàng Closet sẵn" },
   { key: "thietbi", url: "/api/thietbi", label: "Thiết bị bếp & vệ sinh" },
+  { key: "replies", url: "/api/replies", label: "Tra cứu nhanh" },
   { key: "customers", url: "/api/customers", label: "Khách hàng" },
   { key: "todo", url: "/api/todo", label: "Việc cần làm" },
   { key: "pricing", url: "/api/pricing", label: "Báo giá nhanh" },
@@ -117,7 +118,7 @@ export default function BackupPage() {
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Tải file sao lưu về máy</div>
               <div style={{ fontSize: 14, color: THEME.subtext, lineHeight: 1.6 }}>
-                Gộp toàn bộ dữ liệu hiện tại (Giá gồm cân, Hàng Closet sẵn — cả ảnh lẫn giá đã sửa, Thiết bị bếp & vệ sinh, Tính giá...) thành 1 file.
+                Gộp toàn bộ dữ liệu hiện tại (Giá gồm cân, Hàng Closet sẵn — cả ảnh lẫn giá đã sửa, Thiết bị bếp & vệ sinh, Tra cứu nhanh, Tính giá...) thành 1 file.
                 Nên tải định kỳ, nhất là sau khi vừa thêm/sửa nhiều, rồi gửi file vào Zalo/Drive/email cho chắc.
               </div>
               <button style={{ ...btn, marginTop: 14 }} disabled={busy} onClick={downloadBackup}>

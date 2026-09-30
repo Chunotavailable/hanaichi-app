@@ -215,6 +215,7 @@ const NAV_DESC = {
   "/closet": "Hàng có sẵn, size, tồn kho",
   "/gomcan": "Gia dụng, TPCN, giá gồm cân",
   "/thietbi": "Tư vấn chậu, vòi, bộ sen",
+  "/tracuu": "Câu trả lời mẫu, địa chỉ, size, link",
   "/backup": "Tải về & khôi phục dữ liệu",
 };
 

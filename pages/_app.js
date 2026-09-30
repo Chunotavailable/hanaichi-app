@@ -57,6 +57,11 @@ export default function App({ Component, pageProps }) {
         svg {
           flex-shrink: 0;
         }
+        /* Ô tìm kiếm đã có nút xoá riêng -> ẩn nút X mặc định của trình duyệt. */
+        input[type="search"]::-webkit-search-cancel-button {
+          -webkit-appearance: none;
+          display: none;
+        }
         ::placeholder {
           color: #a8929a;
           opacity: 1;
