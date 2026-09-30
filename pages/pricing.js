@@ -128,8 +128,8 @@ export default function PricingPage() {
     const rateN = numOnly(rate) || 202;
     const discN = numOnly(disc) || 0;
     const total = roundUp5k(jpyN * rateN * (1 - discN / 100));
-    const msg = `Dạ mã này đang sale còn ${fmtK(total)} + KG ạ`;
-    const altMsg = `Dạ mã này giá ${fmtK(total)} + KG ạ`;
+    const msg = `Mã này đang sale còn ${fmtK(total)} + KG ạ`;
+    const altMsg = `Mã này giá ${fmtK(total)} + KG ạ`;
     setOrderResult({ total, msg, altMsg });
     orderHistTimer.current = setTimeout(() => {
       if (readRoleCookie() === "guest") return; // Khách: chỉ tính giá, không lưu lịch sử
@@ -147,7 +147,7 @@ export default function PricingPage() {
       return;
     }
     const total = roundUp5k(base * 0.95);
-    const msg = `Dạ bên em sẵn đang giảm còn ${fmtK(total)} ạ`;
+    const msg = `Bên em sẵn đang giảm còn ${fmtK(total)} ạ`;
     setReadyResult({ total, msg });
     readyHistTimer.current = setTimeout(() => {
       if (readRoleCookie() === "guest") return;
