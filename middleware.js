@@ -2,7 +2,7 @@
 // Chạy trước MỌI request: xác định vai trò (Quản lý / Khách) từ
 // cookie đăng nhập và chặn thật những gì vai trò đó không được làm:
 //   - Chưa đăng nhập: trang -> chuyển sang /login; API -> 401.
-//   - Khách: mọi thao tác ghi (thêm/sửa/xoá) vào API -> 403.
+//   - Khách: mọi thao tác ghi vào API -> 403 (trừ việc THÊM mã vào lịch sử báo giá).
 //   - Trang Sao lưu dữ liệu: chỉ Quản lý.
 // Vai trò được gắn vào header "x-hn-role" (ghi đè mọi giá trị trình duyệt tự
 // gửi) để API phía sau biết, và vào cookie hn_role để giao diện ẩn/hiện nút.
@@ -44,7 +44,10 @@ export function middleware(req) {
   }
 
   if (pathname.startsWith("/api/") && !READ_METHODS.has(req.method)) {
-    if (role !== "admin") return forbidden("Chế độ Khách chỉ xem, không sửa được");
+    // Ngoại lệ: Khách được gửi PATCH lên /api/pricing để lưu mã vào lịch sử báo
+    // giá — lib/docApi.js + pages/api/pricing.js kiểm tra tiếp là chỉ THÊM mới.
+    const guestMayAdd = role === "guest" && req.method === "PATCH" && pathname === "/api/pricing";
+    if (role !== "admin" && !guestMayAdd) return forbidden("Chế độ Khách chỉ xem, không sửa được");
   }
 
   const headers = new Headers(req.headers);

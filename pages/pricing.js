@@ -4,7 +4,7 @@ import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
-import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus } from "lucide-react";
+import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus, ArrowRight } from "lucide-react";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -42,14 +42,18 @@ function parsePrice(s) {
   if (isNaN(n)) return NaN;
   return n < 10000 ? n * 1000 : n;
 }
+// Giá gốc của 1 mục lịch sử (Order: giá Yên; Hàng sẵn: giá gốc VNĐ) — hiện
+// nổi bật trước giá báo khách.
+function histFrom(h) {
+  if (h.type === "Order" && h.jpy) return `¥${Number(h.jpy).toLocaleString("vi-VN")}`;
+  if (h.type === "Hàng sẵn" && h.base) return fmtK(h.base);
+  return "";
+}
 function histDetail(h) {
   if (h.type === "Order" && h.jpy) {
-    let s = `¥${Number(h.jpy).toLocaleString("vi-VN")} × ${h.rate}`;
-    if (h.disc) s += ` - giảm ${h.disc}%`;
+    let s = `Tỷ giá ${h.rate}`;
+    if (h.disc) s += ` · giảm ${h.disc}%`;
     return s;
-  }
-  if (h.type === "Hàng sẵn" && h.base) {
-    return `Giá gốc: ${fmtK(h.base)}`;
   }
   return "";
 }
@@ -83,7 +87,7 @@ export default function PricingPage() {
   const [loadFailed, setLoadFailed] = useState(false);
   // Chỉ gửi phần thay đổi lên server khi lưu — xem lib/syncer.js.
   const syncerRef = useRef(null);
-  if (!syncerRef.current) syncerRef.current = createSyncer("/api/pricing", { onServerData: setData });
+  if (!syncerRef.current) syncerRef.current = createSyncer("/api/pricing", { onServerData: setData, guestWrite: true });
 
   function loadData() {
     loadDoc("/api/pricing")
@@ -143,7 +147,7 @@ export default function PricingPage() {
   function saveOrderToHistory() {
     if (!orderResult || loadFailed) return;
     const h = { id: uid(), type: "Order", output: orderResult.total, note: noteOrder.trim(), date: Date.now(), jpy: orderNum, rate: orderRate, disc: orderDisc, msg: orderResult.msg, altMsg: orderResult.altMsg };
-    persist((prev) => ({ ...prev, priceHist: [h, ...prev.priceHist], lastRate: orderRate }));
+    persist((prev) => ({ ...prev, priceHist: [h, ...prev.priceHist], ...(perm.canEdit ? { lastRate: orderRate } : {}) }));
     setNoteOrder("");
     flashSaved("order");
   }
@@ -250,7 +254,7 @@ export default function PricingPage() {
             {cardTitle(Plane, "Báo giá hàng Order", "Giá Yên × tỷ giá, trừ % giảm nếu có")}
             <label style={fieldLabel} htmlFor="pr-jpy">Giá Yên (JPY)</label>
             <input id="pr-jpy" style={{ ...inp, marginBottom: 10, fontSize: 18, fontWeight: 600 }} inputMode="decimal" placeholder="VD: 5000" value={jpy} onChange={(e) => setJpy(e.target.value)} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div>
                 <label style={fieldLabel} htmlFor="pr-rate">Tỷ giá</label>
                 <input id="pr-rate" style={inp} inputMode="decimal" placeholder="202" value={rate} onChange={(e) => setRate(e.target.value)} />
@@ -266,7 +270,7 @@ export default function PricingPage() {
                 <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(orderResult.total)}</div>
                 <MsgRow text={orderResult.msg} T={T} />
                 <MsgRow text={orderResult.altMsg} T={T} />
-                {perm.canEdit && <SaveRow note={noteOrder} setNote={setNoteOrder} onSave={saveOrderToHistory} saved={savedFlag === "order"} disabled={loadFailed} T={T} />}
+                <SaveRow note={noteOrder} setNote={setNoteOrder} onSave={saveOrderToHistory} saved={savedFlag === "order"} disabled={loadFailed} T={T} />
               </div>
             )}
           </section>
@@ -280,7 +284,7 @@ export default function PricingPage() {
                 <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá sau giảm 5%</div>
                 <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(readyResult.total)}</div>
                 <MsgRow text={readyResult.msg} T={T} />
-                {perm.canEdit && <SaveRow note={noteReady} setNote={setNoteReady} onSave={saveReadyToHistory} saved={savedFlag === "ready"} disabled={loadFailed} T={T} />}
+                <SaveRow note={noteReady} setNote={setNoteReady} onSave={saveReadyToHistory} saved={savedFlag === "ready"} disabled={loadFailed} T={T} />
               </div>
             )}
           </section>
@@ -298,7 +302,7 @@ export default function PricingPage() {
             )}
           </div>
           {perm.role === "guest" && (
-            <div style={{ fontSize: 13, color: THEME.subtext, marginBottom: 10 }}>Chế độ Khách: chỉ tính giá và copy, không lưu được vào lịch sử.</div>
+            <div style={{ fontSize: 13, color: THEME.subtext, marginBottom: 10 }}>Chế độ Khách: lưu được mã mới vào lịch sử, nhưng không sửa/xoá được mục đã lưu.</div>
           )}
           {data.priceHist.length === 0 ? (
             <div style={{ color: THEME.subtext, fontSize: 14 }}>
@@ -347,6 +351,12 @@ export default function PricingPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <span style={{ ...T.chip, fontSize: 11.5, ...(h.type === "Hàng sẵn" ? { background: THEME.successBg, borderColor: THEME.successLine, color: THEME.success } : {}) }}>{h.type}</span>
+                          {histFrom(h) && (
+                            <>
+                              <span style={{ fontWeight: 600, fontSize: 15, color: THEME.text }}>{histFrom(h)}</span>
+                              <ArrowRight size={14} color={THEME.muted} />
+                            </>
+                          )}
                           <b style={{ color: THEME.brand, fontSize: 16, fontWeight: 700 }}>{fmtK(h.output)}</b>
                           {h.note ? <span style={{ color: THEME.subtext, fontSize: 13.5 }}>— {h.note}</span> : null}
                         </div>
