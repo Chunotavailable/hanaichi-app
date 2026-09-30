@@ -52,6 +52,7 @@ async function syncOnce(action = {}) {
     const { list, summary, items, proposals } = mergeGiadungFromSheet(data.giadung || [], recs, {
       seedIds: SEED_IDS,
       deletedIds: data.giadungDeletedIds || [],
+      deletedItems: SEED_GIADUNG.filter((x) => (data.giadungDeletedIds || []).includes(x.id)),
       approved,
       dismissed: Array.from(dismissed),
     });
