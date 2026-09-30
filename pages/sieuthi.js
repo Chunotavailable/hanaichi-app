@@ -14,7 +14,7 @@ import { FilterChip, SearchInput, EmptyState } from "../lib/ui";
 import { Copy, Check, SearchX, ArrowUpDown, Globe, ExternalLink, PackageX, Flame, RefreshCw, FileSpreadsheet, ChevronRight } from "lucide-react";
 
 const PAGE = 40;
-const STALE_MS = 10 * 60 * 1000; // dữ liệu cũ hơn 10 phút thì tự hỏi lại file gốc
+const STALE_MS = 24 * 60 * 60 * 1000; // mỗi ngày tự hỏi lại file gốc 1 lần (muốn cập nhật sớm thì bấm "Cập nhật ngay")
 
 function fmtK(n) {
   if (n == null) return "";
@@ -214,7 +214,7 @@ export default function SieuThiPage() {
           <div style={{ fontSize: 13, color: syncFailed ? THEME.danger : THEME.subtext, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
             <FileSpreadsheet size={15} style={{ flexShrink: 0 }} />
             <span>
-              {syncFailed ? "Chưa cập nhật được từ file gốc — đang hiện dữ liệu lần trước" : "Tự cập nhật từ file gốc"}
+              {syncFailed ? "Chưa cập nhật được từ file gốc — đang hiện dữ liệu lần trước" : "Tự cập nhật mỗi ngày 1 lần từ file gốc"}
               {data.updatedAt ? ` · ${ago(data.updatedAt)}` : ""}
             </span>
           </div>
