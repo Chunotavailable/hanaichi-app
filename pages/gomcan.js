@@ -181,7 +181,7 @@ export default function GomCan() {
       <PageHeader icon="🧮" title="Giá gồm cân" current="/gomcan" maxWidth={900} />
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 18px" }}>
-        <input style={{ ...inp, marginBottom: 8 }} placeholder="🔍 Khách hỏi đôi nào, tìm nhanh ở đây..." value={gcQuery} onChange={(e) => setGcQuery(e.target.value)} />
+        <input style={{ ...inp, marginBottom: 8 }} placeholder="🔍 Khách hỏi sản phẩm nào, tìm nhanh ở đây..." value={gcQuery} onChange={(e) => setGcQuery(e.target.value)} />
         {gcQuery.trim() && (
           <div style={{ marginBottom: 16 }}>
             {searchResults.length === 0 ? (
