@@ -1,6 +1,6 @@
 // pages/api/login.js
 // Kiểm tra mật khẩu gửi lên từ trang /login: khớp mật khẩu của vai trò nào
-// (Quản lý / Nhân viên / Khách) thì cấp cookie đăng nhập của vai trò đó (còn
+// (Quản lý / Khách) thì cấp cookie đăng nhập của vai trò đó (còn
 // hạn 180 ngày) để middleware.js cho qua các lần sau.
 import { roleForPassword, tokenFor, getPasswords, AUTH_COOKIE_NAME, ROLE_COOKIE_NAME } from "../../lib/authToken";
 

@@ -1,5 +1,5 @@
 // pages/login.js — Màn hình nhập mật khẩu để vào web. Mật khẩu nào thì vào
-// đúng chế độ đó (Quản lý / Nhân viên / Khách) — xem lib/authToken.js.
+// đúng chế độ đó (Quản lý / Khách) — xem lib/authToken.js.
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { LockKeyhole, ArrowRight } from "lucide-react";
@@ -53,8 +53,8 @@ export default function LoginPage() {
             <div style={{ fontWeight: 700, fontSize: 17, color: THEME.text }}>Đăng nhập</div>
           </div>
           <div style={{ fontSize: 13.5, color: THEME.subtext, margin: "8px 0 16px", lineHeight: 1.5 }}>
-            Nhập mật khẩu được cấp — web tự vào đúng chế độ <b style={{ color: THEME.text, fontWeight: 600 }}>Quản lý</b>,{" "}
-            <b style={{ color: THEME.text, fontWeight: 600 }}>Nhân viên</b> hoặc <b style={{ color: THEME.text, fontWeight: 600 }}>Khách</b>.
+            Nhập mật khẩu được cấp — web tự vào đúng chế độ <b style={{ color: THEME.text, fontWeight: 600 }}>Quản lý</b> hoặc{" "}
+            <b style={{ color: THEME.text, fontWeight: 600 }}>Khách</b>.
           </div>
           <input
             autoFocus

@@ -1,10 +1,8 @@
 // middleware.js
-// Chạy trước MỌI request: xác định vai trò (Quản lý / Nhân viên / Khách) từ
+// Chạy trước MỌI request: xác định vai trò (Quản lý / Khách) từ
 // cookie đăng nhập và chặn thật những gì vai trò đó không được làm:
 //   - Chưa đăng nhập: trang -> chuyển sang /login; API -> 401.
 //   - Khách: mọi thao tác ghi (thêm/sửa/xoá) vào API -> 403.
-//   - Nhân viên: lệnh xoá (DELETE, VD xoá ảnh) -> 403. Việc xoá nằm bên trong
-//     1 lần lưu (xoá sản phẩm/size...) được kiểm tra tiếp ở lib/docApi.js.
 //   - Trang Sao lưu dữ liệu: chỉ Quản lý.
 // Vai trò được gắn vào header "x-hn-role" (ghi đè mọi giá trị trình duyệt tự
 // gửi) để API phía sau biết, và vào cookie hn_role để giao diện ẩn/hiện nút.
@@ -46,8 +44,7 @@ export function middleware(req) {
   }
 
   if (pathname.startsWith("/api/") && !READ_METHODS.has(req.method)) {
-    if (role === "guest") return forbidden("Chế độ Khách chỉ xem, không sửa được");
-    if (role === "staff" && req.method === "DELETE") return forbidden("Chế độ Nhân viên không xoá được");
+    if (role !== "admin") return forbidden("Chế độ Khách chỉ xem, không sửa được");
   }
 
   const headers = new Headers(req.headers);
