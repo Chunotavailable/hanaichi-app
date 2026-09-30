@@ -65,6 +65,7 @@ const DEFAULT_DATA = {
   // tự hiện lại mỗi khi tải trang (readData chạy merge lại từ SEED_CLOSET).
   closetDeletedIds: [],
   closetDeletedVariantIds: [],
+  giadungDeletedIds: [],
 };
 
 // Chuẩn hoá dữ liệu vừa đọc: bổ sung mặc định + chạy các bước merge dữ liệu
@@ -102,13 +103,16 @@ function defaults() {
 // trí hoặc bổ sung thêm khi thiếu.
 function withGiadungSeed(data) {
   const list = data.giadung || [];
-  if (list.length === 0) {
-    return { data: { ...data, giadung: SEED_GIADUNG.map((it) => ({ ...it })) }, upgraded: false };
+  // Sản phẩm mẫu (seed) đã bị xoá tay thì KHÔNG tự thêm lại mỗi lần tải trang.
+  const deletedIds = new Set(data.giadungDeletedIds || []);
+  const seed = SEED_GIADUNG.filter((it) => !deletedIds.has(it.id));
+  if (list.length === 0 && deletedIds.size === 0) {
+    return { data: { ...data, giadung: seed.map((it) => ({ ...it })) }, upgraded: false };
   }
   const byId = new Map(list.map((it) => [it.id, it]));
   const seedIds = new Set(SEED_GIADUNG.map((it) => it.id));
-  const orderedFromSeed = SEED_GIADUNG.map((seedIt) => byId.get(seedIt.id) || { ...seedIt });
-  const customExtras = list.filter((it) => !seedIds.has(it.id));
+  const orderedFromSeed = seed.map((seedIt) => byId.get(seedIt.id) || { ...seedIt });
+  const customExtras = list.filter((it) => !seedIds.has(it.id) && !deletedIds.has(it.id));
   const merged = [...orderedFromSeed, ...customExtras];
 
   const unchanged =

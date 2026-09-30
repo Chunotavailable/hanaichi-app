@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import { createSyncer, loadDoc } from "../lib/syncer";
+import { usePerm, readRoleCookie } from "../lib/perm";
+import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw } from "lucide-react";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -56,7 +58,9 @@ const DEFAULT_DATA = { priceHist: [], lastRate: 202 };
 
 export default function PricingPage() {
   const { theme: THEME } = useTheme();
-  const { card, btn, btnSub, inp } = makeStyles(THEME);
+  const { card, btn, btnSub, inp, iconBtn, chip } = makeStyles(THEME);
+  const T = { THEME, card, btn, btnSub, inp, iconBtn, chip };
+  const perm = usePerm();
   const [data, setData] = useState(DEFAULT_DATA);
   const [loaded, setLoaded] = useState(false);
   const [jpy, setJpy] = useState("");
@@ -128,6 +132,7 @@ export default function PricingPage() {
     const altMsg = `Dạ mã này giá ${fmtK(total)} + KG ạ`;
     setOrderResult({ total, msg, altMsg });
     orderHistTimer.current = setTimeout(() => {
+      if (readRoleCookie() === "guest") return; // Khách: chỉ tính giá, không lưu lịch sử
       const h = { id: uid(), type: "Order", output: total, note: "", date: Date.now(), jpy: jpyN, rate: rateN, disc: discN, msg, altMsg };
       persist((prev) => ({ ...prev, priceHist: [h, ...prev.priceHist], lastRate: rateN }));
     }, 900);
@@ -145,6 +150,7 @@ export default function PricingPage() {
     const msg = `Dạ bên em sẵn đang giảm còn ${fmtK(total)} ạ`;
     setReadyResult({ total, msg });
     readyHistTimer.current = setTimeout(() => {
+      if (readRoleCookie() === "guest") return;
       const h = { id: uid(), type: "Hàng sẵn", output: total, note: "", date: Date.now(), base, msg };
       persist((prev) => ({ ...prev, priceHist: [h, ...prev.priceHist] }));
     }, 900);
@@ -192,170 +198,181 @@ export default function PricingPage() {
     return <Loading />;
   }
 
+  const fieldLabel = { fontSize: 12.5, fontWeight: 600, color: THEME.subtext, marginBottom: 5, display: "block" };
+  const resultBox = { marginTop: 14, paddingTop: 14, borderTop: `1px solid ${THEME.line}` };
+  const cardTitle = (Icon, text, sub) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+      <span style={{ width: 34, height: 34, borderRadius: 10, background: THEME.chipBg, color: THEME.brand, display: "grid", placeItems: "center", flexShrink: 0 }}>
+        <Icon size={17} />
+      </span>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 15.5, color: THEME.text }}>{text}</div>
+        {sub && <div style={{ fontSize: 12.5, color: THEME.subtext }}>{sub}</div>}
+      </div>
+    </div>
+  );
+
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
-      <PageHeader icon="💰" title="Tính giá" current="/pricing" maxWidth={700} />
+      <PageHeader title="Tính giá" current="/pricing" maxWidth={900} />
 
-      <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 18px" }}>
         {loadFailed && (
           <div
             style={{
-              background: "#fef2f2",
-              border: "1px solid #fecaca",
-              color: "#b91c1c",
+              background: THEME.dangerBg,
+              border: "1px solid #f3c9cb",
+              color: THEME.danger,
               borderRadius: 12,
               padding: "10px 12px",
               marginBottom: 14,
               fontSize: 14,
-              fontWeight: 600,
+              fontWeight: 500,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               gap: 10,
             }}
           >
-            <span>📡 Không tải được lịch sử báo giá — vẫn tính giá bình thường, nhưng tạm chưa lưu lịch sử.</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <WifiOff size={17} style={{ flexShrink: 0 }} /> Không tải được lịch sử báo giá — vẫn tính giá bình thường, nhưng tạm chưa lưu lịch sử.
+            </span>
             <button style={{ ...btnSub, flexShrink: 0 }} onClick={loadData}>
-              🔄 Thử lại
+              <RotateCw size={15} /> Thử lại
             </button>
           </div>
         )}
-        <div style={{ ...card, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Phần 1: Báo giá Order</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <input style={inp} inputMode="decimal" placeholder="Giá Yên (JPY)" value={jpy} onChange={(e) => setJpy(e.target.value)} />
-            <input style={inp} inputMode="decimal" placeholder="Tỷ giá" value={rate} onChange={(e) => setRate(e.target.value)} />
-            <input style={inp} inputMode="decimal" placeholder="% Giảm giá (nếu có)" value={disc} onChange={(e) => setDisc(e.target.value)} />
-          </div>
-          {orderResult && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 800, fontSize: 18, color: THEME.brand }}>Giá: {fmtK(orderResult.total)}</div>
-              <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 14 }}>
-                <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{orderResult.msg}</span>
-                <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy câu báo giá" onClick={() => copyMsg(orderResult.msg)}>
-                  📋
-                </button>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
+          <section style={{ ...card, padding: 18 }}>
+            {cardTitle(Plane, "Báo giá hàng Order", "Giá Yên × tỷ giá, trừ % giảm nếu có")}
+            <label style={fieldLabel} htmlFor="pr-jpy">Giá Yên (JPY)</label>
+            <input id="pr-jpy" style={{ ...inp, marginBottom: 10, fontSize: 18, fontWeight: 600 }} inputMode="decimal" placeholder="VD: 5000" value={jpy} onChange={(e) => setJpy(e.target.value)} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <label style={fieldLabel} htmlFor="pr-rate">Tỷ giá</label>
+                <input id="pr-rate" style={inp} inputMode="decimal" placeholder="202" value={rate} onChange={(e) => setRate(e.target.value)} />
               </div>
-              <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 14 }}>
-                <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{orderResult.altMsg}</span>
-                <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy câu (không nhắc sale)" onClick={() => copyMsg(orderResult.altMsg)}>
-                  📋
-                </button>
+              <div>
+                <label style={fieldLabel} htmlFor="pr-disc">% Giảm (nếu có)</label>
+                <input id="pr-disc" style={inp} inputMode="decimal" placeholder="0" value={disc} onChange={(e) => setDisc(e.target.value)} />
               </div>
             </div>
-          )}
-        </div>
-
-        <div style={{ ...card, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Phần 2: Báo giá Hàng sẵn (giảm 5%)</div>
-          <input style={inp} inputMode="decimal" placeholder="Giá gốc (nghìn VNĐ), VD: 850 = 850.000đ" value={ready} onChange={(e) => setReadyPrice(e.target.value)} />
-          {readyResult && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 800, fontSize: 18, color: THEME.brand }}>Giá sau giảm 5%: {fmtK(readyResult.total)}</div>
-              <div style={{ background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 14 }}>
-                <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{readyResult.msg}</span>
-                <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy câu báo giá" onClick={() => copyMsg(readyResult.msg)}>
-                  📋
-                </button>
+            {orderResult && (
+              <div style={resultBox}>
+                <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá báo khách</div>
+                <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(orderResult.total)}</div>
+                <MsgRow text={orderResult.msg} T={T} />
+                <MsgRow text={orderResult.altMsg} T={T} />
               </div>
-            </div>
-          )}
+            )}
+          </section>
+
+          <section style={{ ...card, padding: 18 }}>
+            {cardTitle(PackageCheck, "Báo giá hàng sẵn", "Tự giảm 5%, làm tròn lên 5k")}
+            <label style={fieldLabel} htmlFor="pr-ready">Giá gốc (nghìn VNĐ)</label>
+            <input id="pr-ready" style={{ ...inp, fontSize: 18, fontWeight: 600 }} inputMode="decimal" placeholder="VD: 850 = 850.000đ" value={ready} onChange={(e) => setReadyPrice(e.target.value)} />
+            {readyResult && (
+              <div style={resultBox}>
+                <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá sau giảm 5%</div>
+                <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(readyResult.total)}</div>
+                <MsgRow text={readyResult.msg} T={T} />
+              </div>
+            )}
+          </section>
         </div>
 
-        <div style={{ ...card, padding: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
-            <div style={{ fontWeight: 700 }}>Lịch sử báo giá gần đây</div>
-            {data.priceHist.length > 0 && (
-              <button style={{ ...btnSub, flexShrink: 0 }} onClick={delAllHist}>
-                🗑️ Xoá tất cả
+        <section style={{ ...card, padding: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: 15.5, display: "flex", alignItems: "center", gap: 8 }}>
+              <History size={18} color={THEME.brand} /> Lịch sử báo giá gần đây
+            </div>
+            {perm.isAdmin && data.priceHist.length > 0 && (
+              <button style={{ ...btnSub, flexShrink: 0, color: THEME.danger }} onClick={delAllHist}>
+                <Trash2 size={15} /> Xoá tất cả
               </button>
             )}
           </div>
+          {perm.role === "guest" && (
+            <div style={{ fontSize: 13, color: THEME.subtext, marginBottom: 10 }}>Chế độ Khách: giá vừa tính sẽ không được lưu vào lịch sử.</div>
+          )}
           {data.priceHist.length === 0 ? (
-            <div style={{ color: THEME.subtext, fontSize: 15 }}>Chưa có lịch sử</div>
+            <div style={{ color: THEME.subtext, fontSize: 14 }}>Chưa có lịch sử</div>
           ) : (
-            data.priceHist.slice(0, 20).map((h) => {
-              const detail = histDetail(h);
-              const isEdit = editId === h.id;
-              if (isEdit) {
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {data.priceHist.slice(0, 20).map((h) => {
+                const detail = histDetail(h);
+                const isEdit = perm.canEdit && editId === h.id;
+                if (isEdit) {
+                  return (
+                    <div key={h.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, background: THEME.surfaceAlt, border: `1px solid ${THEME.chipLine}` }}>
+                      <span style={{ fontWeight: 600 }}>{h.type}:</span>
+                      <input
+                        style={{ ...inp, width: 110 }}
+                        value={ehPrice}
+                        onChange={(e) => setEhPrice(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit(h.id);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                      />
+                      <input
+                        style={{ ...inp, flex: 1, minWidth: 140 }}
+                        placeholder="Ghi chú"
+                        value={ehNote}
+                        onChange={(e) => setEhNote(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit(h.id);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                      />
+                      <button style={{ ...btn, padding: "7px 14px" }} onClick={() => saveEdit(h.id)}>
+                        <Check size={15} /> Lưu
+                      </button>
+                      <button style={{ ...btnSub, padding: "7px 14px" }} onClick={cancelEdit}>
+                        Huỷ
+                      </button>
+                    </div>
+                  );
+                }
                 return (
-                  <div key={h.id} className="hnCard" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, borderBottom: `1px solid ${THEME.line}`, padding: "8px 0" }}>
-                    <span style={{ fontWeight: 700 }}>{h.type}:</span>
-                    <input
-                      style={{ ...inp, width: 100 }}
-                      value={ehPrice}
-                      onChange={(e) => setEhPrice(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveEdit(h.id);
-                        if (e.key === "Escape") cancelEdit();
-                      }}
-                    />
-                    <input
-                      style={{ ...inp, flex: 1, minWidth: 120 }}
-                      placeholder="Ghi chú"
-                      value={ehNote}
-                      onChange={(e) => setEhNote(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveEdit(h.id);
-                        if (e.key === "Escape") cancelEdit();
-                      }}
-                    />
-                    <button style={btnSub} onClick={() => saveEdit(h.id)}>Lưu</button>
-                    <button style={btnSub} onClick={cancelEdit}>Hủy</button>
+                  <div key={h.id} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${THEME.line}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ ...T.chip, fontSize: 11.5, ...(h.type === "Hàng sẵn" ? { background: THEME.successBg, borderColor: THEME.successLine, color: THEME.success } : {}) }}>{h.type}</span>
+                          <b style={{ color: THEME.brand, fontSize: 16, fontWeight: 700 }}>{fmtK(h.output)}</b>
+                          {h.note ? <span style={{ color: THEME.subtext, fontSize: 13.5 }}>— {h.note}</span> : null}
+                        </div>
+                        {detail && <div style={{ fontSize: 12.5, color: THEME.subtext, marginTop: 3 }}>{detail}</div>}
+                      </div>
+                      {(perm.canEdit || perm.canDelete) && (
+                        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                          {perm.canEdit && (
+                            <button style={{ ...iconBtn, width: 30, height: 30 }} title="Sửa" aria-label="Sửa" onClick={() => startEdit(h)}>
+                              <Pencil size={14} />
+                            </button>
+                          )}
+                          {perm.canDelete && (
+                            <button style={{ ...iconBtn, width: 30, height: 30, color: THEME.danger }} title="Xoá" aria-label="Xoá" onClick={() => delHist(h.id)}>
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {(h.msg || h.altMsg) && (
+                      <div style={{ marginTop: 8 }}>
+                        {h.msg && <MsgRow text={h.msg} T={T} small />}
+                        {h.altMsg && <MsgRow text={h.altMsg} T={T} small />}
+                      </div>
+                    )}
                   </div>
                 );
-              }
-              return (
-                <div key={h.id} className="hnCard" style={{ borderBottom: `1px solid ${THEME.line}`, padding: "8px 0" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span>
-                        {h.type}: <b style={{ color: THEME.brand }}>{fmtK(h.output)}</b>
-                        <button style={{ ...btnSub, padding: "1px 9px", fontSize: 12, marginLeft: 6 }} title="Sửa" onClick={() => startEdit(h)}>
-                          ✏️
-                        </button>
-                        {h.note ? <span style={{ color: THEME.subtext }}> — {h.note}</span> : null}
-                      </span>
-                      {detail && <div style={{ fontSize: 13, color: THEME.subtext, marginTop: 2 }}>{detail}</div>}
-                    </div>
-                    <button style={{ ...btnSub, flexShrink: 0 }} onClick={() => delHist(h.id)}>
-                      Xóa
-                    </button>
-                  </div>
-                  {(h.msg || h.altMsg) && (
-                    <div style={{ marginTop: 6, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "6px 10px", display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
-                      {h.msg && (
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                          <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{h.msg}</span>
-                          <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy câu báo giá" onClick={() => copyMsg(h.msg)}>
-                            📋
-                          </button>
-                        </div>
-                      )}
-                      {h.altMsg && (
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            gap: 8,
-                            borderTop: h.msg ? `1px dashed ${THEME.chipLine}` : "none",
-                            paddingTop: h.msg ? 4 : 0,
-                          }}
-                        >
-                          <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{h.altMsg}</span>
-                          <button style={{ ...btnSub, flexShrink: 0, padding: "1px 9px", fontSize: 12 }} title="Copy câu (không nhắc sale)" onClick={() => copyMsg(h.altMsg)}>
-                            📋
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })
+              })}
+            </div>
           )}
-        </div>
+        </section>
       </div>
 
       <ConfirmDialog
@@ -365,5 +382,27 @@ export default function PricingPage() {
         onConfirm={confirmDelAllHist}
       />
     </main>
+  );
+}
+
+// 1 câu báo giá kèm nút "Chép" (đổi thành "Đã chép" 1.5 giây sau khi bấm).
+function MsgRow({ text, T, small }) {
+  const { THEME, btnSub } = T;
+  const [copied, setCopied] = useState(false);
+  return (
+    <div style={{ background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 10, padding: small ? "6px 6px 6px 10px" : "8px 8px 8px 12px", marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: small ? 13.5 : 14.5 }}>
+      <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word", lineHeight: 1.45 }}>{text}</span>
+      <button
+        style={{ ...btnSub, flexShrink: 0, padding: small ? "4px 9px" : "6px 11px", fontSize: 13, color: copied ? THEME.success : THEME.text }}
+        title="Sao chép"
+        onClick={() => {
+          if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+      >
+        {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Đã chép" : "Chép"}
+      </button>
+    </div>
   );
 }

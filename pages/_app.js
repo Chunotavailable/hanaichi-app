@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import Head from "next/head";
 import { ThemeProvider } from "../lib/theme";
 import { playPop } from "../lib/sound";
+import { PermProvider } from "../lib/perm";
 
 function GlobalClickPop() {
   useEffect(() => {
@@ -22,7 +23,7 @@ export default function App({ Component, pageProps }) {
       <Head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
       </Head>
       <style jsx global>{`
         * {
@@ -34,13 +35,74 @@ export default function App({ Component, pageProps }) {
           padding: 0;
           max-width: 100%;
           overflow-x: hidden;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          font-family: "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
         }
         body {
-          transition: background-color 0.2s ease, color 0.2s ease;
+          background: #f7f2ee;
+          color: #2c1a1e;
+          font-size: 15px;
+          line-height: 1.5;
         }
         a {
           color: inherit;
+        }
+        button,
+        input,
+        textarea,
+        select {
+          font-family: inherit;
+        }
+        svg {
+          flex-shrink: 0;
+        }
+        ::placeholder {
+          color: #a8929a;
+          opacity: 1;
+        }
+        /* Trạng thái rê chuột / bấm / focus thống nhất cho mọi nút */
+        @media (hover: hover) {
+          button:not(:disabled):hover,
+          a.hnBtnLink:hover {
+            filter: brightness(0.96);
+          }
+          .hnCard.hnClickable:hover {
+            border-color: #e2c8cd !important;
+            box-shadow: 0 2px 4px rgba(44, 26, 30, 0.05), 0 12px 28px rgba(44, 26, 30, 0.09) !important;
+          }
+        }
+        button:focus-visible,
+        a:focus-visible {
+          outline: 2px solid #9e2a3b;
+          outline-offset: 2px;
+        }
+        input:focus,
+        textarea:focus,
+        select:focus {
+          border-color: #c98a95 !important;
+          box-shadow: 0 0 0 3px #f8ecee;
+        }
+        button:disabled {
+          opacity: 0.5;
+        }
+        .hnFade {
+          animation: hnFadeIn 0.15s ease;
+        }
+        /* Ô thông tin bấm-để-sửa: tô nền nhẹ khi rê chuột để biết là sửa được. */
+        @media (hover: hover) {
+          .hnEditable:hover {
+            background: #fbf7f4;
+            box-shadow: 0 0 0 6px #fbf7f4;
+          }
+        }
+        /* Hàng nút vuốt ngang (size, danh mục...): ẩn thanh cuộn cho gọn. */
+        .hnHScroll {
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+        }
+        .hnHScroll::-webkit-scrollbar {
+          display: none;
         }
 
         /* ===== Hiệu ứng chuyển động dùng chung toàn app ===== */
@@ -123,13 +185,14 @@ export default function App({ Component, pageProps }) {
           animation: hnFadeIn 0.25s ease;
         }
         button,
-        a {
-          transition: transform 0.12s ease, background-color 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+        a,
+        .hnClickable {
+          transition: transform 0.12s ease, background-color 0.15s ease, opacity 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
         }
-        button:active,
+        button:not(:disabled):active,
         .menuCard:active,
         a:active {
-          transform: scale(0.96);
+          transform: scale(0.97);
         }
         button:disabled {
           cursor: default;
@@ -174,7 +237,9 @@ export default function App({ Component, pageProps }) {
           }
         }
       `}</style>
-      <Component {...pageProps} />
+      <PermProvider>
+        <Component {...pageProps} />
+      </PermProvider>
     </ThemeProvider>
   );
 }

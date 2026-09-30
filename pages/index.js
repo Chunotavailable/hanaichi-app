@@ -2,7 +2,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme, makeStyles } from "../lib/theme";
-import { NAV_ITEMS } from "../lib/nav";
+import { visibleNavItems, BrandMark, RoleBadge, logout } from "../lib/nav";
+import { usePerm } from "../lib/perm";
+import { LogOut } from "lucide-react";
 
 const QUOTES = [
   "Không có con đường nào dẫn đến thành công mà không đi qua sự kiên trì.",
@@ -207,9 +209,19 @@ function SakuraFall({ theme: THEME }) {
   );
 }
 
+// Mô tả ngắn dưới mỗi ô lối vào nhanh.
+const NAV_DESC = {
+  "/pricing": "Đổi giá Yên, báo giá nhanh",
+  "/closet": "Hàng có sẵn, size, tồn kho",
+  "/gomcan": "Gia dụng, TPCN, giá gồm cân",
+  "/thietbi": "Tư vấn chậu, vòi, bộ sen",
+  "/backup": "Tải về & khôi phục dữ liệu",
+};
+
 export default function Home() {
   const { theme: THEME } = useTheme();
-  const { card, btnSub } = makeStyles(THEME);
+  const { card, iconBtn } = makeStyles(THEME);
+  const perm = usePerm();
   const [quote, setQuote] = useState(null);
 
   // Chọn quote ngẫu nhiên sau khi mount ở client — tránh lệch giữa server/client (hydration).
@@ -225,73 +237,78 @@ export default function Home() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
-        padding: "48px 28px",
+        padding: "0 20px 48px",
         position: "relative",
         overflow: "hidden",
       }}
     >
       <SakuraFall theme={THEME} />
-      <div style={{ fontSize: 40, marginBottom: 18, position: "relative", zIndex: 2 }}>🌸</div>
-      <p
-        key={quote}
-        className="hnCard"
-        style={{
-          maxWidth: 620,
-          minHeight: 78,
-          textAlign: "center",
-          fontFamily: THEME.headingFont,
-          fontStyle: "italic",
-          fontSize: 26,
-          lineHeight: 1.5,
-          color: THEME.text,
-          margin: 0,
-          position: "relative",
-          zIndex: 2,
-        }}
-      >
-        {quote ? `“${quote}”` : ""}
-      </p>
-      <div style={{ marginTop: 22, fontSize: 14, color: THEME.subtext, letterSpacing: 1, position: "relative", zIndex: 2 }}>HANAICHI</div>
-
-      {/* Lối vào nhanh các tính năng — hiện thẳng ra ngay trên trang chủ thay vì
-          giấu sau 1 nút tròn nhỏ, để người mới dùng web cũng biết ngay chỗ bấm. */}
-      <div
-        style={{
-          marginTop: 32,
-          width: "100%",
-          maxWidth: 640,
-          position: "relative",
-          zIndex: 2,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-          gap: 10,
-        }}
-      >
-        {NAV_ITEMS.filter((n) => n.href !== "/").map((n) => (
-          <Link
-            key={n.href}
-            href={n.href}
-            className="menuCard hnCard"
-            style={{ ...card, textDecoration: "none", color: THEME.text, padding: "16px 12px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
-          >
-            <span style={{ fontSize: 26 }}>{n.icon}</span>
-            <span style={{ fontSize: 13.5, fontWeight: 700 }}>{n.label}</span>
-          </Link>
-        ))}
+      <div style={{ width: "100%", maxWidth: 960, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", position: "relative", zIndex: 2 }}>
+        <BrandMark />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <RoleBadge role={perm.role} />
+          <button title="Đăng xuất" aria-label="Đăng xuất" onClick={logout} style={iconBtn}>
+            <LogOut size={16} />
+          </button>
+        </div>
       </div>
 
-      <button
-        onClick={() => {
-          fetch("/api/logout", { method: "POST" }).finally(() => {
-            window.location.href = "/login";
-          });
-        }}
-        title="Đăng xuất"
-        style={{ ...btnSub, background: "transparent", border: "none", color: THEME.subtext, position: "fixed", top: 14, right: 14, zIndex: 50 }}
-      >
-        🚪 Đăng xuất
-      </button>
+      <div style={{ flex: 1, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: 24 }}>
+        <p
+          key={quote}
+          className="hnCard"
+          style={{
+            maxWidth: 640,
+            minHeight: 78,
+            textAlign: "center",
+            fontFamily: THEME.headingFont,
+            fontStyle: "italic",
+            fontSize: "clamp(21px, 4.2vw, 27px)",
+            lineHeight: 1.5,
+            color: THEME.text,
+            margin: 0,
+            position: "relative",
+            zIndex: 2,
+          }}
+        >
+          {quote ? `“${quote}”` : ""}
+        </p>
+        <div style={{ marginTop: 14, width: 40, height: 2, borderRadius: 2, background: THEME.primary, position: "relative", zIndex: 2 }} />
+
+        {/* Lối vào nhanh các tính năng — hiện thẳng ra ngay trên trang chủ. */}
+        <div
+          style={{
+            marginTop: 36,
+            width: "100%",
+            maxWidth: 720,
+            position: "relative",
+            zIndex: 2,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: 12,
+          }}
+        >
+          {visibleNavItems(perm).map((n) => {
+            const { Icon } = n;
+            return (
+              <Link
+                key={n.href}
+                href={n.href}
+                className="menuCard hnCard hnClickable"
+                style={{ ...card, textDecoration: "none", color: THEME.text, padding: 16, display: "flex", alignItems: "center", gap: 12 }}
+              >
+                <span style={{ width: 42, height: 42, borderRadius: 11, background: THEME.chipBg, color: THEME.brand, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  <Icon size={21} />
+                </span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 15, fontWeight: 600 }}>{n.label}</span>
+                  <span style={{ display: "block", fontSize: 12.5, color: THEME.subtext, marginTop: 1 }}>{NAV_DESC[n.href]}</span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
     </main>
   );
 }

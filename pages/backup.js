@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { useTheme, makeStyles, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
+import { Download, Upload, FolderOpen, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 const SECTIONS = [
   { key: "gomcan", url: "/api/gomcan", label: "Giá gồm cân + Hàng Closet sẵn" },
@@ -100,45 +101,67 @@ export default function BackupPage() {
     }
   }
 
+  const iconBox = (Icon, bg, fg) => (
+    <span style={{ width: 38, height: 38, borderRadius: 11, background: bg, color: fg, display: "grid", placeItems: "center", flexShrink: 0 }}>
+      <Icon size={19} />
+    </span>
+  );
+
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
-      <PageHeader icon="💾" title="Sao lưu dữ liệu" current="/backup" maxWidth={700} />
-      <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ ...card, padding: 16 }}>
-          <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6 }}>📤 Tải file sao lưu về máy</div>
-          <div style={{ fontSize: 13.5, color: THEME.subtext, lineHeight: 1.6 }}>
-            Gộp toàn bộ dữ liệu hiện tại (Giá gồm cân, Hàng Closet sẵn — cả ảnh lẫn giá đã sửa, Thiết bị bếp & vệ sinh,
-            Báo giá nhanh, Việc cần làm, Khách hàng) thành 1 file, tải về máy giữ phòng khi cần. Nên bấm định kỳ, đặc biệt sau khi vừa thêm/sửa
-            nhiều — rồi lưu file đó vào Zalo/Drive/email của bạn cho chắc, không cần lưu trên máy này.
+      <PageHeader title="Sao lưu dữ liệu" current="/backup" maxWidth={700} />
+      <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <section style={{ ...card, padding: 20 }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+            {iconBox(Download, THEME.chipBg, THEME.brand)}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Tải file sao lưu về máy</div>
+              <div style={{ fontSize: 14, color: THEME.subtext, lineHeight: 1.6 }}>
+                Gộp toàn bộ dữ liệu hiện tại (Giá gồm cân, Hàng Closet sẵn — cả ảnh lẫn giá đã sửa, Thiết bị bếp & vệ sinh, Tính giá...) thành 1 file.
+                Nên tải định kỳ, nhất là sau khi vừa thêm/sửa nhiều, rồi gửi file vào Zalo/Drive/email cho chắc.
+              </div>
+              <button style={{ ...btn, marginTop: 14 }} disabled={busy} onClick={downloadBackup}>
+                <Download size={16} /> {busy ? "Đang tải..." : "Tải file sao lưu"}
+              </button>
+            </div>
           </div>
-          <button style={{ ...btn, marginTop: 10 }} disabled={busy} onClick={downloadBackup}>
-            {busy ? "Đang tải..." : "📥 Tải file sao lưu"}
-          </button>
-        </div>
+        </section>
 
-        <div style={{ ...card, padding: 16 }}>
-          <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6 }}>📥 Khôi phục từ file sao lưu</div>
-          <div style={{ fontSize: 13.5, color: THEME.subtext, lineHeight: 1.6 }}>
-            Chỉ dùng khi chẳng may dữ liệu bị mất/lỗi — chọn lại đúng file đã tải ở trên. <b>Lưu ý: việc này sẽ GHI ĐÈ</b>{" "}
-            toàn bộ dữ liệu hiện tại bằng dữ liệu trong file, không thể hoàn tác.
+        <section style={{ ...card, padding: 20 }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+            {iconBox(Upload, THEME.surfaceAlt, THEME.subtext)}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Khôi phục từ file sao lưu</div>
+              <div style={{ fontSize: 14, color: THEME.subtext, lineHeight: 1.6 }}>
+                Chỉ dùng khi chẳng may dữ liệu bị mất/lỗi — chọn lại đúng file đã tải ở trên.
+              </div>
+              <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "flex-start", background: THEME.dangerBg, color: THEME.danger, borderRadius: 10, padding: "8px 10px", fontSize: 13.5, fontWeight: 500 }}>
+                <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} /> Việc này sẽ ghi đè toàn bộ dữ liệu hiện tại bằng dữ liệu trong file, không thể hoàn tác.
+              </div>
+              <label style={{ ...btnSub, marginTop: 14, cursor: "pointer" }}>
+                <FolderOpen size={16} /> Chọn file sao lưu...
+                <input type="file" accept="application/json" onChange={onPickFile} style={{ display: "none" }} />
+              </label>
+            </div>
           </div>
-          <label style={{ ...btnSub, marginTop: 10, display: "inline-block", cursor: "pointer" }}>
-            📂 Chọn file sao lưu...
-            <input type="file" accept="application/json" onChange={onPickFile} style={{ display: "none" }} />
-          </label>
-        </div>
+        </section>
 
         {msg && (
           <div
+            role="status"
             style={{
               ...card,
-              padding: "10px 14px",
+              padding: "12px 14px",
               fontSize: 14,
-              color: msg.ok ? "#1f7a3d" : "#dc2626",
-              fontWeight: 600,
+              color: msg.ok ? THEME.success : THEME.danger,
+              background: msg.ok ? THEME.successBg : THEME.dangerBg,
+              fontWeight: 500,
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
             }}
           >
-            {msg.text}
+            {msg.ok ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />} {msg.text.replace(/^[✅❌]\s*/, "")}
           </div>
         )}
       </div>

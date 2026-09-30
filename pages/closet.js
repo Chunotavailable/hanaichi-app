@@ -7,6 +7,28 @@ import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/
 import { PageHeader } from "../lib/nav";
 import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, ViewModeToggle, gridColumnsFor, SmartImage } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
+import { usePerm } from "../lib/perm";
+import { FilterChip, SearchInput, EmptyState, GroupTitle, ImagePlaceholder, UndoToast } from "../lib/ui";
+import {
+  ShoppingBag,
+  ImageDown,
+  ArrowUpNarrowWide,
+  Flame,
+  BadgePercent,
+  Pencil,
+  Plus,
+  Minus,
+  FolderPlus,
+  SearchX,
+  ChevronRight,
+  X,
+  Camera,
+  Trash2,
+  Copy,
+  Check,
+  MessageSquareQuote,
+  ScanSearch,
+} from "lucide-react";
 
 // Lấy phần trong ngoặc của mã biến thể để hiện gọn khi cần (VD "WRS...-235
 // (EU 38)" -> "EU 38").
@@ -128,7 +150,7 @@ function isXaKho(p) {
   }
   return norm(p || "").includes("xa kho");
 }
-const XA_KHO_COLOR = "#dc2626";
+const XA_KHO_COLOR = "#c0262d";
 // Thời lượng 1 nhịp nháy của nhãn "XẢ KHO" (ms) — PHẢI khớp với thời lượng
 // khai báo ở keyframes hnXaKhoPulse trong pages/_app.js.
 const XA_KHO_BLINK_MS = 1300;
@@ -153,14 +175,17 @@ function xaKhoBadgeStyle(size) {
     position: "absolute",
     top: s.top,
     left: s.left,
-    background: "linear-gradient(135deg, #f87171, #dc2626 55%, #b91c1c)",
+    background: "linear-gradient(135deg, #e04848, #c0262d 55%, #a11d24)",
     color: "#fff",
     fontSize: s.fontSize,
-    fontWeight: 800,
+    fontWeight: 700,
     padding: s.padding,
     borderRadius: s.radius,
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
     border: "1px solid rgba(255,255,255,0.6)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 3,
     animationDelay: xaKhoBlinkDelay(),
   };
 }
@@ -497,61 +522,8 @@ export default function ClosetPage() {
           T={T}
         />
       </div>
-      {undoInfo && <UndoToast message={undoInfo.message} onUndo={undoDelete} T={T} />}
+      {undoInfo && <UndoToast message={undoInfo.message} onUndo={undoDelete} />}
     </main>
-  );
-}
-
-// Thanh thông báo "Đã xoá..." nổi ở đáy màn hình kèm nút Hoàn tác, tự đếm
-// ngược 10s (đồng bộ với thời gian hoãn lưu thật ở scheduleUndoableDelete).
-function UndoToast({ message, onUndo, T }) {
-  const { THEME } = T;
-  const [secondsLeft, setSecondsLeft] = useState(10);
-  useEffect(() => {
-    setSecondsLeft(10);
-    const iv = setInterval(() => {
-      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
-    }, 1000);
-    return () => clearInterval(iv);
-  }, [message]);
-  return (
-    <div
-      className="hnPop"
-      style={{
-        position: "fixed",
-        left: "50%",
-        bottom: 18,
-        transform: "translateX(-50%)",
-        zIndex: 200,
-        background: "#1f2937",
-        color: "#fff",
-        borderRadius: 12,
-        padding: "10px 12px 10px 16px",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.28)",
-        maxWidth: "calc(100vw - 32px)",
-      }}
-    >
-      <span style={{ fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{message}</span>
-      <button
-        onClick={onUndo}
-        style={{
-          flexShrink: 0,
-          background: "#fff",
-          color: "#1f2937",
-          border: "none",
-          borderRadius: 8,
-          padding: "6px 12px",
-          fontWeight: 800,
-          fontSize: 13,
-          cursor: "pointer",
-        }}
-      >
-        Hoàn tác ({secondsLeft}s)
-      </button>
-    </div>
   );
 }
 
@@ -606,28 +578,33 @@ function BulkImportModal({ list, bulkSaveClosetImages, onClose, T }) {
     setRunning(false);
   }
 
+  // [chữ hiển thị, màu] cho từng trạng thái.
   const STATUS_LABEL = {
-    ok: "✅ Sẵn sàng nhập",
-    imported: "✅ Đã nhập",
-    failed: "❌ Lỗi khi tải ảnh",
-    "not-found": "❓ Không tìm thấy sản phẩm khớp mã",
-    ambiguous: `⚠️ Khớp nhiều sản phẩm — bỏ qua`,
-    "skip-has-image": "⏭️ Đã có ảnh — bỏ qua (tích \"Ghi đè\" để thay)",
-    "no-link": "❌ Không thấy link ảnh trong dòng này",
+    ok: ["Sẵn sàng nhập", THEME.success],
+    imported: ["Đã nhập", THEME.success],
+    failed: ["Lỗi khi tải ảnh", THEME.danger],
+    "not-found": ["Không tìm thấy sản phẩm khớp mã", THEME.danger],
+    ambiguous: ["Khớp nhiều sản phẩm — bỏ qua", "#a15c00"],
+    "skip-has-image": ['Đã có ảnh — bỏ qua (tích "Ghi đè" để thay)', THEME.subtext],
+    "no-link": ["Không thấy link ảnh trong dòng này", THEME.danger],
   };
 
   const okCount = rows ? rows.filter((r) => r.status === "ok").length : 0;
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(60,20,25,0.45)", zIndex: 90, display: "grid", placeItems: "center", padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} className="hnCard" style={{ ...card, width: "100%", maxWidth: 640, maxHeight: "88vh", overflowY: "auto", padding: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>📥 Nhập ảnh hàng loạt</h3>
-          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: THEME.chipBg, fontSize: 15, cursor: "pointer" }}>✕</button>
+    <div onClick={onClose} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 90, display: "grid", placeItems: "center", padding: 16 }}>
+      <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="hnPop" style={{ ...card, width: "100%", maxWidth: 640, maxHeight: "88vh", overflowY: "auto", padding: 20, boxShadow: "0 24px 60px rgba(44,26,30,0.25)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+            <ImageDown size={19} color={THEME.brand} /> Nhập ảnh hàng loạt
+          </h3>
+          <button onClick={onClose} aria-label="Đóng" style={T.iconBtn}>
+            <X size={17} />
+          </button>
         </div>
         <div style={{ fontSize: 13, color: THEME.subtext, marginBottom: 8 }}>
           Mỗi dòng 1 sản phẩm, theo dạng <b>mã sản phẩm: link ảnh</b>, ví dụ:
-          <div style={{ background: THEME.chipBg, borderRadius: 8, padding: 8, marginTop: 4, fontFamily: "monospace", fontSize: 12 }}>
+          <div style={{ background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 8, padding: 8, marginTop: 6, fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-wrap" }}>
             1044A081-250: https://.../anh1.jpg{"\n"}IR7843: https://.../anh2.jpg
           </div>
           App sẽ tự tìm sản phẩm có mã đó rồi lấy ảnh về, không cần đúng tuyệt đối dấu cách/gạch ngang.
@@ -644,21 +621,24 @@ function BulkImportModal({ list, bulkSaveClosetImages, onClose, T }) {
         </label>
 
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <button style={btnSub} onClick={preview} disabled={!text.trim() || running}>👀 Xem trước</button>
+          <button style={btnSub} onClick={preview} disabled={!text.trim() || running}>
+            <ScanSearch size={16} /> Xem trước
+          </button>
           <button style={btn} onClick={runImport} disabled={!rows || !okCount || running}>
-            {running ? `Đang nhập… (${doneCount}/${okCount})` : `📥 Nhập ${okCount || ""} ảnh`}
+            <ImageDown size={16} /> {running ? `Đang nhập… (${doneCount}/${okCount})` : `Nhập ${okCount || ""} ảnh`}
           </button>
         </div>
 
         {rows && (
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4, maxHeight: 260, overflowY: "auto" }}>
             {rows.map((r, i) => (
-              <div key={i} style={{ display: "flex", gap: 8, fontSize: 12, padding: "5px 8px", background: THEME.chipBg, borderRadius: 6, alignItems: "center" }}>
-                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div key={i} style={{ display: "flex", gap: 8, fontSize: 12.5, padding: "6px 10px", background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 8, alignItems: "center" }}>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {r.matches && r.matches[0] ? r.matches[0].name : r.code || r.raw}
                 </span>
-                <span style={{ flexShrink: 0, color: THEME.subtext }}>
-                  {STATUS_LABEL[r.status] || r.status}
+                <span style={{ flexShrink: 0, color: (STATUS_LABEL[r.status] || [])[1] || THEME.subtext, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: 99, background: "currentColor" }} />
+                  {(STATUS_LABEL[r.status] || [r.status])[0]}
                   {r.status === "failed" && r.error ? ` (${r.error})` : ""}
                 </span>
               </div>
@@ -742,187 +722,226 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
   const viewingProduct = viewId ? list.find((p) => p.id === viewId) : null;
   const confirmDelProduct = confirmDelId ? list.find((p) => p.id === confirmDelId) : null;
 
+  const perm = usePerm();
+  const anyFilter = !!(q || genderFilter || effectiveSizeFilter.length || sortPriceAsc || xaKhoFilter);
+
   return (
-    <div style={{ ...card, padding: 16, marginBottom: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-        <h3 style={{ fontWeight: 800, margin: 0 }}>👜 Hàng Closet sẵn ({list.length} mẫu)</h3>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <button style={btnSub} onClick={() => setShowBulkImport(true)}>📥 Nhập ảnh hàng loạt</button>
+    <div style={{ marginBottom: 16 }}>
+      {/* Thanh công cụ: số mẫu + nhập ảnh hàng loạt + cách hiển thị */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+        <div style={{ fontSize: 14, color: THEME.subtext }}>
+          {anyFilter ? (
+            <>
+              <b style={{ color: THEME.text, fontWeight: 600 }}>{filtered.length}</b> / {list.length} mẫu khớp bộ lọc
+            </>
+          ) : (
+            <>
+              <b style={{ color: THEME.text, fontWeight: 600 }}>{list.length}</b> mẫu đang có
+            </>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {perm.canEdit && (
+            <button style={btnSub} onClick={() => setShowBulkImport(true)}>
+              <ImageDown size={16} /> Nhập ảnh hàng loạt
+            </button>
+          )}
           <ViewModeToggle mode={viewMode} setMode={setViewMode} T={T} />
         </div>
       </div>
 
-      {showBulkImport && (
+      {showBulkImport && perm.canEdit && (
         <BulkImportModal list={list} bulkSaveClosetImages={bulkSaveClosetImages} onClose={() => setShowBulkImport(false)} T={T} />
       )}
 
-      {/* Chương trình giảm giá áp dụng chung cho cả tab: tích vào là tự động
-          giảm giá cho mọi sản phẩm từ mức giá đã đặt, bấm ✏️ để đổi % giảm
-          hoặc mức giá áp dụng theo từng đợt khuyến mãi khác nhau. */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginTop: 12,
-          padding: "8px 10px",
-          background: discount.enabled ? "#eafaf0" : THEME.chipBg,
-          border: `1px solid ${discount.enabled ? "#c9ecd6" : THEME.chipLine}`,
-          borderRadius: 10,
-          flexWrap: "wrap",
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={!!discount.enabled}
-          onChange={(e) => saveClosetDiscount({ enabled: e.target.checked })}
-          style={{ width: 18, height: 18, flexShrink: 0 }}
-        />
-        {editingDiscount ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", flex: 1 }}>
-            <span style={{ fontSize: 13.5 }}>Giảm</span>
-            <input
-              style={{ ...inp, width: 56, padding: "4px 6px" }}
-              defaultValue={discount.percent}
-              onBlur={(e) => saveClosetDiscount({ percent: Number(e.target.value) || 0 })}
-            />
-            <span style={{ fontSize: 13.5 }}>% cho sản phẩm từ</span>
-            <input
-              style={{ ...inp, width: 80, padding: "4px 6px" }}
-              defaultValue={discount.threshold}
-              onBlur={(e) => saveClosetDiscount({ threshold: Number(e.target.value) || 0 })}
-            />
-            <span style={{ fontSize: 13.5 }}>k trở lên</span>
-            <button style={btnSub} onClick={() => setEditingDiscount(false)}>Xong</button>
-          </div>
-        ) : (
-          <>
-            <span style={{ flex: 1, fontWeight: 700, fontSize: 13.5, color: discount.enabled ? "#1f7a3d" : THEME.text }}>
-              🏷️ Giảm {discount.percent}% cho sản phẩm từ {fmtClosetPrice(discount.threshold)} trở lên
-            </span>
-            <button style={iconBtn} title="Sửa chương trình giảm giá" onClick={() => setEditingDiscount(true)}>✏️</button>
-          </>
-        )}
-      </div>
+      <div style={{ ...card, padding: 14, marginBottom: 14 }}>
+        <SearchInput value={q} onChange={setQ} placeholder="Tìm theo tên, mã, size, màu... (VD: 38, onitsuka, wilson)" T={T} />
 
-      <input
-        style={{ ...inp, marginTop: 12, marginBottom: 10 }}
-        placeholder="🔍 Tìm theo tên, mã, size, màu... (VD: 38, onitsuka, wilson)"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
-
-      {/* Bộ lọc: Nam/Nữ, giá thấp-cao, xả kho, size EU — bật được 1, nhiều hay cả cùng lúc. */}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-        <button
-          onClick={() => setGenderFilter(genderFilter === "nam" ? null : "nam")}
-          style={{ ...btnSub, background: genderFilter === "nam" ? THEME.primary : THEME.chipBg }}
-        >
-          👨 Nam
-        </button>
-        <button
-          onClick={() => setGenderFilter(genderFilter === "nu" ? null : "nu")}
-          style={{ ...btnSub, background: genderFilter === "nu" ? THEME.primary : THEME.chipBg }}
-        >
-          👩 Nữ
-        </button>
-        <button
-          onClick={() => setSortPriceAsc((v) => !v)}
-          style={{ ...btnSub, background: sortPriceAsc ? THEME.primary : THEME.chipBg }}
-        >
-          💰 Giá thấp → cao
-        </button>
-        <button
-          onClick={() => setXaKhoFilter((v) => !v)}
-          style={{
-            ...btnSub,
-            background: xaKhoFilter ? XA_KHO_COLOR : THEME.chipBg,
-            color: xaKhoFilter ? "#fff" : THEME.brand,
-          }}
-        >
-          🏷️ Xả kho
-        </button>
-      </div>
-
-      {availableSizes.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", marginBottom: 10, paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
-          <span style={{ fontSize: 12.5, color: THEME.subtext, flexShrink: 0 }}>Size:</span>
-          {availableSizes.map((s) => {
-            const active = effectiveSizeFilter.includes(s);
-            return (
-              <button
-                key={s}
-                onClick={() => setSizeFilter(active ? sizeFilter.filter((x) => x !== s) : [...sizeFilter, s])}
-                style={{ ...btnSub, whiteSpace: "nowrap", flexShrink: 0, padding: "5px 10px", background: active ? THEME.primary : THEME.chipBg }}
-              >
-                {s}
-              </button>
-            );
-          })}
-          {effectiveSizeFilter.length > 0 && (
-            <button onClick={() => setSizeFilter([])} style={{ ...btnSub, whiteSpace: "nowrap", flexShrink: 0, padding: "5px 10px" }}>
-              Xoá size ✕
+        {/* Bộ lọc: Nam/Nữ, giá thấp-cao, xả kho, size — bật được 1, nhiều hay cả cùng lúc. */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+          <FilterChip T={T} active={genderFilter === "nam"} onClick={() => setGenderFilter(genderFilter === "nam" ? null : "nam")}>
+            Nam
+          </FilterChip>
+          <FilterChip T={T} active={genderFilter === "nu"} onClick={() => setGenderFilter(genderFilter === "nu" ? null : "nu")}>
+            Nữ
+          </FilterChip>
+          <FilterChip T={T} active={sortPriceAsc} onClick={() => setSortPriceAsc((v) => !v)}>
+            <ArrowUpNarrowWide size={15} /> Giá thấp → cao
+          </FilterChip>
+          <FilterChip T={T} tone="danger" active={xaKhoFilter} onClick={() => setXaKhoFilter((v) => !v)}>
+            <Flame size={15} /> Xả kho
+          </FilterChip>
+          {anyFilter && (
+            <button
+              onClick={() => {
+                setQ("");
+                setGenderFilter(null);
+                setSizeFilter([]);
+                setSortPriceAsc(false);
+                setXaKhoFilter(false);
+              }}
+              style={{ border: "none", background: "transparent", color: THEME.brand, fontWeight: 600, fontSize: 13.5, cursor: "pointer", padding: "6px 4px" }}
+            >
+              Xoá bộ lọc
             </button>
           )}
         </div>
-      )}
+
+        {availableSizes.length > 0 && (
+          <div className="hnHScroll" style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", marginTop: 10, paddingBottom: 2 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: THEME.subtext, flexShrink: 0, marginRight: 2 }}>Size</span>
+            {availableSizes.map((s) => {
+              const active = effectiveSizeFilter.includes(s);
+              return (
+                <FilterChip key={s} T={T} small active={active} onClick={() => setSizeFilter(active ? sizeFilter.filter((x) => x !== s) : [...sizeFilter, s])}>
+                  {s}
+                </FilterChip>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Chương trình giảm giá áp dụng chung cho cả tab: tích vào là tự động
+            giảm giá cho mọi sản phẩm từ mức giá đã đặt, bấm sửa để đổi % giảm
+            hoặc mức giá áp dụng theo từng đợt khuyến mãi khác nhau. Khách chỉ
+            thấy dòng này khi chương trình đang bật. */}
+        {(perm.canEdit || discount.enabled) && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginTop: 12,
+              padding: "9px 12px",
+              background: discount.enabled ? THEME.successBg : THEME.surfaceAlt,
+              border: `1px solid ${discount.enabled ? THEME.successLine : THEME.line}`,
+              borderRadius: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            {perm.canEdit && (
+              <input
+                type="checkbox"
+                aria-label="Bật chương trình giảm giá"
+                checked={!!discount.enabled}
+                onChange={(e) => saveClosetDiscount({ enabled: e.target.checked })}
+                style={{ width: 18, height: 18, flexShrink: 0, accentColor: THEME.success, cursor: "pointer" }}
+              />
+            )}
+            {editingDiscount && perm.canEdit ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", flex: 1, fontSize: 13.5 }}>
+                <span>Giảm</span>
+                <input style={{ ...inp, width: 60, padding: "5px 8px" }} defaultValue={discount.percent} onBlur={(e) => saveClosetDiscount({ percent: Number(e.target.value) || 0 })} />
+                <span>% cho sản phẩm từ</span>
+                <input style={{ ...inp, width: 84, padding: "5px 8px" }} defaultValue={discount.threshold} onBlur={(e) => saveClosetDiscount({ threshold: Number(e.target.value) || 0 })} />
+                <span>k trở lên</span>
+                <button style={{ ...btnSub, padding: "5px 12px" }} onClick={() => setEditingDiscount(false)}>
+                  Xong
+                </button>
+              </div>
+            ) : (
+              <>
+                <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13.5, color: discount.enabled ? THEME.success : THEME.subtext }}>
+                  <BadgePercent size={16} />
+                  {discount.enabled ? "Đang giảm" : "Giảm"} {discount.percent}% cho sản phẩm từ {fmtClosetPrice(discount.threshold)} trở lên
+                  {!discount.enabled && <span style={{ fontWeight: 400 }}>(đang tắt)</span>}
+                </span>
+                {perm.canEdit && (
+                  <button style={{ ...iconBtn, width: 30, height: 30 }} title="Sửa chương trình giảm giá" aria-label="Sửa chương trình giảm giá" onClick={() => setEditingDiscount(true)}>
+                    <Pencil size={14} />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Thanh nhấn nhanh chọn danh mục — bấm vào là chỉ hiện đúng danh mục đó,
-          khỏi phải kéo tay xuống mới xem được mục khác. */}
+          khỏi phải kéo tay xuống mới xem được mục khác. Dính trên đầu khi cuộn. */}
       {categories.length > 1 && (
         <div
+          className="hnHScroll"
           style={{
             position: "sticky",
             top: 0,
             zIndex: 5,
-            background: THEME.surface,
+            background: THEME.bg,
             display: "flex",
             gap: 6,
             overflowX: "auto",
             maxWidth: "100%",
-            padding: "6px 0 10px",
+            padding: "8px 0 10px",
             marginBottom: 6,
-            WebkitOverflowScrolling: "touch",
           }}
         >
-          <button
-            onClick={() => setActiveCat(null)}
-            style={{ ...btnSub, whiteSpace: "nowrap", flexShrink: 0, background: !activeCat ? THEME.primary : THEME.chipBg }}
-          >
+          <FilterChip T={T} active={!activeCat} onClick={() => setActiveCat(null)}>
             Tất cả
-          </button>
+          </FilterChip>
           {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCat(activeCat === cat ? null : cat)}
-              style={{ ...btnSub, whiteSpace: "nowrap", flexShrink: 0, background: activeCat === cat ? THEME.primary : THEME.chipBg }}
-            >
+            <FilterChip key={cat} T={T} active={activeCat === cat} onClick={() => setActiveCat(activeCat === cat ? null : cat)}>
               {cat}
-            </button>
+            </FilterChip>
           ))}
         </div>
       )}
 
-      {filtered.length === 0 && <div style={{ color: THEME.subtext, fontSize: 16, marginBottom: 8 }}>Không tìm thấy mẫu nào khớp</div>}
+      {filtered.length === 0 && <EmptyState icon={SearchX} title="Không tìm thấy mẫu nào khớp" hint="Thử bỏ bớt bộ lọc hoặc tìm bằng từ khác." T={T} />}
 
-      {shownCategories.map((cat) => (
-        <div key={cat} style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: THEME.brand, marginBottom: 8, borderBottom: `1px dashed ${THEME.chipLine}`, paddingBottom: 4 }}>
-            {cat}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: gridColumnsFor(viewMode), gap: 10, marginBottom: 10 }}>
-            {filtered
-              .filter((p) => p.category === cat)
-              .map((p) => (
+      {shownCategories.map((cat) => {
+        const items = filtered.filter((p) => p.category === cat);
+        return (
+          <section key={cat} style={{ marginBottom: 26 }}>
+            <GroupTitle T={T} count={items.length}>
+              {cat}
+            </GroupTitle>
+            <div style={{ display: "grid", gridTemplateColumns: gridColumnsFor(viewMode), gap: 12, marginBottom: 10 }}>
+              {items.map((p) => (
                 <ClosetProductCard key={p.id} p={p} listMode={viewMode === "list"} onOpen={() => setViewId(p.id)} discount={discount} T={T} />
               ))}
-          </div>
-          <button style={btnSub} onClick={() => setAddingCategory(addingCategory === cat ? null : cat)}>
-            {addingCategory === cat ? "Đóng" : `＋ Thêm mẫu vào "${cat}"`}
+            </div>
+            {perm.canEdit && (
+              <>
+                <button style={{ ...btnSub, color: THEME.subtext }} onClick={() => setAddingCategory(addingCategory === cat ? null : cat)}>
+                  {addingCategory === cat ? (
+                    "Đóng"
+                  ) : (
+                    <>
+                      <Plus size={15} /> Thêm mẫu vào “{cat}”
+                    </>
+                  )}
+                </button>
+                {addingCategory === cat && (
+                  <ClosetAddProductForm
+                    category={cat}
+                    onAdd={(product) => {
+                      addClosetProduct(product);
+                      setAddingCategory(null);
+                    }}
+                    T={T}
+                  />
+                )}
+              </>
+            )}
+          </section>
+        );
+      })}
+
+      {perm.canEdit && (
+        <div style={{ borderTop: `1px solid ${THEME.line}`, paddingTop: 16, marginTop: 4 }}>
+          <button style={btnSub} onClick={() => setAddingCategory(addingCategory === "__new__" ? null : "__new__")}>
+            {addingCategory === "__new__" ? (
+              "Đóng"
+            ) : (
+              <>
+                <FolderPlus size={16} /> Thêm mẫu vào danh mục mới
+              </>
+            )}
           </button>
-          {addingCategory === cat && (
+          {addingCategory === "__new__" && (
             <ClosetAddProductForm
-              category={cat}
+              category=""
+              askCategory
               onAdd={(product) => {
                 addClosetProduct(product);
                 setAddingCategory(null);
@@ -931,24 +950,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
             />
           )}
         </div>
-      ))}
-
-      <div style={{ borderTop: `1px dashed ${THEME.chipLine}`, paddingTop: 14, marginTop: 4 }}>
-        <button style={btnSub} onClick={() => setAddingCategory(addingCategory === "__new__" ? null : "__new__")}>
-          {addingCategory === "__new__" ? "Đóng" : "＋ Thêm mẫu vào danh mục mới"}
-        </button>
-        {addingCategory === "__new__" && (
-          <ClosetAddProductForm
-            category=""
-            askCategory
-            onAdd={(product) => {
-              addClosetProduct(product);
-              setAddingCategory(null);
-            }}
-            T={T}
-          />
-        )}
-      </div>
+      )}
 
       {viewingProduct && (
         <ClosetDetailModal
@@ -1006,75 +1008,88 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
   } else {
     sizeChip = (v) => v.label;
   }
-  const inStockChipStyle = { ...chip, fontSize: 10.5, padding: "1px 6px", background: "#eafaf0", borderColor: "#c9ecd6", color: "#1f7a3d" };
+  const inStockChipStyle = { ...chip, fontSize: 11, padding: "1px 7px", background: THEME.successBg, borderColor: THEME.successLine, color: THEME.success };
   const priceColor = xaKho ? XA_KHO_COLOR : THEME.brand;
+  // Cả thẻ bấm được (kể cả bằng bàn phím) — không cần nút "Xem chi tiết" riêng.
+  const clickProps = {
+    onClick: onOpen,
+    role: "button",
+    tabIndex: 0,
+    onKeyDown: (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onOpen();
+      }
+    },
+  };
 
   if (listMode) {
     return (
-      <div className="hnCard hnRowItem" onClick={onOpen} style={{ ...card, minWidth: 0, maxWidth: "100%", cursor: "pointer", display: "flex", gap: 10, padding: 10, alignItems: "center" }}>
-        <div style={{ position: "relative", width: 56, height: 56, minWidth: 56, borderRadius: 10, overflow: "hidden", background: THEME.chipBg }}>
+      <div className="hnCard hnRowItem hnClickable" {...clickProps} style={{ ...card, minWidth: 0, maxWidth: "100%", cursor: "pointer", display: "flex", gap: 12, padding: 10, alignItems: "center" }}>
+        <div style={{ position: "relative", width: 60, height: 60, minWidth: 60, borderRadius: 10, overflow: "hidden", background: THEME.surfaceAlt }}>
           <SmartImage
             src={p.image}
             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }}
-            fallback={<div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 22 }}>👜</div>}
+            fallback={<ImagePlaceholder icon={ShoppingBag} size={22} T={T} />}
           />
           {xaKho && (
             <div className="xaKhoBadge" style={xaKhoBadgeStyle("sm")}>
-              🔥 XẢ KHO
+              XẢ KHO
             </div>
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+          <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 2, minWidth: 0 }}>
             {priceLine.originalText && <span style={{ fontSize: 11, color: THEME.subtext, textDecoration: "line-through", flexShrink: 0 }}>{priceLine.originalText}</span>}
-            <span style={{ fontWeight: 800, color: priceColor, fontSize: 14, flexShrink: 0 }}>{priceLine.text}</span>
-            {code && <span style={{ fontSize: 11, color: THEME.subtext, flexShrink: 0 }}>Mã {code}</span>}
+            <span style={{ fontWeight: 700, color: priceColor, fontSize: 14.5, flexShrink: 0 }}>{priceLine.text}</span>
+            {code && <span style={{ fontSize: 12, color: THEME.subtext, flexShrink: 0 }}>Mã {code}</span>}
             <div style={{ display: "flex", gap: 4, overflow: "hidden", minWidth: 0 }}>
               {shown.length ? (
                 shown.slice(0, 3).map((v) => (
                   <span key={v.id} style={{ ...inStockChipStyle, flexShrink: 0 }}>{sizeChip(v)}</span>
                 ))
               ) : (
-                <span style={{ fontSize: 11, color: THEME.subtext, flexShrink: 0 }}>Hết hàng</span>
+                <span style={{ fontSize: 12, color: THEME.subtext, flexShrink: 0 }}>Hết hàng</span>
               )}
             </div>
           </div>
         </div>
+        <ChevronRight size={18} color={THEME.muted} />
       </div>
     );
   }
 
   return (
-    <div className="hnCard hnListItem" onClick={onOpen} style={{ ...card, minWidth: 0, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}>
-      <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: THEME.chipBg }}>
+    <div className="hnCard hnListItem hnClickable" {...clickProps} style={{ ...card, minWidth: 0, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}>
+      <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: THEME.surfaceAlt, borderBottom: `1px solid ${THEME.line}` }}>
         <div style={{ position: "absolute", inset: 0 }}>
           <SmartImage
             src={p.image}
             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }}
-            fallback={<div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>👜</div>}
+            fallback={<ImagePlaceholder icon={ShoppingBag} size={34} T={T} />}
           />
           {xaKho && (
             <div className="xaKhoBadge" style={xaKhoBadgeStyle("md")}>
-              🔥 XẢ KHO
+              <Flame size={12} /> XẢ KHO
             </div>
           )}
         </div>
       </div>
-      <div style={{ padding: "8px 10px 10px", flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, whiteSpace: "pre-line", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 34 }}>
+      <div style={{ padding: "10px 11px 12px", flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 13.5, lineHeight: 1.35, whiteSpace: "pre-line", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 36, color: THEME.text }}>
           {p.name}
         </div>
-        <div style={{ marginTop: 4, display: "flex", alignItems: "baseline", gap: 6 }}>
-          {priceLine.originalText && <span style={{ fontSize: 12, color: THEME.subtext, textDecoration: "line-through" }}>{priceLine.originalText}</span>}
-          <span style={{ fontWeight: 800, color: priceColor, fontSize: 15 }}>{priceLine.text}</span>
+        <div style={{ marginTop: 6, display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontWeight: 700, color: priceColor, fontSize: 16 }}>{priceLine.text}</span>
+          {priceLine.originalText && <span style={{ fontSize: 12, color: THEME.muted, textDecoration: "line-through" }}>{priceLine.originalText}</span>}
         </div>
         {code && (
-          <div style={{ fontSize: 11, color: THEME.subtext, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 12, color: THEME.subtext, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             Mã {code}
           </div>
         )}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 6 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
           {shown.length ? (
             shown.map((v) => (
               <span key={v.id} title={`Mã: ${v.label}`} style={inStockChipStyle}>
@@ -1082,16 +1097,10 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
               </span>
             ))
           ) : (
-            <span style={{ fontSize: 11.5, color: THEME.subtext, fontWeight: 700 }}>Hết hàng</span>
+            <span style={{ fontSize: 12, color: THEME.subtext, fontWeight: 600 }}>Hết hàng</span>
           )}
-          {extra > 0 && <span style={{ ...chip, fontSize: 10.5, padding: "1px 6px" }}>+{extra}</span>}
+          {extra > 0 && <span style={{ ...chip, fontSize: 11, padding: "1px 7px", background: THEME.surfaceAlt, borderColor: THEME.line, color: THEME.subtext }}>+{extra}</span>}
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); onOpen(); }}
-          style={{ marginTop: 8, width: "100%", background: "none", border: `1px solid ${THEME.chipLine}`, color: THEME.brand, borderRadius: 8, padding: "6px 0", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}
-        >
-          Xem chi tiết
-        </button>
       </div>
     </div>
   );
@@ -1112,21 +1121,24 @@ function ClosetAddProductForm({ category, askCategory, onAdd, T }) {
   }
 
   return (
-    <div style={{ marginTop: 10, padding: 10, border: `1px dashed ${THEME.chipLine}`, borderRadius: 10 }}>
-      <input style={{ ...inp, marginBottom: 6 }} placeholder="Tên sản phẩm" value={name} onChange={(e) => setName(e.target.value)} />
-      {askCategory && <input style={{ ...inp, marginBottom: 6 }} placeholder="Tên danh mục mới (VD: Giày Nike)" value={cat} onChange={(e) => setCat(e.target.value)} />}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
+    <div style={{ marginTop: 10, padding: 12, background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 12, maxWidth: 560 }}>
+      <input style={{ ...inp, marginBottom: 8 }} placeholder="Tên sản phẩm" value={name} onChange={(e) => setName(e.target.value)} />
+      {askCategory && <input style={{ ...inp, marginBottom: 8 }} placeholder="Tên danh mục mới (VD: Giày Nike)" value={cat} onChange={(e) => setCat(e.target.value)} />}
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
         <input style={inp} placeholder="Mã/Size đầu tiên" value={label} onChange={(e) => setLabel(e.target.value)} />
-        <input style={inp} placeholder="Giá (k)" value={price} onChange={(e) => setPrice(e.target.value)} />
-        <input style={inp} placeholder="Còn lại" value={remaining} onChange={(e) => setRemaining(e.target.value)} />
+        <input style={inp} inputMode="numeric" placeholder="Giá (k)" value={price} onChange={(e) => setPrice(e.target.value)} />
+        <input style={inp} inputMode="numeric" placeholder="Còn lại" value={remaining} onChange={(e) => setRemaining(e.target.value)} />
       </div>
-      <button style={btn} onClick={handleAdd}>＋ Thêm sản phẩm</button>
+      <button style={btn} onClick={handleAdd} disabled={!name.trim() || (askCategory && !cat.trim())}>
+        <Plus size={16} /> Thêm sản phẩm
+      </button>
     </div>
   );
 }
 
 function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetVariant, saveClosetVariant, setAllClosetVariantPrices, delClosetVariant, bumpClosetVariant, discount, T }) {
   const { THEME, card, inp, btnSub, btn, iconBtn, chip } = T;
+  const perm = usePerm();
   const [pendingImg, setPendingImg] = useState(null);
   const [editVariantId, setEditVariantId] = useState(null);
   const [nf, setNf] = useState({ code: "", size: "", color: "", price: "", remaining: "" });
@@ -1156,181 +1168,231 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
     }
   }
 
+  const [copied, setCopied] = useState(false);
+  function copyQuote() {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(quote).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+  const smallIcon = { ...iconBtn, width: 30, height: 30 };
+  const sectionLabel = { fontSize: 12, fontWeight: 600, color: THEME.subtext, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 };
+
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(60,20,25,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} className="hnCard" style={{ ...card, width: "100%", maxWidth: 480, maxHeight: "88vh", overflowY: "auto", padding: 0 }}>
-        <div style={{ position: "relative", width: "100%", paddingTop: "70%", background: THEME.chipBg }}>
+    <div onClick={onClose} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        className="hnPop"
+        style={{ ...card, width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: 0, boxShadow: "0 24px 60px rgba(44,26,30,0.25)" }}
+      >
+        <div style={{ position: "relative", width: "100%", paddingTop: "66%", background: THEME.surfaceAlt, borderBottom: `1px solid ${THEME.line}` }}>
           <div style={{ position: "absolute", inset: 0 }}>
             <SmartImage
               src={pendingImg || p.image}
               lazy={false}
               style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }}
-              fallback={<div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>👜</div>}
+              fallback={<ImagePlaceholder icon={ShoppingBag} size={56} T={T} />}
             />
             {xaKho && (
               <div className="xaKhoBadge" style={xaKhoBadgeStyle("lg")}>
-                🔥 XẢ KHO
+                <Flame size={14} /> XẢ KHO
               </div>
             )}
-            <button onClick={onClose} style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.9)", fontSize: 16, cursor: "pointer" }}>
-              ✕
+            <button
+              onClick={onClose}
+              aria-label="Đóng"
+              style={{ position: "absolute", top: 10, right: 10, width: 34, height: 34, borderRadius: 10, border: "none", background: "rgba(255,255,255,0.92)", color: THEME.text, cursor: "pointer", display: "grid", placeItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+            >
+              <X size={18} />
             </button>
-            <label style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(255,255,255,0.92)", color: THEME.brand, fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: "5px 12px", cursor: "pointer" }}>
-              📷 {p.image ? "Đổi ảnh" : "Thêm ảnh"}
-              <input type="file" accept="image/*" onChange={onPickImage} style={{ display: "none" }} />
-            </label>
+            {perm.canEdit && (
+              <label
+                style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(255,255,255,0.94)", color: THEME.text, fontWeight: 600, fontSize: 13, borderRadius: 999, padding: "6px 12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+              >
+                <Camera size={15} /> {p.image ? "Đổi ảnh" : "Thêm ảnh"}
+                <input type="file" accept="image/*" onChange={onPickImage} style={{ display: "none" }} />
+              </label>
+            )}
           </div>
         </div>
-        <div style={{ padding: 16 }}>
+        <div style={{ padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-            {editName ? (
+            {editName && perm.canEdit ? (
               <input style={{ ...inp, flex: 1 }} defaultValue={p.name} onBlur={(e) => { saveClosetProduct(p.id, { name: e.target.value }); setEditName(false); }} autoFocus />
             ) : (
-              <h3 style={{ margin: 0, fontSize: 16, lineHeight: 1.35, whiteSpace: "pre-line", flex: 1, minWidth: 0, overflowWrap: "break-word" }}>{p.name}</h3>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, lineHeight: 1.35, whiteSpace: "pre-line", overflowWrap: "break-word", color: THEME.text }}>{p.name}</h3>
+                <div style={{ marginTop: 3, fontSize: 13, color: THEME.subtext }}>{p.category}</div>
+              </div>
             )}
-            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-              <button style={iconBtn} title="Sửa tên" onClick={() => setEditName(true)}>✏️</button>
-              <button style={iconBtn} title="Xoá" onClick={onDelete}>🗑️</button>
-            </div>
-          </div>
-          <div style={{ marginTop: 4, fontSize: 13, color: THEME.subtext }}>{p.category}</div>
-
-          <label style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 700, color: xaKho ? XA_KHO_COLOR : THEME.text, cursor: "pointer", userSelect: "none" }}>
-            <input
-              type="checkbox"
-              checked={!!p.xaKho}
-              onChange={(e) => saveClosetProduct(p.id, { xaKho: e.target.checked })}
-              style={{ width: 17, height: 17, accentColor: XA_KHO_COLOR, cursor: "pointer" }}
-            />
-            🏷️ Xả kho (tự tích/bỏ tích, không cần đổi tên sản phẩm)
-          </label>
-
-          <div style={{ marginTop: 10, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: 10, display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: THEME.subtext, flexShrink: 0 }}>Sửa giá chung (k):</span>
-            <input
-              style={{ ...inp, flex: 1, minWidth: 70 }}
-              placeholder="VD: 890"
-              value={commonPrice}
-              onChange={(e) => setCommonPrice(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") applyCommonPrice(); }}
-            />
-            <button style={btnSub} disabled={!commonPrice} onClick={applyCommonPrice}>
-              Áp dụng cho tất cả size
-            </button>
+            {(perm.canEdit || perm.canDelete) && (
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {perm.canEdit && (
+                  <button style={iconBtn} title="Sửa tên" aria-label="Sửa tên" onClick={() => setEditName(true)}>
+                    <Pencil size={15} />
+                  </button>
+                )}
+                {perm.canDelete && (
+                  <button style={{ ...iconBtn, color: THEME.danger }} title="Xoá sản phẩm" aria-label="Xoá sản phẩm" onClick={onDelete}>
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {quote && (
-            <div style={{ marginTop: 10, background: THEME.chipBg, border: `1px solid ${THEME.chipLine}`, borderRadius: 10, padding: "8px 10px", fontSize: 14, display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-              <span style={{ flex: 1 }}>{quote}</span>
-              <button style={{ ...iconBtn, width: 28, height: 28 }} title="Sao chép câu báo giá" onClick={() => navigator.clipboard && navigator.clipboard.writeText(quote)}>📋</button>
+            <div style={{ marginTop: 14, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 12, padding: "10px 12px", fontSize: 14, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+              <MessageSquareQuote size={17} color={THEME.brand} style={{ flexShrink: 0 }} />
+              <span style={{ flex: 1, lineHeight: 1.45 }}>{quote}</span>
+              <button style={{ ...btnSub, padding: "6px 10px", fontSize: 13, color: copied ? THEME.success : THEME.text }} title="Sao chép câu báo giá" onClick={copyQuote}>
+                {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Đã chép" : "Chép"}
+              </button>
             </div>
           )}
 
-          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
-            {sortedClosetVariants(p.variants).map((v) => {
-              const isEdit = editVariantId === v.id;
-              if (isEdit) {
-                const parts = splitLabelForEdit(v.label);
+          {perm.canEdit && (
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600, color: xaKho ? XA_KHO_COLOR : THEME.text, cursor: "pointer", userSelect: "none" }}>
+                <input
+                  type="checkbox"
+                  checked={!!p.xaKho}
+                  onChange={(e) => saveClosetProduct(p.id, { xaKho: e.target.checked })}
+                  style={{ width: 17, height: 17, accentColor: XA_KHO_COLOR, cursor: "pointer" }}
+                />
+                <Flame size={15} /> Đánh dấu xả kho
+              </label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <input
+                  style={{ ...inp, flex: 1, minWidth: 120 }}
+                  inputMode="numeric"
+                  placeholder="Giá chung cho mọi size (k)"
+                  value={commonPrice}
+                  onChange={(e) => setCommonPrice(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") applyCommonPrice(); }}
+                />
+                <button style={btnSub} disabled={!commonPrice} onClick={applyCommonPrice}>
+                  Áp dụng cho tất cả size
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: 18 }}>
+            <div style={sectionLabel}>Mã / size ({(p.variants || []).length})</div>
+            <div style={{ border: `1px solid ${THEME.line}`, borderRadius: 12, overflow: "hidden" }}>
+              {sortedClosetVariants(p.variants).map((v, idx) => {
+                const isEdit = editVariantId === v.id && perm.canEdit;
+                const rowStyle = { padding: "10px 12px", borderTop: idx === 0 ? "none" : `1px solid ${THEME.line}` };
+                if (isEdit) {
+                  const parts = splitLabelForEdit(v.label);
+                  return (
+                    <div key={v.id} style={{ ...rowStyle, display: "flex", flexDirection: "column", gap: 8, background: THEME.surfaceAlt }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <input style={{ ...inp, flex: 2, minWidth: 130 }} defaultValue={parts.code} placeholder="Mã" onBlur={(e) => saveClosetVariant(p.id, v.id, { label: composeLabel(e.target.value, parts.size) })} />
+                        <input style={{ ...inp, flex: 1, minWidth: 90 }} defaultValue={parts.size} placeholder="Size" onBlur={(e) => saveClosetVariant(p.id, v.id, { label: composeLabel(parts.code, e.target.value) })} />
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <input style={{ ...inp, flex: 1, minWidth: 90 }} defaultValue={v.color || ""} placeholder="Màu (không bắt buộc)" onBlur={(e) => saveClosetVariant(p.id, v.id, { color: e.target.value })} />
+                        <input style={{ ...inp, width: 90 }} inputMode="numeric" defaultValue={v.price} placeholder="Giá (k)" onBlur={(e) => saveClosetVariant(p.id, v.id, { price: Number(e.target.value) || 0 })} />
+                        <input style={{ ...inp, width: 90 }} inputMode="numeric" defaultValue={v.remaining} placeholder="Còn lại" onBlur={(e) => saveClosetVariant(p.id, v.id, { remaining: Number(e.target.value) || 0 })} />
+                      </div>
+                      <button style={{ ...btn, alignSelf: "flex-start", padding: "7px 16px" }} onClick={() => setEditVariantId(null)}>
+                        <Check size={15} /> Xong
+                      </button>
+                    </div>
+                  );
+                }
+                const orig = Number(v.price) || 0;
+                const disc = applyDiscount(orig, effectiveDiscount);
                 return (
-                  <div key={v.id} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 0", borderBottom: `1px dashed ${THEME.line}` }}>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      <input
-                        style={{ ...inp, flex: 2, minWidth: 130 }}
-                        defaultValue={parts.code}
-                        placeholder="Mã"
-                        onBlur={(e) => saveClosetVariant(p.id, v.id, { label: composeLabel(e.target.value, parts.size) })}
-                      />
-                      <input
-                        style={{ ...inp, flex: 1, minWidth: 90 }}
-                        defaultValue={parts.size}
-                        placeholder="Size"
-                        onBlur={(e) => saveClosetVariant(p.id, v.id, { label: composeLabel(parts.code, e.target.value) })}
-                      />
-                    </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      <input style={{ ...inp, flex: 1, minWidth: 90 }} defaultValue={v.color || ""} placeholder="Màu (không bắt buộc)" onBlur={(e) => saveClosetVariant(p.id, v.id, { color: e.target.value })} />
-                      <input style={{ ...inp, width: 80 }} defaultValue={v.price} placeholder="Giá (k)" onBlur={(e) => saveClosetVariant(p.id, v.id, { price: Number(e.target.value) || 0 })} />
-                      <input style={{ ...inp, width: 80 }} defaultValue={v.remaining} placeholder="Còn lại" onBlur={(e) => saveClosetVariant(p.id, v.id, { remaining: Number(e.target.value) || 0 })} />
-                    </div>
-                    <button style={btnSub} onClick={() => setEditVariantId(null)}>Xong</button>
-                  </div>
-                );
-              }
-              return (
-                <div key={v.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0", borderBottom: `1px dashed ${THEME.line}` }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>
-                      {v.label || "(không có mã)"}
-                      {v.color ? <span style={{ ...chip, marginLeft: 6, fontSize: 11, padding: "1px 7px" }}>{v.color}</span> : null}
-                    </div>
-                    <div style={{ fontSize: 13, color: THEME.subtext }}>
-                      {(() => {
-                        const orig = Number(v.price) || 0;
-                        const disc = applyDiscount(orig, effectiveDiscount);
-                        return disc !== orig ? (
+                  <div key={v.id} style={{ ...rowStyle, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: THEME.text, overflowWrap: "anywhere" }}>
+                        {v.label || "(không có mã)"}
+                        {v.color ? <span style={{ ...chip, marginLeft: 6, fontSize: 11, padding: "1px 7px" }}>{v.color}</span> : null}
+                      </div>
+                      <div style={{ fontSize: 13, color: THEME.subtext, marginTop: 2, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                        {disc !== orig ? (
                           <>
-                            <span style={{ textDecoration: "line-through" }}>{fmtClosetPrice(orig)}</span>{" "}
-                            <span style={{ color: "#1f7a3d", fontWeight: 700 }}>{fmtClosetPrice(disc)}</span>
+                            <span style={{ textDecoration: "line-through", color: THEME.muted }}>{fmtClosetPrice(orig)}</span>
+                            <span style={{ color: THEME.success, fontWeight: 600 }}>{fmtClosetPrice(disc)}</span>
                           </>
                         ) : (
-                          fmtClosetPrice(orig)
-                        );
-                      })()}{" "}
-                      ·{" "}
-                      <span style={{ color: v.remaining > 0 ? "#1f7a3d" : THEME.brand, fontWeight: 700 }}>
-                        {v.remaining > 0 ? `Còn ${v.remaining}` : "Hết hàng"}
-                      </span>
+                          <span style={{ color: THEME.text, fontWeight: 600 }}>{fmtClosetPrice(orig)}</span>
+                        )}
+                        <span style={{ color: THEME.line }}>•</span>
+                        <span style={{ color: v.remaining > 0 ? THEME.success : THEME.danger, fontWeight: 600 }}>{v.remaining > 0 ? `Còn ${v.remaining}` : "Hết hàng"}</span>
+                      </div>
                     </div>
+                    {perm.canEdit && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                        {/* Tách riêng nhóm +/- số lượng và nhóm sửa/xoá, cách xa nhau để tránh bấm
+                            nhầm (VD định bấm sửa mã nhưng lỡ chạm phải +1 làm sai số lượng). */}
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button style={smallIcon} title="Bán 1 (-1 còn lại)" aria-label="Giảm 1" onClick={() => bumpClosetVariant(p.id, v.id, -1)}>
+                            <Minus size={15} />
+                          </button>
+                          <button style={smallIcon} title="Nhập thêm (+1 còn lại)" aria-label="Tăng 1" onClick={() => bumpClosetVariant(p.id, v.id, 1)}>
+                            <Plus size={15} />
+                          </button>
+                        </div>
+                        <div style={{ width: 1, alignSelf: "stretch", background: THEME.line }} />
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button style={smallIcon} title="Sửa mã/size này" aria-label="Sửa mã/size" onClick={() => setEditVariantId(v.id)}>
+                            <Pencil size={14} />
+                          </button>
+                          {perm.canDelete && (
+                            <button style={{ ...smallIcon, color: THEME.danger }} title="Xoá mã/size này" aria-label="Xoá mã/size" onClick={() => delClosetVariant(p.id, v.id)}>
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                    {/* Tách riêng nhóm +/- số lượng và nhóm sửa/xoá, cách xa nhau để tránh bấm
-                        nhầm (VD định bấm sửa mã nhưng lỡ chạm phải +1 làm sai số lượng). */}
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 16 }} title="Bán 1 đôi (-1 còn lại)" onClick={() => bumpClosetVariant(p.id, v.id, -1)}>－</button>
-                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 16 }} title="Nhập thêm (+1 còn lại)" onClick={() => bumpClosetVariant(p.id, v.id, 1)}>＋</button>
-                    </div>
-                    <div style={{ width: 1, alignSelf: "stretch", background: THEME.chipLine }} />
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 12 }} title="Sửa mã/size này" onClick={() => setEditVariantId(v.id)}>✏️</button>
-                      <button style={{ ...iconBtn, width: 28, height: 28, fontSize: 12 }} title="Xoá" onClick={() => delClosetVariant(p.id, v.id)}>✕</button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {(!p.variants || p.variants.length === 0) && <div style={{ color: THEME.subtext, fontSize: 14 }}>Chưa có mã/size nào</div>}
+                );
+              })}
+              {(!p.variants || p.variants.length === 0) && <div style={{ color: THEME.subtext, fontSize: 14, padding: 12 }}>Chưa có mã/size nào</div>}
+            </div>
           </div>
 
-          <div style={{ marginTop: 12, padding: 10, border: `1px dashed ${THEME.chipLine}`, borderRadius: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: THEME.subtext, marginBottom: 6 }}>＋ Thêm mã/size mới</div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-              <input style={{ ...inp, flex: 2, minWidth: 130 }} placeholder="Mã" value={nf.code} onChange={(e) => setNf({ ...nf, code: e.target.value })} />
-              <input style={{ ...inp, flex: 1, minWidth: 90 }} placeholder="Size" value={nf.size} onChange={(e) => setNf({ ...nf, size: e.target.value })} />
+          {perm.canEdit && (
+            <div style={{ marginTop: 14, padding: 12, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 12 }}>
+              <div style={{ ...sectionLabel, marginBottom: 8 }}>Thêm mã / size mới</div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                <input style={{ ...inp, flex: 2, minWidth: 130 }} placeholder="Mã" value={nf.code} onChange={(e) => setNf({ ...nf, code: e.target.value })} />
+                <input style={{ ...inp, flex: 1, minWidth: 90 }} placeholder="Size" value={nf.size} onChange={(e) => setNf({ ...nf, size: e.target.value })} />
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                <input style={{ ...inp, flex: 1, minWidth: 90 }} placeholder="Màu (không bắt buộc)" value={nf.color} onChange={(e) => setNf({ ...nf, color: e.target.value })} />
+                <input style={{ ...inp, width: 90 }} inputMode="numeric" placeholder="Giá (k)" value={nf.price} onChange={(e) => setNf({ ...nf, price: e.target.value })} />
+                <input style={{ ...inp, width: 90 }} inputMode="numeric" placeholder="Còn" value={nf.remaining} onChange={(e) => setNf({ ...nf, remaining: e.target.value })} />
+              </div>
+              <button
+                style={{ ...btn, width: "100%" }}
+                disabled={!composeLabel(nf.code, nf.size).trim()}
+                onClick={() => {
+                  const label = composeLabel(nf.code, nf.size);
+                  if (!label.trim()) return;
+                  addClosetVariant(p.id, {
+                    label: label.trim(),
+                    color: nf.color.trim(),
+                    price: Number(nf.price) || 0,
+                    qty: Number(nf.remaining) || 0,
+                    sold: 0,
+                    remaining: Number(nf.remaining) || 0,
+                  });
+                  setNf({ code: "", size: "", color: "", price: "", remaining: "" });
+                }}
+              >
+                <Plus size={16} /> Thêm mã/size
+              </button>
             </div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-              <input style={{ ...inp, flex: 1, minWidth: 90 }} placeholder="Màu (không bắt buộc)" value={nf.color} onChange={(e) => setNf({ ...nf, color: e.target.value })} />
-              <input style={{ ...inp, width: 80 }} placeholder="Giá (k)" value={nf.price} onChange={(e) => setNf({ ...nf, price: e.target.value })} />
-              <input style={{ ...inp, width: 80 }} placeholder="Còn" value={nf.remaining} onChange={(e) => setNf({ ...nf, remaining: e.target.value })} />
-            </div>
-            <button
-              style={{ ...btnSub, width: "100%" }}
-              onClick={() => {
-                const label = composeLabel(nf.code, nf.size);
-                if (!label.trim()) return;
-                addClosetVariant(p.id, {
-                  label: label.trim(),
-                  color: nf.color.trim(),
-                  price: Number(nf.price) || 0,
-                  qty: Number(nf.remaining) || 0,
-                  sold: 0,
-                  remaining: Number(nf.remaining) || 0,
-                });
-                setNf({ code: "", size: "", color: "", price: "", remaining: "" });
-              }}
-            >
-              ＋ Thêm mã/size
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </div>
