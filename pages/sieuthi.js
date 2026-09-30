@@ -313,8 +313,8 @@ export default function SieuThiPage() {
       <style jsx global>{`
         .stRow {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 118px 112px;
-          column-gap: 16px;
+          grid-template-columns: minmax(0, 1fr) 84px 84px;
+          column-gap: 12px;
           align-items: center;
         }
         .stName { grid-column: 1; }
@@ -357,38 +357,26 @@ function ProductRow({ p, first, sale, saleActive, tokens, T }) {
   const hasLinks = p.linkWeb || p.linkShopee || p.linkLazada;
 
   return (
-    <div className="hnRowItem" style={{ borderTop: border, padding: "13px 16px", background: p.oos ? THEME.surfaceAlt : "transparent" }}>
+    <div className="hnRowItem" style={{ borderTop: border, padding: "10px 14px", background: p.oos ? THEME.surfaceAlt : "transparent" }}>
       <div className="stRow">
         <div className="stName" style={{ minWidth: 0, opacity: p.oos ? 0.7 : 1 }}>
-          <div style={{ fontWeight: 600, fontSize: 14.5, lineHeight: 1.42, color: THEME.text, overflowWrap: "anywhere" }}>
+          <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.38, color: THEME.text, overflowWrap: "anywhere" }}>
             <Highlight text={p.name} tokens={tokens} color="#fbe3a6" />
           </div>
-          {(hasSale && sale) || hasLinks ? (
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 6 }}>
-              {hasSale && sale && (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    borderRadius: 999,
-                    padding: "2px 9px",
-                    color: onSale ? THEME.danger : THEME.subtext,
-                    background: onSale ? THEME.dangerBg : THEME.surface,
-                    border: `1px solid ${onSale ? "#f3c9cb" : THEME.line}`,
-                  }}
-                >
-                  <Flame size={12} /> Sale {saleShort(sale.label)}
-                  {!saleActive && " (đã kết thúc)"}
-                  {p.sale ? <> · <b>{fmtK(p.sale)}</b></> : null}
-                  {p.saleText ? <> · {p.saleText}</> : null}
+          {onSale || hasLinks ? (
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2px 10px", marginTop: 3, fontSize: 12.5, color: THEME.muted }}>
+              {onSale && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700, color: THEME.danger }}>
+                  <Flame size={12} /> {p.sale ? "Sale" : `Sale: ${p.saleText}`}
                 </span>
               )}
-              <LinkIcon href={p.linkWeb} title="Mở trang web Hanaichi" THEME={THEME}><Globe size={12} /> Web</LinkIcon>
-              <LinkIcon href={p.linkShopee} title="Mở Shopee" THEME={THEME}>Shopee</LinkIcon>
-              <LinkIcon href={p.linkLazada} title="Mở Lazada" THEME={THEME}>Lazada</LinkIcon>
+              {[["Web", p.linkWeb], ["Shopee", p.linkShopee], ["Lazada", p.linkLazada]]
+                .filter(([, h]) => h)
+                .map(([label, h]) => (
+                  <a key={label} href={h} target="_blank" rel="noreferrer" style={{ color: THEME.muted, textDecoration: "none", fontWeight: 600 }}>
+                    {label} ↗
+                  </a>
+                ))}
             </div>
           ) : null}
         </div>
@@ -396,7 +384,7 @@ function ProductRow({ p, first, sale, saleActive, tokens, T }) {
         <div className="stPrice" style={{ opacity: p.oos ? 0.7 : 1 }}>
           {shownPrice ? (
             <>
-              <div style={{ fontWeight: 700, fontSize: 19, lineHeight: 1.15, color: p.oos ? THEME.subtext : saleNow ? THEME.danger : THEME.brand }}>{fmtK(shownPrice)}</div>
+              <div style={{ fontWeight: 700, fontSize: 17, lineHeight: 1.15, color: p.oos ? THEME.subtext : saleNow ? THEME.danger : THEME.brand }}>{fmtK(shownPrice)}</div>
               {saleNow && p.price ? <div style={{ fontSize: 12.5, color: THEME.muted }}><s>{fmtK(p.price)}</s></div> : null}
             </>
           ) : (
@@ -406,20 +394,18 @@ function ProductRow({ p, first, sale, saleActive, tokens, T }) {
 
         <div className="stAct">
           {p.oos ? (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, color: THEME.danger, background: THEME.dangerBg, border: "1px solid #f3c9cb", borderRadius: 999, padding: "4px 11px", whiteSpace: "nowrap" }}>
-              <PackageX size={13} /> Hết hàng
-            </span>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: THEME.danger, whiteSpace: "nowrap" }}>Hết hàng</span>
           ) : quote ? (
             <button
               title="Chép câu báo giá"
-              style={{ ...btnSub, padding: "7px 12px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: copied ? THEME.success : THEME.text, borderColor: copied ? THEME.successLine : THEME.line, background: copied ? THEME.successBg : THEME.surface }}
+              style={{ ...btnSub, padding: "6px 10px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: copied ? THEME.success : THEME.text, borderColor: copied ? THEME.successLine : THEME.line, background: copied ? THEME.successBg : THEME.surface }}
               onClick={() => {
                 copyText(quote);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}
             >
-              {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Đã chép" : "Chép giá"}
+              {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Đã chép" : "Chép"}
             </button>
           ) : null}
         </div>
