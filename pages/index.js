@@ -209,9 +209,8 @@ function SakuraFall({ theme: THEME }) {
 
 export default function Home() {
   const { theme: THEME } = useTheme();
-  const { btnSub } = makeStyles(THEME);
+  const { card, btnSub } = makeStyles(THEME);
   const [quote, setQuote] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   // Chọn quote ngẫu nhiên sau khi mount ở client — tránh lệch giữa server/client (hydration).
   useEffect(() => {
@@ -255,52 +254,44 @@ export default function Home() {
       </p>
       <div style={{ marginTop: 22, fontSize: 14, color: THEME.subtext, letterSpacing: 1, position: "relative", zIndex: 2 }}>HANAICHI</div>
 
-      <div style={{ position: "fixed", left: 18, bottom: 18, zIndex: 50 }}>
-        {menuOpen && (
-          <div
-            className="hnCard"
-            style={{
-              marginBottom: 10,
-              background: THEME.surface,
-              border: `1px solid ${THEME.line}`,
-              borderRadius: 16,
-              boxShadow: THEME.glow,
-              padding: 12,
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              width: 210,
-            }}
+      {/* Lối vào nhanh các tính năng — hiện thẳng ra ngay trên trang chủ thay vì
+          giấu sau 1 nút tròn nhỏ, để người mới dùng web cũng biết ngay chỗ bấm. */}
+      <div
+        style={{
+          marginTop: 32,
+          width: "100%",
+          maxWidth: 640,
+          position: "relative",
+          zIndex: 2,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: 10,
+        }}
+      >
+        {NAV_ITEMS.filter((n) => n.href !== "/").map((n) => (
+          <Link
+            key={n.href}
+            href={n.href}
+            className="menuCard hnCard"
+            style={{ ...card, textDecoration: "none", color: THEME.text, padding: "16px 12px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
           >
-            {NAV_ITEMS.filter((n) => n.href !== "/").map((n) => (
-              <Link key={n.href} href={n.href} style={{ ...btnSub, textDecoration: "none", textAlign: "left" }}>
-                {n.icon} {n.label}
-              </Link>
-            ))}
-          </div>
-        )}
-        <button
-          onClick={() => {
-            setMenuOpen((v) => !v);
-          }}
-          title="Chức năng"
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: "50%",
-            background: THEME.brand,
-            color: "#fff",
-            border: "none",
-            fontSize: 20,
-            cursor: "pointer",
-            boxShadow: THEME.glow,
-            display: "grid",
-            placeItems: "center",
-          }}
-        >
-          ☰
-        </button>
+            <span style={{ fontSize: 26 }}>{n.icon}</span>
+            <span style={{ fontSize: 13.5, fontWeight: 700 }}>{n.label}</span>
+          </Link>
+        ))}
       </div>
+
+      <button
+        onClick={() => {
+          fetch("/api/logout", { method: "POST" }).finally(() => {
+            window.location.href = "/login";
+          });
+        }}
+        title="Đăng xuất"
+        style={{ ...btnSub, background: "transparent", border: "none", color: THEME.subtext, position: "fixed", top: 14, right: 14, zIndex: 50 }}
+      >
+        🚪 Đăng xuất
+      </button>
     </main>
   );
 }
