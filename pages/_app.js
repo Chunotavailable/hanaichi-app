@@ -143,6 +143,24 @@ export default function App({ Component, pageProps }) {
         .hnDone {
           transition: opacity 0.25s ease, transform 0.25s ease;
         }
+        /* Thẻ sản phẩm trong danh sách dài (Closet 200+ mã): trình duyệt bỏ qua
+           việc vẽ những thẻ đang nằm ngoài màn hình, chỉ vẽ khi sắp cuộn tới —
+           cuộn mượt hơn hẳn trên điện thoại yếu. */
+        .hnListItem {
+          content-visibility: auto;
+          contain-intrinsic-size: auto 300px;
+        }
+        .hnRowItem {
+          content-visibility: auto;
+          contain-intrinsic-size: auto 78px;
+        }
+        .hnNavScroll {
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+        }
+        .hnNavScroll::-webkit-scrollbar {
+          display: none;
+        }
       `}</style>
       <Component {...pageProps} />
     </ThemeProvider>

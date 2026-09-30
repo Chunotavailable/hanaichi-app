@@ -4,9 +4,9 @@
 // cho câu hỏi khách hay hỏi (lắp đặt, bảo hành...). Cùng cơ chế lưu trữ và
 // hoàn tác xoá 10s như trang "Hàng Closet sẵn" (pages/closet.js).
 import { useEffect, useRef, useState } from "react";
-import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
+import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { uid, norm } from "../lib/gomcanHelpers";
+import { uid, norm, loadJson, saveJson } from "../lib/gomcanHelpers";
 
 function copyText(text) {
   if (navigator.clipboard) navigator.clipboard.writeText(text || "").catch(() => {});
@@ -72,17 +72,18 @@ export default function ThietBiPage() {
   const saveTimer = useRef(null);
   const undoRef = useRef(null);
   const [undoInfo, setUndoInfo] = useState(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
+  function loadData() {
+    setLoading(true);
+    setLoadFailed(false);
+    loadJson("/api/thietbi")
+      .then((d) => setData(d))
+      .catch(() => setLoadFailed(true))
+      .finally(() => setLoading(false));
+  }
   useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch("/api/thietbi");
-        const d = await r.json();
-        setData(d);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -96,11 +97,7 @@ export default function ThietBiPage() {
   }, []);
 
   function saveToServer(next) {
-    fetch("/api/thietbi", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next),
-    }).catch(() => {});
+    saveJson("/api/thietbi", next);
   }
   function persist(next) {
     setData(next);
@@ -133,6 +130,7 @@ export default function ThietBiPage() {
     persist(prevData);
   }
 
+  if (loadFailed && !loading) return <LoadError onRetry={loadData} />;
   if (loading || !data) return <Loading />;
 
   function addProduct(product) {

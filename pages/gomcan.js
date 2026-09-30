@@ -1,6 +1,6 @@
 // pages/gomcan.js
 import { useEffect, useRef, useState } from "react";
-import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
+import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import {
   uid,
@@ -11,6 +11,9 @@ import {
   deleteGomcanImage,
   ViewModeToggle,
   gridColumnsFor,
+  SmartImage,
+  loadJson,
+  saveJson,
 } from "../lib/gomcanHelpers";
 
 /* ================== Helpers ================== */
@@ -45,29 +48,24 @@ export default function GomCan() {
   const [editKey, setEditKey] = useState(null); // { area, id } đang sửa
   const [viewGiadungId, setViewGiadungId] = useState(null); // id sản phẩm đang xem chi tiết
   const saveTimer = useRef(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
+  function loadData() {
+    setLoading(true);
+    setLoadFailed(false);
+    loadJson("/api/gomcan")
+      .then((d) => setData(d))
+      .catch(() => setLoadFailed(true))
+      .finally(() => setLoading(false));
+  }
   useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch("/api/gomcan");
-        const d = await r.json();
-        setData(d);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadData();
   }, []);
 
   function persist(next) {
     setData(next);
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      fetch("/api/gomcan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      }).catch(() => {});
-    }, 250);
+    saveTimer.current = setTimeout(() => saveJson("/api/gomcan", next), 250);
   }
 
   function scrollToTop() {
@@ -84,6 +82,9 @@ export default function GomCan() {
     }, 60);
   }
 
+  if (loadFailed && !loading) {
+    return <LoadError onRetry={loadData} />;
+  }
   if (loading || !data) {
     return <Loading />;
   }
@@ -199,7 +200,9 @@ export default function GomCan() {
                     onClick={() => openSearchResult(p)}
                     style={{ ...card, padding: 12, marginBottom: 8, display: "flex", gap: 12, cursor: "pointer" }}
                   >
-                    <div style={thumb}>{p.image ? <img src={p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} /> : "📦"}</div>
+                    <div style={thumb}>
+                      <SmartImage src={p.image} style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} fallback="📦" />
+                    </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700 }}>{p.name} <span style={chip}>{p.sourceLabel}</span>{p.code ? <span style={{ ...chip, marginLeft: 4 }}>Mã: {p.code}</span> : null}</div>
                       <div style={{ marginTop: 4, fontSize: 16 }}>{priceLine}</div>
@@ -539,13 +542,13 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
 
   if (listMode) {
     return (
-      <div className="hnCard" onClick={onOpen} style={{ ...card, minWidth: 0, maxWidth: "100%", cursor: "pointer", display: "flex", gap: 10, padding: 10, alignItems: "center" }}>
+      <div className="hnCard hnRowItem" onClick={onOpen} style={{ ...card, minWidth: 0, maxWidth: "100%", cursor: "pointer", display: "flex", gap: 10, padding: 10, alignItems: "center" }}>
         <div style={{ position: "relative", width: 56, height: 56, minWidth: 56, borderRadius: 10, overflow: "hidden", background: THEME.chipBg }}>
-          {it.image ? (
-            <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
-          ) : (
-            <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 22 }}>🛍️</div>
-          )}
+          <SmartImage
+            src={it.image}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }}
+            fallback={<div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 22 }}>🛍️</div>}
+          />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
@@ -567,17 +570,17 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
 
   return (
     <div
-      className="hnCard"
+      className="hnCard hnListItem"
       onClick={onOpen}
       style={{ ...card, minWidth: 0, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}
     >
       <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: THEME.chipBg }}>
         <div style={{ position: "absolute", inset: 0 }}>
-          {it.image ? (
-            <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
-          ) : (
-            <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>🛍️</div>
-          )}
+          <SmartImage
+            src={it.image}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }}
+            fallback={<div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>🛍️</div>}
+          />
           <button
             onClick={(e) => { e.stopPropagation(); onFavorite(); }}
             title="Yêu thích"
@@ -620,11 +623,12 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
       <div onClick={(e) => e.stopPropagation()} className="hnCard" style={{ ...card, width: "100%", maxWidth: 420, maxHeight: "88vh", overflowY: "auto", padding: 0 }}>
         <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: THEME.chipBg }}>
           <div style={{ position: "absolute", inset: 0 }}>
-            {it.image ? (
-              <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
-            ) : (
-              <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>🛍️</div>
-            )}
+            <SmartImage
+              src={it.image}
+              lazy={false}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }}
+              fallback={<div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>🛍️</div>}
+            />
             <button
               onClick={onClose}
               style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.9)", fontSize: 16, cursor: "pointer" }}

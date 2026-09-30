@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
+import { loadJson, saveJson } from "../lib/gomcanHelpers";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -71,17 +72,29 @@ export default function PricingPage() {
   const saveTimer = useRef(null);
   const orderHistTimer = useRef(null);
   const readyHistTimer = useRef(null);
+  // Không tải được lịch sử thì KHÔNG được lưu gì lên server — nếu không, lần
+  // lưu tự động kế tiếp sẽ ghi đè lịch sử thật trên server bằng danh sách
+  // rỗng đang có trên máy. Máy tính giá thì vẫn dùng bình thường.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadFailedRef = useRef(false);
 
-  useEffect(() => {
-    fetch("/api/pricing")
-      .then((r) => r.json())
+  function loadData() {
+    loadJson("/api/pricing")
       .then((d) => {
         const next = { ...DEFAULT_DATA, ...d };
         setData(next);
         if (next.lastRate) setRate(String(next.lastRate));
-        setLoaded(true);
+        loadFailedRef.current = false;
+        setLoadFailed(false);
       })
-      .catch(() => setLoaded(true));
+      .catch(() => {
+        loadFailedRef.current = true;
+        setLoadFailed(true);
+      })
+      .finally(() => setLoaded(true));
+  }
+  useEffect(() => {
+    loadData();
   }, []);
 
   // Nhận cả giá trị thường lẫn hàm cập nhật kiểu setState(prev => ...) — dùng
@@ -93,19 +106,9 @@ export default function PricingPage() {
     setData((prev) => {
       const next = typeof nextOrFn === "function" ? nextOrFn(prev) : nextOrFn;
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        fetch("/api/pricing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(next),
-        })
-          .then((r) => {
-            if (!r.ok) throw new Error("save failed");
-          })
-          .catch(() => {
-            alert("⚠️ KHÔNG lưu được thay đổi vừa rồi! Kiểm tra lại kết nối mạng hoặc dung lượng Blob Storage trên Vercel, rồi thử lại giúp em ạ.");
-          });
-      }, 250);
+      if (!loadFailedRef.current) {
+        saveTimer.current = setTimeout(() => saveJson("/api/pricing", next), 250);
+      }
       return next;
     });
   }
@@ -197,6 +200,29 @@ export default function PricingPage() {
       <PageHeader icon="💰" title="Tính giá" current="/pricing" maxWidth={700} />
 
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px" }}>
+        {loadFailed && (
+          <div
+            style={{
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
+              color: "#b91c1c",
+              borderRadius: 12,
+              padding: "10px 12px",
+              marginBottom: 14,
+              fontSize: 14,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+            }}
+          >
+            <span>📡 Không tải được lịch sử báo giá — vẫn tính giá bình thường, nhưng tạm chưa lưu lịch sử.</span>
+            <button style={{ ...btnSub, flexShrink: 0 }} onClick={loadData}>
+              🔄 Thử lại
+            </button>
+          </div>
+        )}
         <div style={{ ...card, padding: 14, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Phần 1: Báo giá Order</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

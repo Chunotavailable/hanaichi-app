@@ -3,9 +3,9 @@
 // Onitsuka/Nike/Asics, quần áo, túi/balo/phụ kiện...) theo mã, size, tên...
 // Dùng chung nguồn dữ liệu với "Giá gồm cân" (api/gomcan, field "closet").
 import { useEffect, useRef, useState } from "react";
-import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
+import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
-import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, ViewModeToggle, gridColumnsFor } from "../lib/gomcanHelpers";
+import { uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, ViewModeToggle, gridColumnsFor, SmartImage, loadJson, saveJson } from "../lib/gomcanHelpers";
 
 // Lấy phần trong ngoặc của mã biến thể để hiện gọn khi cần (VD "WRS...-235
 // (EU 38)" -> "EU 38").
@@ -289,17 +289,18 @@ export default function ClosetPage() {
   // phục lại đúng dữ liệu trước khi xoá.
   const undoRef = useRef(null); // { prevData, timer, onCommit }
   const [undoInfo, setUndoInfo] = useState(null); // { message } — chỉ để hiện thanh thông báo
+  const [loadFailed, setLoadFailed] = useState(false);
 
+  function loadData() {
+    setLoading(true);
+    setLoadFailed(false);
+    loadJson("/api/gomcan")
+      .then((d) => setData(d))
+      .catch(() => setLoadFailed(true))
+      .finally(() => setLoading(false));
+  }
   useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch("/api/gomcan");
-        const d = await r.json();
-        setData(d);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadData();
   }, []);
 
   // Nếu rời trang khi vẫn còn 1 lượt xoá đang chờ hoàn tác, phải lưu ngay lập
@@ -316,11 +317,7 @@ export default function ClosetPage() {
   }, []);
 
   function saveToServer(next) {
-    fetch("/api/gomcan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next),
-    }).catch(() => {});
+    saveJson("/api/gomcan", next);
   }
 
   function persist(next) {
@@ -359,6 +356,9 @@ export default function ClosetPage() {
     persist(prevData);
   }
 
+  if (loadFailed && !loading) {
+    return <LoadError onRetry={loadData} />;
+  }
   if (loading || !data) {
     return <Loading />;
   }
@@ -1000,13 +1000,13 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
 
   if (listMode) {
     return (
-      <div className="hnCard" onClick={onOpen} style={{ ...card, minWidth: 0, maxWidth: "100%", cursor: "pointer", display: "flex", gap: 10, padding: 10, alignItems: "center" }}>
+      <div className="hnCard hnRowItem" onClick={onOpen} style={{ ...card, minWidth: 0, maxWidth: "100%", cursor: "pointer", display: "flex", gap: 10, padding: 10, alignItems: "center" }}>
         <div style={{ position: "relative", width: 56, height: 56, minWidth: 56, borderRadius: 10, overflow: "hidden", background: THEME.chipBg }}>
-          {p.image ? (
-            <img src={p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
-          ) : (
-            <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 22 }}>👜</div>
-          )}
+          <SmartImage
+            src={p.image}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }}
+            fallback={<div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 22 }}>👜</div>}
+          />
           {xaKho && (
             <div className="xaKhoBadge" style={xaKhoBadgeStyle("sm")}>
               🔥 XẢ KHO
@@ -1035,14 +1035,14 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
   }
 
   return (
-    <div className="hnCard" onClick={onOpen} style={{ ...card, minWidth: 0, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}>
+    <div className="hnCard hnListItem" onClick={onOpen} style={{ ...card, minWidth: 0, overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}>
       <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: THEME.chipBg }}>
         <div style={{ position: "absolute", inset: 0 }}>
-          {p.image ? (
-            <img src={p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
-          ) : (
-            <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>👜</div>
-          )}
+          <SmartImage
+            src={p.image}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }}
+            fallback={<div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 38 }}>👜</div>}
+          />
           {xaKho && (
             <div className="xaKhoBadge" style={xaKhoBadgeStyle("md")}>
               🔥 XẢ KHO
@@ -1150,11 +1150,12 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
       <div onClick={(e) => e.stopPropagation()} className="hnCard" style={{ ...card, width: "100%", maxWidth: 480, maxHeight: "88vh", overflowY: "auto", padding: 0 }}>
         <div style={{ position: "relative", width: "100%", paddingTop: "70%", background: THEME.chipBg }}>
           <div style={{ position: "absolute", inset: 0 }}>
-            {pendingImg || p.image ? (
-              <img src={pendingImg || p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }} />
-            ) : (
-              <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>👜</div>
-            )}
+            <SmartImage
+              src={pendingImg || p.image}
+              lazy={false}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }}
+              fallback={<div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 64 }}>👜</div>}
+            />
             {xaKho && (
               <div className="xaKhoBadge" style={xaKhoBadgeStyle("lg")}>
                 🔥 XẢ KHO
