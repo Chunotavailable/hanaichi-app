@@ -355,8 +355,8 @@ export default function ClosetPage() {
         }
       }
       setSheetSync((s) => ({ busy: false, at: j.at || new Date().toISOString(), error: "", summary: j.changed ? j.summary : s.summary, pending: j.pending || [] }));
-      // Bấm "Cập nhật ngay" hoặc duyệt xong thì tải lại trang cho sạch số liệu mới.
-      if (force) {
+      // Bấm "Cập nhật ngay" thì tải lại trang; duyệt/bỏ qua thì giữ nguyên trang.
+      if (force && !action) {
         try { syncerRef.current.flushNow(); } catch {}
         setTimeout(() => window.location.reload(), 500);
       }
