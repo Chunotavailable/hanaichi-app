@@ -313,7 +313,7 @@ export default function SieuThiPage() {
       <style jsx global>{`
         .stRow {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 128px 84px;
+          grid-template-columns: minmax(0, 1fr) 132px 84px;
           column-gap: 12px;
           align-items: center;
         }
@@ -383,9 +383,9 @@ function ProductRow({ p, first, sale, saleActive, tokens, T }) {
             <div style={{ fontSize: 13, color: THEME.muted }}>Chưa có giá</div>
           ) : null}
           {hasSale && !p.oos && (
-            <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.3, marginTop: 2, color: saleActive ? THEME.danger : THEME.subtext }}>
+            <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.3, marginTop: 2, whiteSpace: "nowrap", color: saleActive ? THEME.danger : THEME.subtext }}>
               <Flame size={11} style={{ verticalAlign: -1 }} /> {p.sale ? fmtK(p.sale) : p.saleText}
-              {sale ? <span style={{ fontWeight: 600, color: THEME.muted }}> · {saleShort(sale.label)}</span> : null}
+              {sale ? <span style={{ fontWeight: 600, color: THEME.muted }}> · {saleShort(sale.label).replace(/\/\d{4}$/, "")}</span> : null}
             </div>
           )}
         </div>
