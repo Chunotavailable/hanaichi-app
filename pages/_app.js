@@ -228,15 +228,15 @@ export default function App({ Component, pageProps }) {
           /* "backwards" chứ KHÔNG "both": giữ transform sau khi chạy xong sẽ biến
              khối này thành gốc toạ độ cho mọi thứ position:fixed bên trong
              (hộp chi tiết sản phẩm bị văng xuống cuối trang). */
-          animation: hnPageIn 0.38s cubic-bezier(0.2, 0.8, 0.25, 1) backwards;
+          animation: hnPageIn 0.22s cubic-bezier(0.2, 0.8, 0.25, 1) backwards;
         }
         main > *:not(header):not([style*="fixed"]) ~ *:not([style*="fixed"]) {
-          animation-delay: 0.06s;
+          animation-delay: 0.03s;
         }
         @keyframes hnPageIn {
           from {
             opacity: 0;
-            transform: translateY(14px);
+            transform: translateY(8px);
           }
           to {
             opacity: 1;

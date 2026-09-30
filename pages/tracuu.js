@@ -143,12 +143,17 @@ export default function TraCuuPage() {
   const present = Array.from(new Set(list.map((r) => r.group || "Khác")));
   const groups = [...REPLY_GROUPS.filter((g) => present.includes(g)), ...present.filter((g) => !REPLY_GROUPS.includes(g))];
   const nq = norm(q);
-  const filtered = list.filter((r) => {
+  let filtered = list.filter((r) => {
     // Đang gõ tìm kiếm thì tìm trong TẤT CẢ các nhóm, không bị giới hạn ở nhóm đang chọn.
     if (!nq && group !== "Tất cả" && (r.group || "Khác") !== group) return false;
     if (!nq) return true;
     return norm(`${r.title} ${r.content} ${r.group}`).includes(nq);
   });
+  if (nq) {
+    // Khớp ở tiêu đề xếp trước, chỉ khớp ở nội dung xếp sau (giữ nguyên thứ tự gốc trong mỗi nhóm).
+    const inTitle = (r) => norm(r.title).includes(nq);
+    filtered = [...filtered.filter(inTitle), ...filtered.filter((r) => !inTitle(r))];
+  }
   const confirmDel = confirmDelId ? list.find((r) => r.id === confirmDelId) : null;
 
   return (

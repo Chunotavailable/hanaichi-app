@@ -5,6 +5,7 @@
 //   - dòng bôi đỏ = hết hàng
 //   - cột D "Giá bán Social" = giá chính
 //   - cột H (tiêu đề "SALE 26-30/9/2026") = giá sale trong thời gian đó
+import { fetchRaw, takePrefetched } from "../lib/prefetch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, LoadError } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
@@ -118,11 +119,12 @@ export default function SieuThiPage() {
   function loadData() {
     setLoading(true);
     setLoadFailed(false);
-    fetch("/api/sieuthi", { cache: "no-store" })
+    (takePrefetched("/api/sieuthi") || Promise.resolve(null))
+      .then((pre) => (pre && pre.ok ? pre : fetchRaw("/api/sieuthi")))
       .then((r) => {
         if (r.status === 401) return goLogin();
         if (!r.ok) throw new Error("load failed");
-        return r.json();
+        return r.data;
       })
       .then((d) => {
         if (!d) return;
