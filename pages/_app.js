@@ -40,11 +40,15 @@ function GlobalClickPop() {
   return null;
 }
 
+// Web do Hạnh thiết kế & xây dựng cho Hanaichi.
+const CREDIT = "Hạnh";
+
 export default function App({ Component, pageProps }) {
   return (
     <ThemeProvider>
       <GlobalClickPop />
       <Head>
+        <meta name="author" content={CREDIT} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&family=Fredoka:wght@600;700&display=swap" rel="stylesheet" />
@@ -379,6 +383,9 @@ export default function App({ Component, pageProps }) {
       `}</style>
       <PermProvider>
         <Component {...pageProps} />
+      <div style={{ textAlign: "center", fontSize: 12, color: "#a08a8a", padding: "0 16px 18px", marginTop: -40, position: "relative" }}>
+        Thiết kế & xây dựng bởi {CREDIT}
+      </div>
       </PermProvider>
     </ThemeProvider>
   );

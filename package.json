@@ -21,6 +21,6 @@
   "description": "Web tối giản đọc dữ liệu từ **Google Sheets riêng tư** (không public) qua API proxy (read-only).",
   "main": "next.config.js",
   "keywords": [],
-  "author": "",
+  "author": "Hạnh",
   "license": "ISC"
 }
