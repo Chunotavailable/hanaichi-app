@@ -69,6 +69,8 @@ export default function PricingPage() {
   const [ehNote, setEhNote] = useState("");
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const saveTimer = useRef(null);
+  const orderHistTimer = useRef(null);
+  const readyHistTimer = useRef(null);
 
   useEffect(() => {
     fetch("/api/pricing")
@@ -82,52 +84,72 @@ export default function PricingPage() {
       .catch(() => setLoaded(true));
   }, []);
 
-  function persist(next) {
-    setData(next);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      fetch("/api/pricing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      })
-        .then((r) => {
-          if (!r.ok) throw new Error("save failed");
+  // Nhận cả giá trị thường lẫn hàm cập nhật kiểu setState(prev => ...) — dùng
+  // hàm cập nhật ở những chỗ lưu có độ trễ (debounce tính giá tự động bên
+  // dưới) để luôn tính từ state MỚI NHẤT, tránh lỗi ghi đè mất dữ liệu do
+  // dùng nhầm "data" cũ chụp lại từ lúc bắt đầu chờ (đã từng gặp lỗi này ở
+  // hàng Closet sẵn).
+  function persist(nextOrFn) {
+    setData((prev) => {
+      const next = typeof nextOrFn === "function" ? nextOrFn(prev) : nextOrFn;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        fetch("/api/pricing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next),
         })
-        .catch(() => {
-          alert("⚠️ KHÔNG lưu được thay đổi vừa rồi! Kiểm tra lại kết nối mạng hoặc dung lượng Blob Storage trên Vercel, rồi thử lại giúp em ạ.");
-        });
-    }, 250);
+          .then((r) => {
+            if (!r.ok) throw new Error("save failed");
+          })
+          .catch(() => {
+            alert("⚠️ KHÔNG lưu được thay đổi vừa rồi! Kiểm tra lại kết nối mạng hoặc dung lượng Blob Storage trên Vercel, rồi thử lại giúp em ạ.");
+          });
+      }, 250);
+      return next;
+    });
   }
 
-  function calcOrder() {
+  // Tự động tính giá ngay khi gõ (không cần bấm nút): hiện giá luôn cho mượt,
+  // nhưng chỉ THẬT SỰ lưu vào lịch sử sau khi ngừng gõ ~900ms — nếu lưu ngay
+  // từng phím gõ thì lịch sử sẽ bị spam đầy các giá trị gõ dở (VD gõ "1500"
+  // sẽ tạo ra cả "1k, 15k, 150k, 1500k").
+  useEffect(() => {
     const jpyN = numOnly(jpy) || 0;
-    const rateN = numOnly(rate) || 202;
-    const discN = numOnly(disc) || 0;
+    if (orderHistTimer.current) clearTimeout(orderHistTimer.current);
     if (jpyN <= 0) {
-      alert("Bác nhập giá Yên giúp em ạ");
+      setOrderResult(null);
       return;
     }
+    const rateN = numOnly(rate) || 202;
+    const discN = numOnly(disc) || 0;
     const total = roundUp5k(jpyN * rateN * (1 - discN / 100));
     const msg = `Dạ mã này đang sale còn ${fmtK(total)} + KG ạ`;
     const altMsg = `Dạ mã này giá ${fmtK(total)} + KG ạ`;
     setOrderResult({ total, msg, altMsg });
-    const h = { id: uid(), type: "Order", output: total, note: "", date: Date.now(), jpy: jpyN, rate: rateN, disc: discN, msg, altMsg };
-    persist({ ...data, priceHist: [h, ...data.priceHist], lastRate: rateN });
-  }
+    orderHistTimer.current = setTimeout(() => {
+      const h = { id: uid(), type: "Order", output: total, note: "", date: Date.now(), jpy: jpyN, rate: rateN, disc: discN, msg, altMsg };
+      persist((prev) => ({ ...prev, priceHist: [h, ...prev.priceHist], lastRate: rateN }));
+    }, 900);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jpy, rate, disc]);
 
-  function calcReady() {
+  useEffect(() => {
     const base = (numOnly(ready) || 0) * 1000;
+    if (readyHistTimer.current) clearTimeout(readyHistTimer.current);
     if (base <= 0) {
-      alert("Bác nhập giá gốc giúp em ạ");
+      setReadyResult(null);
       return;
     }
     const total = roundUp5k(base * 0.95);
     const msg = `Dạ bên em sẵn đang giảm còn ${fmtK(total)} ạ`;
     setReadyResult({ total, msg });
-    const h = { id: uid(), type: "Hàng sẵn", output: total, note: "", date: Date.now(), base, msg };
-    persist({ ...data, priceHist: [h, ...data.priceHist] });
-  }
+    readyHistTimer.current = setTimeout(() => {
+      const h = { id: uid(), type: "Hàng sẵn", output: total, note: "", date: Date.now(), base, msg };
+      persist((prev) => ({ ...prev, priceHist: [h, ...prev.priceHist] }));
+    }, 900);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   function copyMsg(msg) {
     if (!msg) return;
@@ -178,13 +200,10 @@ export default function PricingPage() {
         <div style={{ ...card, padding: 14, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Phần 1: Báo giá Order</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <input style={inp} inputMode="decimal" placeholder="Giá Yên (JPY)" value={jpy} onChange={(e) => setJpy(e.target.value)} onKeyDown={(e) => e.key === "Enter" && calcOrder()} />
-            <input style={inp} inputMode="decimal" placeholder="Tỷ giá" value={rate} onChange={(e) => setRate(e.target.value)} onKeyDown={(e) => e.key === "Enter" && calcOrder()} />
-            <input style={inp} inputMode="decimal" placeholder="% Giảm giá (nếu có)" value={disc} onChange={(e) => setDisc(e.target.value)} onKeyDown={(e) => e.key === "Enter" && calcOrder()} />
+            <input style={inp} inputMode="decimal" placeholder="Giá Yên (JPY)" value={jpy} onChange={(e) => setJpy(e.target.value)} />
+            <input style={inp} inputMode="decimal" placeholder="Tỷ giá" value={rate} onChange={(e) => setRate(e.target.value)} />
+            <input style={inp} inputMode="decimal" placeholder="% Giảm giá (nếu có)" value={disc} onChange={(e) => setDisc(e.target.value)} />
           </div>
-          <button style={{ ...btn, marginTop: 10 }} onClick={calcOrder}>
-            Tính giá
-          </button>
           {orderResult && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontWeight: 800, fontSize: 18, color: THEME.brand }}>Giá: {fmtK(orderResult.total)}</div>
@@ -206,10 +225,7 @@ export default function PricingPage() {
 
         <div style={{ ...card, padding: 14, marginBottom: 14 }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Phần 2: Báo giá Hàng sẵn (giảm 5%)</div>
-          <input style={inp} inputMode="decimal" placeholder="Giá gốc (nghìn VNĐ), VD: 850 = 850.000đ" value={ready} onChange={(e) => setReadyPrice(e.target.value)} onKeyDown={(e) => e.key === "Enter" && calcReady()} />
-          <button style={{ ...btn, marginTop: 10 }} onClick={calcReady}>
-            Tính giá
-          </button>
+          <input style={inp} inputMode="decimal" placeholder="Giá gốc (nghìn VNĐ), VD: 850 = 850.000đ" value={ready} onChange={(e) => setReadyPrice(e.target.value)} />
           {readyResult && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontWeight: 800, fontSize: 18, color: THEME.brand }}>Giá sau giảm 5%: {fmtK(readyResult.total)}</div>
