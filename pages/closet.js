@@ -334,6 +334,7 @@ export default function ClosetPage() {
       .finally(() => setLoading(false));
   }
   // Đối chiếu với file Google Sheet Closet của công ty (số lượng, thêm/bớt mã).
+  const [showLog, setShowLog] = useState(false);
   const [sheetSync, setSheetSync] = useState({ busy: false, at: null, error: "", summary: null });
   async function syncSheet(force) {
     setSheetSync((s) => ({ ...s, busy: true, error: "" }));
@@ -539,9 +540,14 @@ export default function ClosetPage() {
               ? `Tự cập nhật từ file gốc · ${new Date(sheetSync.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}${sheetSync.summary ? ` · đã đổi ${sheetSync.summary.updated} mã, thêm ${sheetSync.summary.added}, không còn ${sheetSync.summary.gone}` : ""}`
               : ""}
           </span>
-          <button style={{ ...T.btnSub, padding: "4px 10px", fontSize: 12.5 }} disabled={sheetSync.busy} onClick={() => syncSheet(true)}>
-            {sheetSync.busy ? "Đang cập nhật..." : "Cập nhật ngay"}
-          </button>
+          <span style={{ display: "inline-flex", gap: 6 }}>
+            <button style={{ ...T.btnSub, padding: "4px 10px", fontSize: 12.5 }} onClick={() => setShowLog(true)}>
+              Lịch sử thay đổi
+            </button>
+            <button style={{ ...T.btnSub, padding: "4px 10px", fontSize: 12.5 }} disabled={sheetSync.busy} onClick={() => syncSheet(true)}>
+              {sheetSync.busy ? "Đang cập nhật..." : "Cập nhật ngay"}
+            </button>
+          </span>
         </div>
         <ClosetSection
           data={data}
@@ -559,8 +565,79 @@ export default function ClosetPage() {
           T={T}
         />
       </div>
+      {showLog && <ChangeLogModal onClose={() => setShowLog(false)} lastAt={sheetSync.at} T={T} />}
       {undoInfo && <UndoToast message={undoInfo.message} onUndo={undoDelete} />}
     </main>
+  );
+}
+
+// Lịch sử các lần Closet tự cập nhật từ file Google Sheet: mỗi lần có thay đổi
+// thì ghi lại từng mã đổi gì (còn lại/SL/đã bán/giá), mã mới, mã không còn.
+const FIELD_LABEL = { remaining: "Còn lại", qty: "SL", sold: "Đã bán", price: "Giá lẻ" };
+function ChangeLogModal({ onClose, lastAt, T }) {
+  const { THEME, card, btnSub } = T;
+  const [log, setLog] = useState(null);
+  const [err, setErr] = useState(false);
+  const [open, setOpen] = useState(0);
+  useEffect(() => {
+    fetch("/api/closet-changes", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(setLog)
+      .catch(() => setErr(true));
+  }, []);
+  const fmt = (iso) => new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const line = (it) => {
+    if (it.k === "upd")
+      return Object.entries(it.f).map(([k, [a, b]]) => `${FIELD_LABEL[k] || k}: ${a} → ${b}`).join(" · ");
+    if (it.k === "add") return `Mã mới · còn ${it.to}`;
+    if (it.k === "new") return `Sản phẩm mới · còn ${it.to}`;
+    if (it.k === "gone") return `Không còn trong sheet (trước đó còn ${it.was})`;
+    if (it.k === "back") return `Có lại trong sheet · còn ${it.to}`;
+    return "";
+  };
+  const color = (it) => (it.k === "gone" ? THEME.danger : it.k === "add" || it.k === "new" || it.k === "back" ? THEME.success : THEME.text);
+  return (
+    <div className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(40,20,25,0.45)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }} onClick={onClose}>
+      <div role="dialog" className="hnPop" onClick={(e) => e.stopPropagation()} style={{ ...card, width: "100%", maxWidth: 640, maxHeight: "86vh", display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}>
+        <div style={{ padding: "14px 16px", borderBottom: `1px solid ${THEME.line}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Lịch sử thay đổi từ file công ty</div>
+            {lastAt && <div style={{ fontSize: 12.5, color: THEME.muted }}>Lần kiểm tra gần nhất: {fmt(lastAt)}</div>}
+          </div>
+          <button style={btnSub} onClick={onClose}>Đóng</button>
+        </div>
+        <div style={{ overflowY: "auto", padding: "8px 16px 16px" }}>
+          {err && <div style={{ color: THEME.danger, padding: 12 }}>Không tải được lịch sử.</div>}
+          {!log && !err && <div style={{ color: THEME.muted, padding: 12 }}>Đang tải...</div>}
+          {log && !log.entries.length && <div style={{ color: THEME.muted, padding: 12 }}>Chưa có lần thay đổi nào được ghi. Khi công ty sửa file, các thay đổi sẽ hiện ở đây.</div>}
+          {log && log.entries.map((e, i) => {
+            const s = e.summary || {};
+            const isOpen = open === i;
+            return (
+              <div key={e.at} style={{ borderBottom: `1px solid ${THEME.line}`, padding: "10px 0" }}>
+                <button onClick={() => setOpen(isOpen ? -1 : i)} style={{ all: "unset", cursor: "pointer", display: "block", width: "100%" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{fmt(e.at)} {isOpen ? "▾" : "▸"}</div>
+                  <div style={{ fontSize: 13, color: THEME.subtext, marginTop: 2 }}>
+                    Đổi {s.updated || 0} mã · thêm {s.added || 0} mã{s.newProducts ? ` (${s.newProducts} sản phẩm mới)` : ""} · không còn {s.gone || 0}{s.back ? ` · có lại ${s.back}` : ""}
+                  </div>
+                </button>
+                {isOpen && (
+                  <div style={{ marginTop: 8 }}>
+                    {e.items.map((it, j) => (
+                      <div key={j} style={{ padding: "6px 0", borderTop: j ? `1px dashed ${THEME.line}` : "none", fontSize: 13, lineHeight: 1.45 }}>
+                        <div style={{ color: THEME.subtext }}>{it.p}</div>
+                        <div><b>{it.l}</b> — <span style={{ color: color(it), fontWeight: 600 }}>{line(it)}</span></div>
+                      </div>
+                    ))}
+                    {e.more > 0 && <div style={{ color: THEME.muted, fontSize: 12.5, paddingTop: 6 }}>… và {e.more} thay đổi nữa</div>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 

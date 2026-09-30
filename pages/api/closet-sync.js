@@ -14,6 +14,19 @@ const MIN_GAP_MS = 20 * 1000;
 const state = globalThis.__closetSync || (globalThis.__closetSync = { p: null, at: 0, last: null });
 const SEED_IDS = new Set(SEED_CLOSET.map((p) => p.id));
 
+const LOG_PATH = "closet/changes.json";
+// Nhật ký thay đổi: lưu tối đa 40 lần cập nhật gần nhất, mỗi lần tối đa 800 dòng chi tiết.
+async function logChanges(summary, items) {
+  try {
+    const cur = await readDoc(LOG_PATH);
+    const entries = cur.exists && Array.isArray(cur.raw.entries) ? cur.raw.entries : [];
+    entries.unshift({ at: new Date().toISOString(), summary, items: items.slice(0, 800), more: Math.max(0, items.length - 800) });
+    await writeDoc(LOG_PATH, { entries: entries.slice(0, 40) }, cur.exists ? { ifMatch: cur.etag } : {});
+  } catch {
+    // ghi nhật ký hỏng thì bỏ qua, không ảnh hưởng dữ liệu chính
+  }
+}
+
 async function syncOnce() {
   const recs = parseClosetRows(await fetchClosetCsv());
   if (recs.length < 50) throw new Error("File Google Sheet đọc ra quá ít mã — giữ nguyên dữ liệu cũ để an toàn");
@@ -28,12 +41,12 @@ async function syncOnce() {
     } else {
       data = normalize({}).data;
     }
-    const { closet, summary } = mergeClosetFromSheet(data.closet || [], recs, {
+    const { closet, summary, items } = mergeClosetFromSheet(data.closet || [], recs, {
       seedIds: SEED_IDS,
       deletedIds: data.closetDeletedIds || [],
       deletedVariantIds: data.closetDeletedVariantIds || [],
     });
-    const changed = summary.updated + summary.added + summary.newProducts + summary.gone > 0;
+    const changed = summary.updated + summary.added + summary.newProducts + summary.gone + summary.back > 0 || items.length > 0;
     if (changed) {
       try {
         await writeDoc(DATA_PATHNAME, { ...data, closet }, etag ? { ifMatch: etag } : {});
@@ -41,6 +54,7 @@ async function syncOnce() {
         if (isPrecondition(e)) continue;
         throw e;
       }
+      await logChanges(summary, items);
     }
     return { changed, summary, at: new Date().toISOString(), total: recs.length };
   }
