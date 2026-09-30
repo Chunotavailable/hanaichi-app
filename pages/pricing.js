@@ -172,7 +172,7 @@ export default function PricingPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
-      <PageHeader icon="💰" title="Báo giá nhanh" current="/pricing" maxWidth={700} />
+      <PageHeader icon="💰" title="Tính giá" current="/pricing" maxWidth={700} />
 
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 18px" }}>
         <div style={{ ...card, padding: 14, marginBottom: 14 }}>
