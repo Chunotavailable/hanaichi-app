@@ -34,12 +34,17 @@ export default function BackupPage() {
     setMsg(null);
     try {
       const data = {};
+      // Chờ 1 nhịp để những chỗ vừa sửa xong kịp lưu lên máy chủ trước khi lấy bản sao lưu.
+      await new Promise((ok) => setTimeout(ok, 1500));
       for (const s of SECTIONS) {
-        const r = await fetch(s.url);
+        // no-store: luôn lấy bản MỚI NHẤT trên máy chủ, không dùng bản nhớ tạm.
+        const r = await fetch(s.url, { cache: "no-store" });
         if (!r.ok) throw new Error(s.key);
         data[s.key] = await r.json();
       }
-      const payload = { app: "hanaichi", exportedAt: new Date().toISOString(), data };
+      // Gom thêm danh sách ảnh đang dùng (ảnh nằm ở kho riêng, file sao lưu ghi lại đường dẫn).
+      const imageUrls = Array.from(new Set((JSON.stringify(data).match(/https?:\/\/[^"\s]+\.(?:png|jpe?g|webp|gif|avif)/gi) || [])));
+      const payload = { app: "hanaichi", exportedAt: new Date().toISOString(), data, imageUrls };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -49,7 +54,7 @@ export default function BackupPage() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setMsg({ ok: true, text: "✅ Đã tải file sao lưu về máy. Nhớ lưu file này vào Zalo/Drive/email cho chắc." });
+      setMsg({ ok: true, text: `✅ Đã sao lưu bản mới nhất của tất cả các mục (${SECTIONS.length} mục, ${imageUrls.length} ảnh). Nhớ lưu file này vào Zalo/Drive/email cho chắc.` });
     } catch (e) {
       setMsg({ ok: false, text: "❌ Không tải được sao lưu, thử lại sau." });
     } finally {
