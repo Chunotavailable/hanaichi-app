@@ -10,7 +10,7 @@ import { useTheme, makeStyles, Loading, LoadError } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import { norm, showToast, goLogin } from "../lib/gomcanHelpers";
 import { FilterChip, SearchInput, EmptyState } from "../lib/ui";
-import { Copy, Check, SearchX, ArrowUpDown, Globe, ExternalLink, PackageX, Flame, RefreshCw, FileSpreadsheet } from "lucide-react";
+import { Copy, Check, SearchX, ArrowUpDown, Globe, ExternalLink, PackageX, Flame, RefreshCw, FileSpreadsheet, ChevronRight } from "lucide-react";
 
 const PAGE = 40;
 const STALE_MS = 10 * 60 * 1000; // dữ liệu cũ hơn 10 phút thì tự hỏi lại file gốc
@@ -39,6 +39,44 @@ function ago(iso) {
   const h = Math.round(m / 60);
   if (h < 24) return `${h} giờ trước`;
   return `${Math.round(h / 24)} ngày trước`;
+}
+
+// Số ngày còn lại tới hết sale (0 = hết hôm nay); null nếu không rõ ngày.
+function daysLeft(end, today) {
+  if (!end) return null;
+  const a = new Date(today + "T00:00:00");
+  const b = new Date(end + "T00:00:00");
+  return Math.round((b - a) / 86400000);
+}
+
+// Tô sáng chữ khớp với từ khoá tìm kiếm (không phân biệt hoa thường, có dấu
+// hay không dấu đều khớp).
+function baseChar(c) {
+  const t = c.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+  return /[\p{L}\p{N}]/u.test(t[0] || "") ? t[0] : " ";
+}
+function Highlight({ text, tokens, color }) {
+  if (!tokens.length) return text;
+  const flat = Array.from(text).map(baseChar).join("");
+  const mark = new Array(text.length).fill(false);
+  for (const tk of tokens) {
+    let i = flat.indexOf(tk);
+    while (i >= 0) {
+      for (let k = i; k < i + tk.length; k++) mark[k] = true;
+      i = flat.indexOf(tk, i + tk.length);
+    }
+  }
+  if (!mark.some(Boolean)) return text;
+  const out = [];
+  let i = 0;
+  while (i < text.length) {
+    let j = i;
+    while (j < text.length && mark[j] === mark[i]) j++;
+    const part = text.slice(i, j);
+    out.push(mark[i] ? <mark key={i} style={{ background: color, color: "inherit", borderRadius: 3, padding: "0 1px" }}>{part}</mark> : <span key={i}>{part}</span>);
+    i = j;
+  }
+  return out;
 }
 
 export default function SieuThiPage() {
@@ -111,13 +149,20 @@ export default function SieuThiPage() {
     }
     return { all: list.length, het, con: list.length - het, sale: sl };
   }, [list]);
+  const tokens = useMemo(() => norm(q).split(" ").filter(Boolean), [q]);
+  const searching = tokens.length > 0;
   const filtered = useMemo(() => {
-    const nq = norm(q);
+    // Đang tìm kiếm thì tìm trong TẤT CẢ sản phẩm (kể cả hết hàng), bỏ qua bộ
+    // lọc; hàng còn xếp trước, hàng hết xếp sau.
     let out = list.filter((p) => {
-      if (filter === "con" && p.oos) return false;
-      if (filter === "het" && !p.oos) return false;
-      if (filter === "sale" && (p.oos || !(p.sale || p.saleText))) return false;
-      return !nq || (haystacks.get(p.id) || "").includes(nq);
+      if (searching) {
+        const h = haystacks.get(p.id) || "";
+        return tokens.every((t) => h.includes(t));
+      }
+      if (filter === "con") return !p.oos;
+      if (filter === "het") return !!p.oos;
+      if (filter === "sale") return !p.oos && !!(p.sale || p.saleText);
+      return true;
     });
     if (sort !== "none") {
       const dir = sort === "asc" ? 1 : -1;
@@ -130,8 +175,9 @@ export default function SieuThiPage() {
         return (x - y) * dir;
       });
     }
+    if (searching) out = [...out.filter((p) => !p.oos), ...out.filter((p) => p.oos)];
     return out;
-  }, [list, haystacks, q, filter, sort, saleActive]);
+  }, [list, haystacks, tokens, searching, filter, sort, saleActive]);
 
   // Lăn xuống gần cuối danh sách thì tự tải thêm sản phẩm.
   const shownCount = Math.min(visible, filtered.length);
@@ -154,13 +200,16 @@ export default function SieuThiPage() {
 
   const shown = filtered.slice(0, shownCount);
   const sortLabel = sort === "asc" ? "Giá thấp → cao" : sort === "desc" ? "Giá cao → thấp" : "Sắp xếp theo giá";
+  const left = sale ? daysLeft(sale.end, today) : null;
+  const matchedOos = searching ? filtered.filter((p) => p.oos).length : 0;
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
       <PageHeader title="Giá siêu thị" current="/sieuthi" maxWidth={960} />
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "16px 18px" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "14px 18px" }}>
+        {/* Dòng trạng thái đồng bộ */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-          <div style={{ fontSize: 13.5, color: syncFailed ? THEME.danger : THEME.subtext, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <div style={{ fontSize: 13, color: syncFailed ? THEME.danger : THEME.subtext, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
             <FileSpreadsheet size={15} style={{ flexShrink: 0 }} />
             <span>
               {syncFailed ? "Chưa cập nhật được từ file gốc — đang hiện dữ liệu lần trước" : "Tự cập nhật từ file gốc"}
@@ -172,37 +221,86 @@ export default function SieuThiPage() {
           </button>
         </div>
 
-        <div style={{ ...card, padding: 14, marginBottom: 14 }}>
-          <SearchInput value={q} onChange={setQ} placeholder="Tìm theo tên sản phẩm..." T={T} />
-          <div className="hnHScroll" style={{ display: "flex", gap: 6, marginTop: 12, overflowX: "auto" }}>
-            <FilterChip T={T} active={filter === "con"} onClick={() => setFilter("con")}>
-              Còn hàng · {counts.con}
-            </FilterChip>
-            <FilterChip T={T} active={filter === "het"} tone="danger" onClick={() => setFilter("het")}>
-              Hết hàng · {counts.het}
-            </FilterChip>
-            <FilterChip T={T} active={filter === "all"} onClick={() => setFilter("all")}>
-              Tất cả · {counts.all}
-            </FilterChip>
-            {sale && counts.sale > 0 && (
-              <FilterChip T={T} active={filter === "sale"} tone="danger" onClick={() => setFilter("sale")}>
-                <Flame size={14} /> {saleActive ? "Đang sale" : "Sale"} {saleShort(sale.label)} · {counts.sale}
+        {/* Đang sale: thanh nổi bật, bấm để xem riêng hàng sale */}
+        {saleActive && counts.sale > 0 && (
+          <button
+            onClick={() => {
+              setQ("");
+              setFilter("sale");
+            }}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              textAlign: "left",
+              cursor: "pointer",
+              marginBottom: 12,
+              padding: "11px 14px",
+              borderRadius: 14,
+              border: "1px solid #f3c9cb",
+              background: "linear-gradient(90deg, #fdeeee, #fff4ec)",
+              color: THEME.text,
+            }}
+          >
+            <span style={{ width: 36, height: 36, borderRadius: 11, background: THEME.danger, color: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>
+              <Flame size={19} />
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontWeight: 700, fontSize: 14.5, color: THEME.danger }}>Đang sale {saleShort(sale.label)}</span>
+              <span style={{ display: "block", fontSize: 13, color: THEME.subtext }}>
+                {counts.sale} sản phẩm có giá sale{left != null ? (left === 0 ? " · hết sale hôm nay" : ` · còn ${left} ngày`) : ""}
+              </span>
+            </span>
+            <ChevronRight size={18} color={THEME.danger} />
+          </button>
+        )}
+
+        {/* Tìm kiếm + bộ lọc: dính ở đầu màn hình khi cuộn để luôn tìm được */}
+        <div className="stSticky" style={{ position: "sticky", top: 0, zIndex: 20, margin: "0 -18px 12px", padding: "8px 18px 10px", background: THEME.bg }}>
+          <div style={{ ...card, padding: 12 }}>
+            <SearchInput value={q} onChange={setQ} placeholder="Tìm sản phẩm (cả hàng hết)..." T={T} />
+            <div className="hnHScroll" style={{ display: "flex", gap: 6, marginTop: 10, overflowX: "auto", opacity: searching ? 0.5 : 1 }}>
+              <FilterChip T={T} small active={!searching && filter === "con"} onClick={() => { setQ(""); setFilter("con"); }}>
+                Còn hàng · {counts.con}
               </FilterChip>
-            )}
-            <FilterChip T={T} active={sort !== "none"} onClick={() => setSort((s) => (s === "none" ? "asc" : s === "asc" ? "desc" : "none"))}>
-              <ArrowUpDown size={14} /> {sortLabel}
-            </FilterChip>
+              {sale && counts.sale > 0 && (
+                <FilterChip T={T} small active={!searching && filter === "sale"} tone="danger" onClick={() => { setQ(""); setFilter("sale"); }}>
+                  <Flame size={13} /> {saleActive ? "Đang sale" : "Sale"} · {counts.sale}
+                </FilterChip>
+              )}
+              <FilterChip T={T} small active={!searching && filter === "all"} onClick={() => { setQ(""); setFilter("all"); }}>
+                Tất cả · {counts.all}
+              </FilterChip>
+              <FilterChip T={T} small active={!searching && filter === "het"} tone="danger" onClick={() => { setQ(""); setFilter("het"); }}>
+                Hết hàng · {counts.het}
+              </FilterChip>
+              <FilterChip T={T} small active={sort !== "none"} onClick={() => setSort((x) => (x === "none" ? "asc" : x === "asc" ? "desc" : "none"))}>
+                <ArrowUpDown size={13} /> {sortLabel}
+              </FilterChip>
+            </div>
           </div>
         </div>
 
         {filtered.length === 0 ? (
-          <EmptyState icon={SearchX} title="Không tìm thấy sản phẩm nào" hint={filter === "con" ? "Thử tìm ở mục “Tất cả” hoặc “Hết hàng”." : "Thử từ khác."} T={T} />
+          <EmptyState icon={SearchX} title="Không tìm thấy sản phẩm nào" hint={searching ? "Thử gõ ít từ hơn, hoặc gõ không dấu." : "Chưa có sản phẩm nào ở mục này."} T={T} />
         ) : (
           <>
-            <div style={{ fontSize: 12.5, color: THEME.muted, margin: "0 2px 8px" }}>{filtered.length} sản phẩm</div>
+            <div style={{ fontSize: 13, color: THEME.subtext, margin: "0 2px 8px" }}>
+              {searching ? (
+                <>
+                  <b style={{ color: THEME.text }}>{filtered.length}</b> kết quả cho “{q.trim()}”
+                  {matchedOos > 0 ? <span style={{ color: THEME.danger }}> · trong đó {matchedOos} hết hàng</span> : null}
+                </>
+              ) : (
+                <>
+                  <b style={{ color: THEME.text }}>{filtered.length}</b> sản phẩm
+                </>
+              )}
+            </div>
             <div style={{ ...card, padding: 0, overflow: "hidden" }}>
               {shown.map((p, i) => (
-                <ProductRow key={p.id} p={p} first={i === 0} sale={sale} saleActive={saleActive} T={T} />
+                <ProductRow key={p.id} p={p} first={i === 0} sale={sale} saleActive={saleActive} tokens={tokens} T={T} />
               ))}
             </div>
             {hasMore && (
@@ -213,6 +311,27 @@ export default function SieuThiPage() {
           </>
         )}
       </div>
+      <style jsx global>{`
+        .stRow {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 118px 112px;
+          column-gap: 16px;
+          align-items: center;
+        }
+        .stName { grid-column: 1; }
+        .stPrice { grid-column: 2; text-align: right; }
+        .stAct { grid-column: 3; display: flex; justify-content: flex-end; }
+        @media (max-width: 640px) {
+          .stRow {
+            grid-template-columns: minmax(0, 1fr) auto;
+            column-gap: 12px;
+            row-gap: 8px;
+          }
+          .stName { grid-column: 1 / -1; }
+          .stPrice { grid-column: 1; text-align: left; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+          .stAct { grid-column: 2; }
+        }
+      `}</style>
     </main>
   );
 }
@@ -226,32 +345,60 @@ function LinkIcon({ href, title, children, THEME }) {
   );
 }
 
-function ProductRow({ p, first, sale, saleActive, T }) {
+function ProductRow({ p, first, sale, saleActive, tokens, T }) {
   const { THEME, btnSub } = T;
   const [copied, setCopied] = useState(false);
   const border = first ? "none" : `1px solid ${THEME.line}`;
   const hasSale = !!(p.sale || p.saleText);
   const onSale = hasSale && saleActive && !p.oos;
-  const shownPrice = onSale && p.sale ? p.sale : p.price;
+  const saleNow = onSale && !!p.sale;
+  const shownPrice = saleNow ? p.sale : p.price;
   // Câu báo giá: Tên sản phẩm + giá + bên e có sẵn (đang sale thì ghi giá sale).
-  const quote = shownPrice ? `${p.name} ${onSale && p.sale ? "đang sale giá" : "giá"} ${fmtK(shownPrice)} bên e có sẵn` : "";
+  const quote = shownPrice ? `${p.name} ${saleNow ? "đang sale giá" : "giá"} ${fmtK(shownPrice)} bên e có sẵn` : "";
+  const hasLinks = p.linkWeb || p.linkShopee || p.linkLazada;
 
   return (
-    <div className="hnRowItem" style={{ borderTop: border, padding: "12px 14px", opacity: p.oos ? 0.62 : 1 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <div style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 14.5, lineHeight: 1.4, color: THEME.text, overflowWrap: "anywhere" }}>
-          {p.oos && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11.5, fontWeight: 700, color: THEME.danger, background: THEME.dangerBg, border: "1px solid #f3c9cb", borderRadius: 999, padding: "0 8px", marginRight: 6, verticalAlign: "1px" }}>
-              <PackageX size={11} /> Hết hàng
-            </span>
-          )}
-          {p.name}
+    <div className="hnRowItem" style={{ borderTop: border, padding: "13px 16px", background: p.oos ? THEME.surfaceAlt : "transparent" }}>
+      <div className="stRow">
+        <div className="stName" style={{ minWidth: 0, opacity: p.oos ? 0.7 : 1 }}>
+          <div style={{ fontWeight: 600, fontSize: 14.5, lineHeight: 1.42, color: THEME.text, overflowWrap: "anywhere" }}>
+            <Highlight text={p.name} tokens={tokens} color="#fbe3a6" />
+          </div>
+          {(hasSale && sale) || hasLinks ? (
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 6 }}>
+              {hasSale && sale && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: 999,
+                    padding: "2px 9px",
+                    color: onSale ? THEME.danger : THEME.subtext,
+                    background: onSale ? THEME.dangerBg : THEME.surface,
+                    border: `1px solid ${onSale ? "#f3c9cb" : THEME.line}`,
+                  }}
+                >
+                  <Flame size={12} /> Sale {saleShort(sale.label)}
+                  {!saleActive && " (đã kết thúc)"}
+                  {p.sale ? <> · <b>{fmtK(p.sale)}</b></> : null}
+                  {p.saleText ? <> · {p.saleText}</> : null}
+                </span>
+              )}
+              <LinkIcon href={p.linkWeb} title="Mở trang web Hanaichi" THEME={THEME}><Globe size={12} /> Web</LinkIcon>
+              <LinkIcon href={p.linkShopee} title="Mở Shopee" THEME={THEME}>Shopee</LinkIcon>
+              <LinkIcon href={p.linkLazada} title="Mở Lazada" THEME={THEME}>Lazada</LinkIcon>
+            </div>
+          ) : null}
         </div>
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
+
+        <div className="stPrice" style={{ opacity: p.oos ? 0.7 : 1 }}>
           {shownPrice ? (
             <>
-              <div style={{ fontWeight: 700, fontSize: 18, color: onSale && p.sale ? THEME.danger : THEME.brand, lineHeight: 1.2 }}>{fmtK(shownPrice)}</div>
-              {onSale && p.sale && p.price ? (
+              <div style={{ fontWeight: 700, fontSize: 19, lineHeight: 1.15, color: p.oos ? THEME.subtext : saleNow ? THEME.danger : THEME.brand }}>{fmtK(shownPrice)}</div>
+              {saleNow && p.price ? (
                 <div style={{ fontSize: 12, color: THEME.muted }}>
                   Giá Social <s>{fmtK(p.price)}</s>
                 </div>
@@ -263,50 +410,26 @@ function ProductRow({ p, first, sale, saleActive, T }) {
             <div style={{ fontSize: 13, color: THEME.muted }}>Chưa có giá</div>
           )}
         </div>
-      </div>
 
-      {hasSale && sale && (
-        <div style={{ marginTop: 7, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              fontSize: 12.5,
-              fontWeight: 600,
-              borderRadius: 999,
-              padding: "2px 10px",
-              color: onSale ? THEME.danger : THEME.subtext,
-              background: onSale ? THEME.dangerBg : THEME.surfaceAlt,
-              border: `1px solid ${onSale ? "#f3c9cb" : THEME.line}`,
-            }}
-          >
-            <Flame size={13} /> Sale {saleShort(sale.label)}
-            {!saleActive && " (đã kết thúc)"}
-            {p.sale ? <> · <b>{fmtK(p.sale)}</b></> : null}
-            {p.saleText ? <> · {p.saleText}</> : null}
-          </span>
+        <div className="stAct">
+          {p.oos ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, color: THEME.danger, background: THEME.dangerBg, border: "1px solid #f3c9cb", borderRadius: 999, padding: "4px 11px", whiteSpace: "nowrap" }}>
+              <PackageX size={13} /> Hết hàng
+            </span>
+          ) : quote ? (
+            <button
+              title="Chép câu báo giá"
+              style={{ ...btnSub, padding: "7px 12px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: copied ? THEME.success : THEME.text, borderColor: copied ? THEME.successLine : THEME.line, background: copied ? THEME.successBg : THEME.surface }}
+              onClick={() => {
+                copyText(quote);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              }}
+            >
+              {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Đã chép" : "Chép giá"}
+            </button>
+          ) : null}
         </div>
-      )}
-
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-        <span style={{ flex: 1 }} />
-        <LinkIcon href={p.linkWeb} title="Mở trang web Hanaichi" THEME={THEME}><Globe size={13} /> Web</LinkIcon>
-        <LinkIcon href={p.linkShopee} title="Mở Shopee" THEME={THEME}>Shopee</LinkIcon>
-        <LinkIcon href={p.linkLazada} title="Mở Lazada" THEME={THEME}>Lazada</LinkIcon>
-        {quote && !p.oos ? (
-          <button
-            title="Chép câu báo giá"
-            style={{ ...btnSub, padding: "4px 10px", fontSize: 13, color: copied ? THEME.success : THEME.text }}
-            onClick={() => {
-              copyText(quote);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1500);
-            }}
-          >
-            {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Đã chép" : "Chép giá"}
-          </button>
-        ) : null}
       </div>
     </div>
   );
