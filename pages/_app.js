@@ -5,10 +5,34 @@ import { ThemeProvider } from "../lib/theme";
 import { playPop } from "../lib/sound";
 import { PermProvider } from "../lib/perm";
 
+// Hiệu ứng khi bấm: 1 vòng tròn mờ màu đỏ mận toả ra từ đúng chỗ vừa bấm, cho
+// mọi nút / tab / thẻ bấm được. Vẽ ở lớp riêng phủ trên cùng (không đụng tới
+// bố cục của phần tử bị bấm) và tự xoá sau ~0,5 giây.
+function spawnRipple(x, y) {
+  const el = document.createElement("span");
+  el.className = "hnRipple";
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 550);
+}
+
 function GlobalClickPop() {
   useEffect(() => {
     function onClick(e) {
+      const hit = e.target.closest("button, a, .menuCard, .hnClickable, [role='button']");
       if (e.target.closest("button, .menuCard")) playPop();
+      if (hit && !hit.disabled && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        // Bấm bằng bàn phím (không có toạ độ) thì toả từ giữa phần tử.
+        let x = e.clientX;
+        let y = e.clientY;
+        if (!x && !y) {
+          const r = hit.getBoundingClientRect();
+          x = r.left + r.width / 2;
+          y = r.top + r.height / 2;
+        }
+        spawnRipple(x, y);
+      }
     }
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
@@ -199,6 +223,39 @@ export default function App({ Component, pageProps }) {
         }
         main {
           animation: hnFadeIn 0.25s ease;
+        }
+        .hnRipple {
+          position: fixed;
+          z-index: 9999;
+          width: 12px;
+          height: 12px;
+          margin: -6px 0 0 -6px;
+          border-radius: 50%;
+          background: rgba(158, 42, 59, 0.28);
+          pointer-events: none;
+          animation: hnRipple 0.5s ease-out forwards;
+        }
+        @keyframes hnRipple {
+          from {
+            transform: scale(1);
+            opacity: 1;
+          }
+          to {
+            transform: scale(7);
+            opacity: 0;
+          }
+        }
+        /* Thẻ / dòng bấm được: lún nhẹ khi nhấn xuống. */
+        .hnClickable:active {
+          transform: scale(0.985);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          *,
+          *::before,
+          *::after {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+          }
         }
         button,
         a,
