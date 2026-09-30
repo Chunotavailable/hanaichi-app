@@ -1451,17 +1451,6 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
                     </div>
                     {perm.canEdit && (
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                        {/* Tách riêng nhóm +/- số lượng và nhóm sửa/xoá, cách xa nhau để tránh bấm
-                            nhầm (VD định bấm sửa mã nhưng lỡ chạm phải +1 làm sai số lượng). */}
-                        <div style={{ display: "flex", gap: 4 }}>
-                          <button style={smallIcon} title="Bán 1 (-1 còn lại)" aria-label="Giảm 1" onClick={() => bumpClosetVariant(p.id, v.id, -1)}>
-                            <Minus size={15} />
-                          </button>
-                          <button style={smallIcon} title="Nhập thêm (+1 còn lại)" aria-label="Tăng 1" onClick={() => bumpClosetVariant(p.id, v.id, 1)}>
-                            <Plus size={15} />
-                          </button>
-                        </div>
-                        <div style={{ width: 1, alignSelf: "stretch", background: THEME.line }} />
                         <div style={{ display: "flex", gap: 4 }}>
                           <button style={smallIcon} title="Sửa mã/size này" aria-label="Sửa mã/size" onClick={() => setEditVariantId(v.id)}>
                             <Pencil size={14} />
