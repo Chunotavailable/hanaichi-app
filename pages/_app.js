@@ -104,6 +104,17 @@ export default function App({ Component, pageProps }) {
         .hnHScroll::-webkit-scrollbar {
           display: none;
         }
+        /* Máy tính: chuột không vuốt ngang được → cho các nút xuống dòng để
+           hiện đủ, không bị cắt chữ. Điện thoại vẫn giữ 1 hàng vuốt ngang. */
+        @media (min-width: 641px) {
+          .hnHScroll {
+            flex-wrap: wrap;
+            overflow-x: visible !important;
+          }
+        }
+        .hnHScroll > * {
+          flex-shrink: 0;
+        }
 
         /* ===== Hiệu ứng chuyển động dùng chung toàn app ===== */
         @keyframes hnFadeUp {
