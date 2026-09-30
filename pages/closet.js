@@ -306,6 +306,7 @@ export default function ClosetPage() {
   const { theme: THEME } = useTheme();
   const { card, btn, btnSub, iconBtn, inp, chip, thumb } = makeStyles(THEME);
   const T = { THEME, card, btn, btnSub, iconBtn, inp, chip, thumb };
+  const perm = usePerm();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   // Hoàn tác xoá trong 10s: xoá thì lưu ngay như mọi thay đổi khác; bấm
@@ -335,11 +336,11 @@ export default function ClosetPage() {
   }
   // Đối chiếu với file Google Sheet Closet của công ty (số lượng, thêm/bớt mã).
   const [showLog, setShowLog] = useState(false);
-  const [sheetSync, setSheetSync] = useState({ busy: false, at: null, error: "", summary: null });
-  async function syncSheet(force) {
+  const [sheetSync, setSheetSync] = useState({ busy: false, at: null, error: "", summary: null, pending: 0 });
+  async function syncSheet(force, action) {
     setSheetSync((s) => ({ ...s, busy: true, error: "" }));
     try {
-      const r = await fetch(`/api/closet-sync${force ? "?force=1" : ""}`, { cache: "no-store" });
+      const r = await fetch(`/api/closet-sync${force ? "?force=1" : ""}`, action ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action), cache: "no-store" } : { cache: "no-store" });
       if (r.status === 401) return goLogin();
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || "Không đọc được file Google Sheet");
@@ -351,9 +352,11 @@ export default function ClosetPage() {
           setData(d);
         }
       }
-      setSheetSync({ busy: false, at: j.at || new Date().toISOString(), error: "", summary: j.changed ? j.summary : null });
+      setSheetSync((s) => ({ busy: false, at: j.at || new Date().toISOString(), error: "", summary: j.changed ? j.summary : s.summary, pending: j.pending || [] }));
+      return true;
     } catch (e) {
       setSheetSync((s) => ({ ...s, busy: false, error: (e && e.message) || "Không cập nhật được từ file gốc" }));
+      return false;
     }
   }
   useEffect(() => {
@@ -537,18 +540,24 @@ export default function ClosetPage() {
               : sheetSync.busy
               ? "Đang đối chiếu với file gốc của công ty..."
               : sheetSync.at
-              ? `Tự cập nhật từ file gốc · ${new Date(sheetSync.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}${sheetSync.summary ? ` · đã đổi ${sheetSync.summary.updated} mã, thêm ${sheetSync.summary.added}, không còn ${sheetSync.summary.gone}` : ""}`
+              ? `Tự cập nhật từ file gốc · ${new Date(sheetSync.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}${sheetSync.summary ? ` · đã cập nhật số lượng ${sheetSync.summary.updated} mã` : ""}`
               : ""}
           </span>
           <span style={{ display: "inline-flex", gap: 6 }}>
-            <button style={{ ...T.btnSub, padding: "4px 10px", fontSize: 12.5 }} onClick={() => setShowLog(true)}>
-              Lịch sử thay đổi
+            <button style={{ ...T.btnSub, padding: "4px 10px", fontSize: 12.5, ...(sheetSync.pending > 0 ? { borderColor: THEME.brand, color: THEME.brand, fontWeight: 700 } : {}) }} onClick={() => { setLogTab("log"); setShowLog(true); }}>
+              Lịch sử thay đổi{sheetSync.pending > 0 ? ` · ${sheetSync.pending} chờ duyệt` : ""}
             </button>
             <button style={{ ...T.btnSub, padding: "4px 10px", fontSize: 12.5 }} disabled={sheetSync.busy} onClick={() => syncSheet(true)}>
               {sheetSync.busy ? "Đang cập nhật..." : "Cập nhật ngay"}
             </button>
           </span>
         </div>
+        {perm.canEdit && sheetSync.pending.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", background: "#fff3d6", border: "1px solid #f0d28a", color: "#6b4a00", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: 14, fontWeight: 600 }}>
+            <span>⚠️ File công ty có {sheetSync.pending.length} thay đổi mã đang chờ bạn duyệt</span>
+            <button style={{ ...T.btn, padding: "6px 12px", fontSize: 13 }} onClick={() => { setLogTab("pending"); setShowLog(true); }}>Xem & duyệt</button>
+          </div>
+        )}
         <ClosetSection
           data={data}
           addClosetProduct={addClosetProduct}
@@ -565,7 +574,7 @@ export default function ClosetPage() {
           T={T}
         />
       </div>
-      {showLog && <ChangeLogModal onClose={() => setShowLog(false)} lastAt={sheetSync.at} T={T} />}
+      {showLog && <ChangeLogModal onClose={() => setShowLog(false)} lastAt={sheetSync.at} canApprove={perm.canEdit} onApplied={reloadAfterApprove} T={T} />}
       {undoInfo && <UndoToast message={undoInfo.message} onUndo={undoDelete} />}
     </main>
   );
@@ -574,24 +583,44 @@ export default function ClosetPage() {
 // Lịch sử các lần Closet tự cập nhật từ file Google Sheet: mỗi lần có thay đổi
 // thì ghi lại từng mã đổi gì (còn lại/SL/đã bán/giá), mã mới, mã không còn.
 const FIELD_LABEL = { remaining: "Còn lại", qty: "SL", sold: "Đã bán", price: "Giá lẻ" };
-function ChangeLogModal({ onClose, lastAt, T }) {
+function ChangeLogModal({ onClose, lastAt, canApprove, onApplied, T }) {
   const { THEME, card, btnSub } = T;
   const [log, setLog] = useState(null);
   const [err, setErr] = useState(false);
-  const [open, setOpen] = useState(0);
-  useEffect(() => {
+  const [open, setOpen] = useState(-1);
+  const [busyIds, setBusyIds] = useState(false);
+  const [msg, setMsg] = useState("");
+  function load() {
     fetch("/api/closet-changes", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setLog)
       .catch(() => setErr(true));
-  }, []);
+  }
+  useEffect(load, []);
+  async function decide(ids, action) {
+    setBusyIds(true);
+    setMsg("");
+    try {
+      const r = await fetch("/api/closet-approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, action }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "Không thực hiện được");
+      setLog((l) => ({ ...l, pending: j.pending }));
+      onApplied(j.pending.length);
+      load();
+      setMsg(action === "approve" ? `✅ Đã thêm ${j.applied} thay đổi vào Closet` : `Đã bỏ qua ${j.applied} thay đổi`);
+    } catch (e) {
+      setMsg(`⚠️ ${(e && e.message) || "Lỗi"}`);
+    } finally {
+      setBusyIds(false);
+    }
+  }
   const fmt = (iso) => new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const line = (it) => {
     if (it.k === "upd")
       return Object.entries(it.f).map(([k, [a, b]]) => `${FIELD_LABEL[k] || k}: ${a} → ${b}`).join(" · ");
-    if (it.k === "add") return `Mã mới · còn ${it.to}`;
-    if (it.k === "new") return `Sản phẩm mới · còn ${it.to}`;
-    if (it.k === "gone") return `Không còn trong sheet (trước đó còn ${it.was})`;
+    if (it.k === "add") return `${it.approved ? "Đã thêm mã mới" : "Mã mới"} · còn ${it.to}`;
+    if (it.k === "new") return `${it.approved ? "Đã thêm sản phẩm mới" : "Sản phẩm mới"} · còn ${it.to}`;
+    if (it.k === "gone") return `${it.approved ? "Đã đánh dấu" : ""} Không còn trong sheet${it.was != null ? ` (trước đó còn ${it.was})` : ""}`;
     if (it.k === "back") return `Có lại trong sheet · còn ${it.to}`;
     return "";
   };
@@ -601,14 +630,87 @@ function ChangeLogModal({ onClose, lastAt, T }) {
       <div role="dialog" className="hnPop" onClick={(e) => e.stopPropagation()} style={{ ...card, width: "100%", maxWidth: 640, maxHeight: "86vh", display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "14px 16px", borderBottom: `1px solid ${THEME.line}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>Lịch sử thay đổi từ file công ty</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Thay đổi từ file công ty</div>
             {lastAt && <div style={{ fontSize: 12.5, color: THEME.muted }}>Lần kiểm tra gần nhất: {fmt(lastAt)}</div>}
           </div>
           <button style={btnSub} onClick={onClose}>Đóng</button>
         </div>
-        <div style={{ overflowY: "auto", padding: "8px 16px 16px" }}>
+        <div style={{ display: "flex", gap: 6, padding: "8px 16px 0" }}>
+          {[["pending", `Chờ duyệt (${pending.length})`], ["log", "Đã cập nhật"]].map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k)} style={{ all: "unset", cursor: "pointer", padding: "6px 12px", borderRadius: 999, fontSize: 13.5, fontWeight: 700, background: tab === k ? THEME.brand : THEME.chipBg, color: tab === k ? "#fff" : THEME.text }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {tab === "pending" && (
+          <div style={{ overflowY: "auto", padding: "8px 16px 16px" }}>
+            {!pending.length && <div style={{ color: THEME.muted, padding: 12 }}>Không có thay đổi nào chờ duyệt. Số lượng của các mã đang có thì tự cập nhật.</div>}
+            {pending.length > 0 && (
+              <>
+                <div style={{ fontSize: 13, color: THEME.subtext, padding: "4px 0 8px", lineHeight: 1.5 }}>
+                  Mã mới trong file công ty và mã đã bị xoá khỏi file chỉ vào app sau khi bạn duyệt.
+                </div>
+                {canEdit && (
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                    <button style={{ ...btn, padding: "6px 12px", fontSize: 13 }} disabled={busy} onClick={() => act(pending.map((x) => ({ k: x.k, key: x.key })), [])}>Duyệt tất cả ({pending.length})</button>
+                    <button style={{ ...btnSub, padding: "6px 12px", fontSize: 13 }} disabled={busy} onClick={() => act([], pending.map((x) => ({ k: x.k, key: x.key })))}>Bỏ qua tất cả</button>
+                  </div>
+                )}
+                {pending.map((x) => {
+                  const kind = x.k === "gone" ? ["Không còn trong file", THEME.danger] : x.k === "new" ? ["Sản phẩm mới", THEME.success] : ["Mã mới", THEME.success];
+                  return (
+                    <div key={x.k + x.key} style={{ padding: "8px 0", borderTop: `1px solid ${THEME.line}`, display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.45 }}>
+                        <div style={{ color: THEME.subtext }}>{x.p}</div>
+                        <div><b>{x.l}</b> — <span style={{ color: kind[1], fontWeight: 700 }}>{kind[0]}</span>{x.k === "gone" ? ` (đang còn ${x.was})` : ` · còn ${x.to}${x.price ? ` · giá ${x.price}k` : ""}`}</div>
+                      </div>
+                      {canEdit && (
+                        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                          <button style={{ ...btn, padding: "5px 10px", fontSize: 12.5 }} disabled={busy} onClick={() => act([{ k: x.k, key: x.key }], [])}>Duyệt</button>
+                          <button style={{ ...btnSub, padding: "5px 10px", fontSize: 12.5 }} disabled={busy} onClick={() => act([], [{ k: x.k, key: x.key }])}>Bỏ qua</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        )}
+        <div style={{ overflowY: "auto", padding: "8px 16px 16px", display: tab === "log" ? "block" : "none" }}>
           {err && <div style={{ color: THEME.danger, padding: 12 }}>Không tải được lịch sử.</div>}
           {!log && !err && <div style={{ color: THEME.muted, padding: 12 }}>Đang tải...</div>}
+          {log && log.pending && log.pending.length > 0 && (
+            <div style={{ border: `1px solid ${THEME.brand}`, borderRadius: 12, padding: 12, margin: "8px 0 4px", background: THEME.surfaceAlt }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5 }}>Chờ bạn duyệt ({log.pending.length})</div>
+                {canApprove && (
+                  <span style={{ display: "inline-flex", gap: 6 }}>
+                    <button style={{ ...btnSub, padding: "4px 10px", fontSize: 12.5 }} disabled={busyIds} onClick={() => decide(log.pending.map((c) => c.id), "dismiss")}>Bỏ qua tất cả</button>
+                    <button style={{ ...T.btn, padding: "4px 12px", fontSize: 12.5 }} disabled={busyIds} onClick={() => decide(log.pending.map((c) => c.id), "approve")}>Duyệt tất cả</button>
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 12.5, color: THEME.muted, marginBottom: 6 }}>Mã mới / mã bị xoá trong file công ty chỉ vào Closet sau khi bạn duyệt.</div>
+              {log.pending.map((c) => (
+                <div key={c.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", padding: "7px 0", borderTop: `1px dashed ${THEME.line}`, fontSize: 13, lineHeight: 1.4 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: THEME.subtext, overflowWrap: "anywhere" }}>{c.p}</div>
+                    <div style={{ overflowWrap: "anywhere" }}>
+                      <b>{c.l}</b> — <span style={{ fontWeight: 600, color: color(c) }}>{line(c)}</span>
+                    </div>
+                  </div>
+                  {canApprove && (
+                    <span style={{ display: "inline-flex", gap: 6, flexShrink: 0 }}>
+                      <button style={{ ...btnSub, padding: "4px 9px", fontSize: 12.5 }} disabled={busyIds} onClick={() => decide([c.id], "dismiss")}>Bỏ qua</button>
+                      <button style={{ ...T.btn, padding: "4px 10px", fontSize: 12.5 }} disabled={busyIds} onClick={() => decide([c.id], "approve")}>Duyệt</button>
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {msg && <div style={{ fontSize: 13, padding: "6px 2px", color: THEME.subtext }}>{msg}</div>}
           {log && !log.entries.length && <div style={{ color: THEME.muted, padding: 12 }}>Chưa có lần thay đổi nào được ghi. Khi công ty sửa file, các thay đổi sẽ hiện ở đây.</div>}
           {log && log.entries.map((e, i) => {
             const s = e.summary || {};
@@ -616,9 +718,9 @@ function ChangeLogModal({ onClose, lastAt, T }) {
             return (
               <div key={e.at} style={{ borderBottom: `1px solid ${THEME.line}`, padding: "10px 0" }}>
                 <button onClick={() => setOpen(isOpen ? -1 : i)} style={{ all: "unset", cursor: "pointer", display: "block", width: "100%" }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{fmt(e.at)} {isOpen ? "▾" : "▸"}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{fmt(e.at)} {e.approved ? "· đã duyệt " : ""}{isOpen ? "▾" : "▸"}</div>
                   <div style={{ fontSize: 13, color: THEME.subtext, marginTop: 2 }}>
-                    Đổi {s.updated || 0} mã · thêm {s.added || 0} mã{s.newProducts ? ` (${s.newProducts} sản phẩm mới)` : ""} · không còn {s.gone || 0}{s.back ? ` · có lại ${s.back}` : ""}
+                    {s.approved ? `Đã duyệt ${s.approved} thay đổi` : `Cập nhật số lượng ${s.updated || 0} mã${s.back ? ` · có lại ${s.back}` : ""}`}
                   </div>
                 </button>
                 {isOpen && (
