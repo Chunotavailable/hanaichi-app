@@ -9,9 +9,24 @@ import { PageHeader } from "../lib/nav";
 import { uid, norm } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
-import { FilterChip, SearchInput, EmptyState, GroupTitle, UndoToast } from "../lib/ui";
+import { FilterChip, SearchInput, EmptyState, UndoToast } from "../lib/ui";
 import { REPLY_GROUPS } from "../lib/repliesSeed";
-import { Plus, Pencil, Trash2, Copy, Check, SearchX, Lock, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, Check, SearchX, Lock, ChevronRight, LayoutList, Store, MessagesSquare, Receipt, Ruler, RefreshCcw, Users, Megaphone, FolderOpen } from "lucide-react";
+
+const GROUP_ICONS = {
+  "Tất cả": LayoutList,
+  "Thông tin cửa hàng": Store,
+  "Mẫu trả lời khách": MessagesSquare,
+  "Giá & đặt hàng": Receipt,
+  Size: Ruler,
+  "Đổi trả & thanh toán": RefreshCcw,
+  "Khách sỉ / CTV": Users,
+  "Mẫu đăng bài": Megaphone,
+  "Nội bộ": Lock,
+};
+function groupIcon(g) {
+  return GROUP_ICONS[g] || FolderOpen;
+}
 
 function copyText(text) {
   if (navigator.clipboard) navigator.clipboard.writeText(text || "").catch(() => {});
@@ -157,37 +172,105 @@ export default function TraCuuPage() {
           />
         )}
 
-        <div style={{ ...card, padding: 14, marginBottom: 16 }}>
-          <SearchInput value={q} onChange={setQ} placeholder="Tìm câu trả lời, số điện thoại, link, size..." T={T} />
-          <div className="hnHScroll" style={{ display: "flex", gap: 6, marginTop: 12, overflowX: "auto" }}>
-            {["Tất cả", ...groups].map((g) => (
-              <FilterChip key={g} T={T} active={group === g} onClick={() => setGroup(g)}>
-                {g}
-              </FilterChip>
-            ))}
-          </div>
-        </div>
+        <div className="tcLayout">
+          {/* Cột trái (máy tính): danh sách nhóm để nhảy nhanh. */}
+          <aside className="tcSide">
+            <div style={{ ...card, padding: 6 }}>
+              {["Tất cả", ...groups].map((g) => {
+                const Icon = groupIcon(g);
+                const active = group === g;
+                const count = g === "Tất cả" ? list.length : list.filter((r) => (r.group || "Khác") === g).length;
+                return (
+                  <button
+                    key={g}
+                    onClick={() => setGroup(g)}
+                    aria-pressed={active}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 9,
+                      padding: "8px 10px",
+                      border: "none",
+                      borderRadius: 9,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontSize: 13.5,
+                      fontWeight: active ? 700 : 500,
+                      background: active ? THEME.chipBg : "transparent",
+                      color: active ? THEME.brand : THEME.text,
+                    }}
+                  >
+                    <Icon size={16} color={active ? THEME.brand : THEME.subtext} />
+                    <span style={{ flex: 1 }}>{g}</span>
+                    <span style={{ fontSize: 12, color: THEME.muted, fontWeight: 600 }}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
 
-        {groups.map((g) => {
-          const items = filtered.filter((r) => (r.group || "Khác") === g);
-          if (!items.length) return null;
-          return (
-            <section key={g} style={{ marginBottom: 22 }}>
-              <div style={{ marginBottom: 10 }}>
-                <GroupTitle T={T} count={items.length}>
-                  {g}
-                </GroupTitle>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 380px), 1fr))", gap: 12, alignItems: "start" }}>
-                {items.map((r) => (
-                  <ReplyCard key={r.id} r={r} groups={groups} saveReply={saveReply} onDelete={() => setConfirmDelId(r.id)} T={T} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ marginBottom: 14 }}>
+              <SearchInput value={q} onChange={setQ} placeholder="Tìm câu trả lời, số điện thoại, link, size..." T={T} />
+              {/* Điện thoại: nhóm hiện thành hàng nút vuốt ngang. */}
+              <div className="hnHScroll tcChips" style={{ display: "flex", gap: 6, marginTop: 10, overflowX: "auto" }}>
+                {["Tất cả", ...groups].map((g) => (
+                  <FilterChip key={g} T={T} active={group === g} onClick={() => setGroup(g)}>
+                    {g}
+                  </FilterChip>
                 ))}
               </div>
-            </section>
-          );
-        })}
+            </div>
+
+            {groups.map((g) => {
+              const items = filtered.filter((r) => (r.group || "Khác") === g);
+              if (!items.length) return null;
+              const Icon = groupIcon(g);
+              return (
+                <section key={g} style={{ marginBottom: 18 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 2px 8px", color: THEME.subtext, fontSize: 12.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    <Icon size={15} color={THEME.brand} /> {g}
+                    <span style={{ fontWeight: 600, color: THEME.muted }}>· {items.length}</span>
+                  </div>
+                  <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+                    {items.map((r, i) => (
+                      <ReplyRow key={r.id} r={r} first={i === 0} q={q} groups={groups} saveReply={saveReply} onDelete={() => setConfirmDelId(r.id)} T={T} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
         {!filtered.length && <EmptyState icon={SearchX} title="Không tìm thấy mục nào" hint="Thử từ khác, hoặc chọn lại nhóm “Tất cả”." T={T} />}
+          </div>
+        </div>
       </div>
+      <style jsx>{`
+        .tcLayout {
+          display: grid;
+          grid-template-columns: 220px minmax(0, 1fr);
+          gap: 20px;
+          align-items: start;
+        }
+        .tcSide {
+          position: sticky;
+          top: 12px;
+        }
+        .tcChips {
+          display: none !important;
+        }
+        @media (max-width: 760px) {
+          .tcLayout {
+            grid-template-columns: minmax(0, 1fr);
+          }
+          .tcSide {
+            display: none;
+          }
+          .tcChips {
+            display: flex !important;
+          }
+        }
+      `}</style>
 
       <ConfirmDialog
         open={!!confirmDel}
@@ -221,89 +304,96 @@ function CopyButton({ text, T }) {
   );
 }
 
-const LONG_LINES = 8;
+// Dòng xem trước: ưu tiên dòng có chứa từ đang tìm, không thì dòng đầu tiên.
+function previewLine(content, q) {
+  const lines = (content || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const nq = norm(q || "");
+  return (nq && lines.find((l) => norm(l).includes(nq))) || lines[0] || "";
+}
 
-function ReplyCard({ r, groups, saveReply, onDelete, T }) {
-  const { THEME, card, iconBtn } = T;
+// 1 dòng gọn: tiêu đề + 1 dòng xem trước + nút Chép. Bấm vào dòng để mở xem
+// toàn bộ nội dung (và nút Sửa/Xoá với Quản lý).
+function ReplyRow({ r, first, q, groups, saveReply, onDelete, T }) {
+  const { THEME, btnSub } = T;
   const perm = usePerm();
+  const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const smallIcon = { ...iconBtn, width: 30, height: 30 };
-  const isLong = (r.content || "").split("\n").length > LONG_LINES || (r.content || "").length > 420;
+  const border = first ? "none" : `1px solid ${THEME.line}`;
 
   if (editing && perm.canEdit) {
     return (
-      <ReplyForm
-        T={T}
-        groups={groups}
-        initial={r}
-        submitLabel="Lưu"
-        onSubmit={(patch) => {
-          saveReply(r.id, patch);
-          setEditing(false);
-        }}
-        onCancel={() => setEditing(false)}
-      />
+      <div style={{ borderTop: border, padding: 10 }}>
+        <ReplyForm
+          T={T}
+          groups={groups}
+          initial={r}
+          submitLabel="Lưu"
+          flat
+          onSubmit={(patch) => {
+            saveReply(r.id, patch);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="hnCard" style={{ ...card, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-        <div style={{ fontWeight: 650, fontSize: 14.5, color: THEME.brand, paddingTop: 4, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          {r.title}
-          {r.private && (
-            <span title="Chế độ Khách không nhìn thấy mục này" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11.5, fontWeight: 600, color: THEME.subtext, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 999, padding: "1px 7px" }}>
-              <Lock size={11} /> Chỉ Quản lý
-            </span>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-          <CopyButton text={r.content} T={T} />
-          {perm.canEdit && (
-            <button title="Sửa" aria-label="Sửa" style={smallIcon} onClick={() => setEditing(true)}>
-              <Pencil size={14} />
-            </button>
-          )}
-          {perm.canDelete && (
-            <button title="Xoá" aria-label="Xoá" style={{ ...smallIcon, color: THEME.danger }} onClick={onDelete}>
-              <Trash2 size={14} />
-            </button>
-          )}
-        </div>
-      </div>
+    <div style={{ borderTop: border, background: open ? THEME.surfaceAlt : "transparent" }}>
       <div
-        style={{
-          fontSize: 14,
-          lineHeight: 1.6,
-          whiteSpace: "pre-wrap",
-          overflowWrap: "anywhere",
-          color: THEME.text,
-          background: THEME.surfaceAlt,
-          border: `1px solid ${THEME.line}`,
-          borderRadius: 10,
-          padding: "9px 11px",
-          // Nội dung dài: thu gọn còn ~7 dòng, mờ dần ở cuối cho biết còn nữa.
-          ...(isLong && !expanded
-            ? { maxHeight: 175, overflow: "hidden", WebkitMaskImage: "linear-gradient(#000 70%, transparent)", maskImage: "linear-gradient(#000 70%, transparent)" }
-            : {}),
-        }}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        className="hnClickable"
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => e.key === "Enter" && setOpen((o) => !o)}
+        style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", cursor: "pointer" }}
       >
-        <Linkified text={r.content} color={THEME.brand} />
+        <ChevronRight size={16} color={THEME.muted} style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 0.15s ease" }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 14.5, color: THEME.text, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ lineHeight: 1.35 }}>{r.title}</span>
+            {r.private && (
+              <span title="Chế độ Khách không nhìn thấy mục này" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: THEME.subtext, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 999, padding: "0 7px", flexShrink: 0 }}>
+                <Lock size={10} /> Chỉ Quản lý
+              </span>
+            )}
+          </div>
+          {!open && (
+            <div style={{ fontSize: 13, color: THEME.subtext, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>{previewLine(r.content, q)}</div>
+          )}
+        </div>
+        <span onClick={(e) => e.stopPropagation()}>
+          <CopyButton text={r.content} T={T} />
+        </span>
       </div>
-      {isLong && (
-        <button
-          onClick={() => setExpanded((x) => !x)}
-          style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: THEME.subtext, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}
-        >
-          {expanded ? "Thu gọn" : "Xem hết"} <ChevronDown size={14} style={{ transform: expanded ? "rotate(180deg)" : "none" }} />
-        </button>
+      {open && (
+        <div className="hnFade" style={{ padding: "0 14px 12px 40px" }}>
+          <div style={{ fontSize: 14, lineHeight: 1.65, whiteSpace: "pre-wrap", overflowWrap: "anywhere", color: THEME.text, background: THEME.surface, border: `1px solid ${THEME.line}`, borderRadius: 10, padding: "10px 12px" }}>
+            <Linkified text={r.content} color={THEME.brand} />
+          </div>
+          {(perm.canEdit || perm.canDelete) && (
+            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+              {perm.canEdit && (
+                <button style={{ ...btnSub, padding: "5px 10px", fontSize: 13 }} onClick={() => setEditing(true)}>
+                  <Pencil size={14} /> Sửa
+                </button>
+              )}
+              {perm.canDelete && (
+                <button style={{ ...btnSub, padding: "5px 10px", fontSize: 13, color: THEME.danger }} onClick={onDelete}>
+                  <Trash2 size={14} /> Xoá
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-function ReplyForm({ initial, groups, onSubmit, onCancel, submitLabel, T }) {
+function ReplyForm({ initial, groups, onSubmit, onCancel, submitLabel, flat, T }) {
   const { THEME, card, inp, btn, btnSub } = T;
   const [title, setTitle] = useState(initial.title || "");
   const [group, setGroup] = useState(initial.group || "");
@@ -311,7 +401,7 @@ function ReplyForm({ initial, groups, onSubmit, onCancel, submitLabel, T }) {
   const [priv, setPriv] = useState(!!initial.private);
   const ok = title.trim() && content.trim();
   return (
-    <div style={{ ...card, padding: 14, marginBottom: 14, borderColor: THEME.chipLine }}>
+    <div style={flat ? { padding: 4 } : { ...card, padding: 14, marginBottom: 14, borderColor: THEME.chipLine }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8, marginBottom: 8 }}>
         <input style={{ ...inp, fontWeight: 600 }} placeholder="Tiêu đề (VD: Địa chỉ cửa hàng)" value={title} onChange={(e) => setTitle(e.target.value)} />
         <input style={inp} placeholder="Nhóm (VD: Mẫu trả lời khách)" value={group} onChange={(e) => setGroup(e.target.value)} list="reply-groups" />
