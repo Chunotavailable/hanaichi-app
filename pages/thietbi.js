@@ -9,6 +9,8 @@ import { PageHeader } from "../lib/nav";
 import { uid, norm } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
+import { useSheetSync, SheetSyncBar, SheetSyncModal } from "../lib/SheetSyncUI";
+import { Highlight, searchTokens, HL_COLOR } from "../lib/Highlight";
 import { FilterChip, SearchInput, EmptyState, GroupTitle, UndoToast } from "../lib/ui";
 import {
   MessagesSquare,
@@ -119,6 +121,20 @@ export default function ThietBiPage() {
     };
   }, []);
 
+  async function reloadAfterSync() {
+    const fr = await fetch("/api/thietbi", { cache: "no-store" });
+    if (!fr.ok) return;
+    const d = await fr.json();
+    syncerRef.current.init(d, fr.headers.get("x-hn-etag") || "");
+    setData(d);
+  }
+  const [tbSync, runTbSync, actTbSync] = useSheetSync("/api/thietbi-sync", reloadAfterSync);
+  const [tbModal, setTbModal] = useState(null); // null | "pending" | "log"
+  useEffect(() => {
+    runTbSync(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const permTb = usePerm();
+
   function persist(next) {
     setData(next);
     syncerRef.current.schedule(next);
@@ -205,10 +221,25 @@ export default function ThietBiPage() {
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 60 }}>
       <PageHeader title="Thiết bị bếp & vệ sinh" current="/thietbi" maxWidth={900} />
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 18px" }}>
+        <SheetSyncBar note="tự cập nhật mỗi ngày 1 lần" st={tbSync} run={runTbSync} canEdit={permTb.canEdit} onOpen={setTbModal} T={T} summaryText={(m) => `đã thêm ${m.added} sản phẩm`} />
         <FaqSection list={data.thietbiFaq || []} addFaq={addFaq} saveFaq={saveFaq} delFaq={delFaq} T={T} />
         <ProductSection list={data.thietbi || []} addProduct={addProduct} saveProduct={saveProduct} delProduct={delProduct} T={T} />
       </div>
       {undoInfo && <UndoToast message={undoInfo.message} onUndo={undoDelete} />}
+      {tbModal && (
+        <SheetSyncModal
+          onClose={() => setTbModal(null)}
+          changesUrl="/api/thietbi-sync?log=1"
+          st={tbSync}
+          onAct={actTbSync}
+          canEdit={permTb.canEdit}
+          initialTab={tbModal}
+          refOf={(x) => ({ k: x.k, key: x.key })}
+          pendingView={(x, TH) => ({ kind: "Sản phẩm mới", color: TH.success, text: `· ${[x.area, x.code && "Mã " + x.code, x.price].filter(Boolean).join(" · ")}` })}
+          logView={(it, TH) => ({ text: `Sản phẩm mới${it.to ? " · Mã " + it.to : ""}`, color: TH.success })}
+          T={T}
+        />
+      )}
     </main>
   );
 }
@@ -431,7 +462,7 @@ function ProductSection({ list, addProduct, saveProduct, delProduct, T }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
         {filtered.map((p) => (
-          <ProductCard key={p.id} p={p} onOpen={() => setViewId(p.id)} T={T} />
+          <ProductCard tokens={searchTokens(q)} key={p.id} p={p} onOpen={() => setViewId(p.id)} T={T} />
         ))}
       </div>
       {!filtered.length && <EmptyState icon={SearchX} title="Không tìm thấy sản phẩm nào" hint="Thử bỏ bộ lọc khu vực hoặc tìm bằng từ khác." T={T} />}
@@ -462,7 +493,7 @@ function areaIcon(area) {
   return Wrench;
 }
 
-function ProductCard({ p, onOpen, T }) {
+function ProductCard({ p, onOpen, T, tokens = [] }) {
   const { THEME, card, chip } = T;
   const Icon = areaIcon(p.area);
   const hasScript = isQuoteScript(p.price);
@@ -482,11 +513,11 @@ function ProductCard({ p, onOpen, T }) {
         {p.area && <span style={{ ...chip, fontSize: 11.5, background: THEME.surfaceAlt, borderColor: THEME.line, color: THEME.subtext }}>{p.area}</span>}
       </div>
       <div style={{ fontWeight: 600, fontSize: 14.5, lineHeight: 1.35, whiteSpace: "pre-line", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 39, color: THEME.text }}>
-        {p.name}
+        <Highlight text={p.name || ""} tokens={tokens} color={HL_COLOR} />
       </div>
       <div style={{ fontSize: 12.5, color: THEME.subtext }}>
-        {p.brand}
-        {p.code ? ` · Mã ${p.code}` : ""}
+        <Highlight text={p.brand || ""} tokens={tokens} color={HL_COLOR} />
+        {p.code ? <> · Mã <Highlight text={p.code} tokens={tokens} color={HL_COLOR} /></> : ""}
       </div>
       <div style={{ fontWeight: 700, color: hasScript ? THEME.subtext : THEME.brand, fontSize: hasScript ? 13.5 : 16, display: "flex", alignItems: "center", gap: 6, marginTop: "auto" }}>
         {hasScript && <ScrollText size={15} />}

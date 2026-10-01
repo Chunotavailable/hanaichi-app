@@ -1,4 +1,5 @@
 // pages/customers.js — Khách hàng
+import { Highlight, searchTokens, HL_COLOR } from "../lib/Highlight";
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
@@ -58,6 +59,7 @@ export default function CustomersPage() {
   }
 
   const qLower = q.toLowerCase();
+  const hlTokens = searchTokens(q);
   const list = data.customers.filter((c) => !qLower || (c.name + c.contact + c.order + c.note).toLowerCase().includes(qLower));
 
   if (!loaded) {
@@ -88,10 +90,10 @@ export default function CustomersPage() {
             {list.map((cu) => (
               <div key={cu.id} className="hnCard" style={{ ...card, padding: 14, display: "flex", justifyContent: "space-between", gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: THEME.text }}>{cu.name}</div>
-                  {cu.contact && <div style={{ fontSize: 14, color: THEME.subtext, marginTop: 2 }}>📞 {cu.contact}</div>}
-                  {cu.order && <div style={{ fontSize: 14, color: THEME.subtext, marginTop: 2 }}>🧾 {cu.order}</div>}
-                  {cu.note && <div style={{ fontSize: 14, color: THEME.subtext, marginTop: 2 }}>{cu.note}</div>}
+                  <div style={{ fontWeight: 700, fontSize: 16, color: THEME.text }}><Highlight text={cu.name || ""} tokens={hlTokens} color={HL_COLOR} /></div>
+                  {cu.contact && <div style={{ fontSize: 14, color: THEME.subtext, marginTop: 2 }}>📞 <Highlight text={cu.contact} tokens={hlTokens} color={HL_COLOR} /></div>}
+                  {cu.order && <div style={{ fontSize: 14, color: THEME.subtext, marginTop: 2 }}>🧾 <Highlight text={cu.order} tokens={hlTokens} color={HL_COLOR} /></div>}
+                  {cu.note && <div style={{ fontSize: 14, color: THEME.subtext, marginTop: 2 }}><Highlight text={cu.note} tokens={hlTokens} color={HL_COLOR} /></div>}
                 </div>
                 <button style={{ ...btnSub, alignSelf: "flex-start", flexShrink: 0 }} onClick={() => delCustomer(cu.id)}>
                   Xóa

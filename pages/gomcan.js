@@ -17,6 +17,7 @@ import {
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
 import { useSheetSync, SheetSyncBar, SheetSyncModal } from "../lib/SheetSyncUI";
+import { Highlight, searchTokens, HL_COLOR } from "../lib/Highlight";
 import { FilterChip, SearchInput, EmptyState, GroupTitle, ImagePlaceholder, UndoToast } from "../lib/ui";
 import {
   House,
@@ -347,13 +348,13 @@ export default function GomCan() {
                     <SmartImage src={p.image} style={{ width: "100%", height: "100%", objectFit: "contain", background: "#fff" }} fallback={<ImagePlaceholder icon={Package} size={24} T={T} />} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, color: THEME.text, overflowWrap: "anywhere" }}>{p.name}</div>
+                    <div style={{ fontWeight: 600, color: THEME.text, overflowWrap: "anywhere" }}><Highlight text={p.name || ""} tokens={searchTokens(gcQuery)} color={HL_COLOR} /></div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
                       <span style={{ ...chip, fontSize: 11.5 }}>{p.sourceLabel}</span>
-                      {p.code ? <span style={{ ...chip, fontSize: 11.5, background: THEME.surfaceAlt, borderColor: THEME.line, color: THEME.subtext }}>Mã {p.code}</span> : null}
+                      {p.code ? <span style={{ ...chip, fontSize: 11.5, background: THEME.surfaceAlt, borderColor: THEME.line, color: THEME.subtext }}>Mã <Highlight text={p.code} tokens={searchTokens(gcQuery)} color={HL_COLOR} /></span> : null}
                     </div>
                     <div style={{ marginTop: 5, fontSize: 15 }}>{priceLine}</div>
-                    {p.productNote && <div style={{ marginTop: 4, fontSize: 13.5, color: THEME.subtext, whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{p.productNote}</div>}
+                    {p.productNote && <div style={{ marginTop: 4, fontSize: 13.5, color: THEME.subtext, whiteSpace: "pre-line", overflowWrap: "anywhere" }}><Highlight text={p.productNote} tokens={searchTokens(gcQuery)} color={HL_COLOR} /></div>}
                     {p.link && /^https?:\/\//i.test(p.link) && (
                       <a href={p.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ fontSize: 13, color: THEME.brand, display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4, fontWeight: 500 }}>
                         Link gốc <ExternalLink size={13} />

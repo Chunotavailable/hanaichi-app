@@ -4,7 +4,7 @@
 import { makeDocHandler } from "../../lib/docApi";
 import { SEED_THIETBI, SEED_THIETBI_FAQ } from "../../lib/thietbiSeed";
 
-const DATA_PATHNAME = "thietbi/data.json";
+export const DATA_PATHNAME = "thietbi/data.json";
 
 const DEFAULT_DATA = {
   thietbi: [],
@@ -44,7 +44,7 @@ function withSeed(data) {
   return { data: { ...data, thietbi: mergedProducts, thietbiFaq: mergedFaq }, upgraded: true };
 }
 
-function normalize(raw) {
+export function normalize(raw) {
   return withSeed({ ...DEFAULT_DATA, ...raw });
 }
 function defaults() {

@@ -9,6 +9,7 @@ import { PageHeader } from "../lib/nav";
 import { uid, norm, resizeImageFile, uploadGomcanImage, showToast } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
+import { Highlight, searchTokens, HL_COLOR } from "../lib/Highlight";
 import { FilterChip, SearchInput, EmptyState, UndoToast } from "../lib/ui";
 import { REPLY_GROUPS } from "../lib/repliesSeed";
 import { ArrowUp, Plus, Pencil, Trash2, Copy, Check, SearchX, Lock, ImagePlus, X, Loader2, Maximize2, ArrowUpDown, LayoutList, Store, MessagesSquare, Receipt, Ruler, RefreshCcw, Users, Megaphone, FolderOpen } from "lucide-react";
@@ -35,7 +36,7 @@ function copyText(text) {
 
 // Biến link trong đoạn chữ thành link bấm được.
 const LINK_RE = /(https?:\/\/[^\s]+|m\.me\/[^\s]+)/g;
-function Linkified({ text, color }) {
+function Linkified({ text, color, tokens = [] }) {
   const parts = (text || "").split(LINK_RE);
   return parts.map((part, i) =>
     i % 2 === 1 ? (
@@ -43,7 +44,7 @@ function Linkified({ text, color }) {
         {part}
       </a>
     ) : (
-      <span key={i}>{part}</span>
+      <span key={i}><Highlight text={part} tokens={tokens} color={HL_COLOR} /></span>
     )
   );
 }
@@ -143,6 +144,7 @@ export default function TraCuuPage() {
   const present = Array.from(new Set(list.map((r) => r.group || "Khác")));
   const groups = [...REPLY_GROUPS.filter((g) => present.includes(g)), ...present.filter((g) => !REPLY_GROUPS.includes(g))];
   const nq = norm(q);
+  const qTokens = searchTokens(q);
   let filtered = list.filter((r) => {
     // Đang gõ tìm kiếm thì tìm trong TẤT CẢ các nhóm, không bị giới hạn ở nhóm đang chọn.
     if (!nq && group !== "Tất cả" && (r.group || "Khác") !== group) return false;
@@ -263,7 +265,7 @@ export default function TraCuuPage() {
                   </div>
                   <div style={{ ...card, padding: 0, overflow: "hidden" }}>
                     {items.map((r, i) => (
-                      <ReplyRow key={r.id} r={r} first={i === 0} groups={groups} saveReply={saveReply} updateImages={updateImages} onDelete={() => setConfirmDelId(r.id)} T={T} />
+                      <ReplyRow tokens={qTokens} key={r.id} r={r} first={i === 0} groups={groups} saveReply={saveReply} updateImages={updateImages} onDelete={() => setConfirmDelId(r.id)} T={T} />
                     ))}
                   </div>
                 </section>
@@ -334,7 +336,7 @@ function CopyButton({ text, T }) {
 
 // 1 mục: tiêu đề + nút Chép (và Sửa/Xoá/Thêm ảnh với Quản lý) ở trên, toàn
 // bộ nội dung và ảnh luôn hiện đầy đủ bên dưới.
-function ReplyRow({ r, first, groups, saveReply, updateImages, onDelete, T }) {
+function ReplyRow({ tokens = [], r, first, groups, saveReply, updateImages, onDelete, T }) {
   const { THEME, iconBtn } = T;
   const perm = usePerm();
   const [editing, setEditing] = useState(false);
@@ -366,7 +368,7 @@ function ReplyRow({ r, first, groups, saveReply, updateImages, onDelete, T }) {
     <div style={{ borderTop: border, padding: "12px 14px 14px" }} onMouseEnter={() => (pasteTargetId = r.id)} onFocus={() => (pasteTargetId = r.id)}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: r.content || images.length || perm.canEdit ? 8 : 0 }}>
         <div style={{ flex: 1, minWidth: 0, fontWeight: 650, fontSize: 14.5, color: THEME.brand, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", paddingTop: 4 }}>
-          <span style={{ lineHeight: 1.35 }}>{r.title}</span>
+          <span style={{ lineHeight: 1.35 }}><Highlight text={r.title || ""} tokens={tokens} color={HL_COLOR} /></span>
           {r.private && (
             <span title="Chế độ Khách không nhìn thấy mục này" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: THEME.subtext, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 999, padding: "0 7px", flexShrink: 0 }}>
               <Lock size={10} /> Chỉ Quản lý
@@ -394,7 +396,7 @@ function ReplyRow({ r, first, groups, saveReply, updateImages, onDelete, T }) {
       </div>
       {r.content ? (
         <div style={{ fontSize: 14, lineHeight: 1.65, whiteSpace: "pre-wrap", overflowWrap: "anywhere", color: THEME.text, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 10, padding: "10px 12px" }}>
-          <Linkified text={r.content} color={THEME.brand} />
+          <Linkified text={r.content} color={THEME.brand} tokens={tokens} />
         </div>
       ) : null}
       <ReplyImages r={r} images={images} updateImages={updateImages} fileRef={fileRef} T={T} />

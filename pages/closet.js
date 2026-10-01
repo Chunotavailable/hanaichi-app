@@ -8,6 +8,7 @@ import { PageHeader } from "../lib/nav";
 import { goLogin, uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, showToast, ViewModeToggle, gridColumnsFor, SmartImage } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
+import { Highlight, searchTokens, HL_COLOR } from "../lib/Highlight";
 import { FilterChip, SearchInput, EmptyState, GroupTitle, ImagePlaceholder, UndoToast } from "../lib/ui";
 import {
   ShoppingBag,
@@ -1120,7 +1121,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
             </GroupTitle>
             <div style={{ display: "grid", gridTemplateColumns: gridColumnsFor(viewMode), gap: 12, marginBottom: 10 }}>
               {items.map((p) => (
-                <ClosetProductCard key={p.id} p={p} listMode={viewMode === "list"} onOpen={() => setViewId(p.id)} discount={discount} T={T} />
+                <ClosetProductCard tokens={tokens} key={p.id} p={p} listMode={viewMode === "list"} onOpen={() => setViewId(p.id)} discount={discount} T={T} />
               ))}
             </div>
             {perm.canEdit && (
@@ -1207,7 +1208,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
 
 /* ---- Thẻ sản phẩm ở ngoài: ảnh (không hiện số lượng nữa) + tên + giá +
    các mã/size (chip). Ở chế độ danh sách thì gọn thành 1 dòng ngang. ---- */
-function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
+function ClosetProductCard({ p, listMode, onOpen, discount, T, tokens = [] }) {
   const { THEME, card, chip } = T;
   const variants = p.variants || [];
   // Ở ngoài chỉ hiện các size CÒN HÀNG (màu xanh) — size hết hàng không hiện nữa.
@@ -1262,7 +1263,7 @@ function ClosetProductCard({ p, listMode, onOpen, discount, T }) {
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+          <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><Highlight text={p.name || ""} tokens={tokens} color={HL_COLOR} /></div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 2, minWidth: 0 }}>
             {priceLine.originalText && <span style={{ fontSize: 11, color: THEME.subtext, textDecoration: "line-through", flexShrink: 0 }}>{priceLine.originalText}</span>}
             <span style={{ fontWeight: 700, color: priceColor, fontSize: 14.5, flexShrink: 0 }}>{priceLine.text}</span>
