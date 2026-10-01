@@ -309,32 +309,8 @@ export default function TraCuuPage() {
           setConfirmDelId(null);
         }}
       />
-      <ScrollTopButton THEME={THEME} />
       {undoInfo && <UndoToast message={undoInfo.message} onUndo={undoDelete} />}
     </main>
-  );
-}
-
-// Nút nổi góc phải dưới: cuộn xuống 1 đoạn thì hiện, bấm để lên đầu trang.
-function ScrollTopButton({ THEME }) {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setShow(window.scrollY > 400);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-  if (!show) return null;
-  return (
-    <button
-      className="hnPop"
-      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-      title="Lên đầu trang"
-      aria-label="Lên đầu trang"
-      style={{ position: "fixed", right: 18, bottom: 22, zIndex: 45, width: 44, height: 44, borderRadius: 14, background: THEME.surface, color: THEME.text, border: `1px solid ${THEME.line}`, cursor: "pointer", boxShadow: "0 6px 18px rgba(44,26,30,0.12)", display: "grid", placeItems: "center" }}
-    >
-      <ArrowUp size={19} />
-    </button>
   );
 }
 

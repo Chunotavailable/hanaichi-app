@@ -115,7 +115,7 @@ export default function GomCan() {
     syncerRef.current.init(d, fr.headers.get("x-hn-etag") || "");
     setData(d);
   }
-  const [gdSync, runGdSync] = useSheetSync("/api/giadung-sync", reloadAfterSync);
+  const [gdSync, runGdSync, actGdSync] = useSheetSync("/api/giadung-sync", reloadAfterSync);
   const [gdModal, setGdModal] = useState(null); // null | "pending" | "log"
   useEffect(() => {
     runGdSync(false);
@@ -391,7 +391,7 @@ export default function GomCan() {
           onClose={() => setGdModal(null)}
           changesUrl="/api/giadung-sync?log=1"
           st={gdSync}
-          run={runGdSync}
+          onAct={actGdSync}
           canEdit={perm.canEdit}
           initialTab={gdModal}
           refOf={(x) => ({ k: x.k, key: x.key, sig: x.sig })}
@@ -415,15 +415,7 @@ export default function GomCan() {
         />
       )}
 
-      <div style={{ position: "fixed", right: 18, bottom: 22, zIndex: 45, display: "flex", flexDirection: "column", gap: 10 }}>
-        <button
-          onClick={scrollToTop}
-          title="Lên đầu trang"
-          aria-label="Lên đầu trang"
-          style={{ width: 44, height: 44, borderRadius: 14, background: THEME.surface, color: THEME.text, border: `1px solid ${THEME.line}`, cursor: "pointer", boxShadow: "0 6px 18px rgba(44,26,30,0.12)", display: "grid", placeItems: "center" }}
-        >
-          <ArrowUp size={19} />
-        </button>
+      <div style={{ position: "fixed", right: 16, bottom: "calc(74px + env(safe-area-inset-bottom, 0px))", zIndex: 45, display: "flex", flexDirection: "column", gap: 10 }}>
         {perm.canEdit && (
           <button
             onClick={quickAddGiadung}

@@ -366,6 +366,36 @@ export default function ClosetPage() {
       return false;
     }
   }
+  // Duyệt / Bỏ qua: mục biến mất ngay, gửi lên máy chủ ở phía sau (xếp hàng), không khoá nút.
+  const actChain = useRef(Promise.resolve());
+  const actCount = useRef(0);
+  function actPending(approve, reject) {
+    const done = new Set([...approve, ...reject].map((x) => x.k + x.key));
+    setSheetSync((s) => ({ ...s, pending: s.pending.filter((x) => !done.has(x.k + x.key)) }));
+    actCount.current++;
+    actChain.current = actChain.current.then(async () => {
+      try {
+        const r = await fetch("/api/closet-sync?force=1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approve, reject }), cache: "no-store" });
+        if (r.status === 401) return goLogin();
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || "Không lưu được thao tác");
+        if (j.changed && !syncerRef.current.hasPending()) {
+          const fr = await fetch("/api/gomcan", { cache: "no-store" });
+          if (fr.ok) {
+            const d = await fr.json();
+            syncerRef.current.init(d, fr.headers.get("x-hn-etag") || "");
+            setData(d);
+          }
+        }
+        if (actCount.current === 1) setSheetSync((s) => ({ ...s, error: "", at: j.at || s.at, pending: j.pending || [] }));
+      } catch (e) {
+        setSheetSync((s) => ({ ...s, error: (e && e.message) || "Không lưu được thao tác, thử lại" }));
+        syncSheet(false);
+      } finally {
+        actCount.current--;
+      }
+    });
+  }
   useEffect(() => {
     loadData();
     syncSheet(false);
@@ -607,7 +637,7 @@ export default function ClosetPage() {
           T={T}
         />
       </div>
-      {showLog && <ChangeLogModal onClose={() => setShowLog(false)} lastAt={sheetSync.at} pending={sheetSync.pending} canEdit={perm.canEdit} busy={sheetSync.busy} initialTab={logTab} act={(approve, reject) => syncSheet(true, { approve, reject })} T={T} />}
+      {showLog && <ChangeLogModal onClose={() => setShowLog(false)} lastAt={sheetSync.at} pending={sheetSync.pending} canEdit={perm.canEdit} busy={false} initialTab={logTab} act={actPending} T={T} />}
       {undoInfo && <UndoToast message={undoInfo.message} onUndo={undoDelete} />}
     </main>
   );

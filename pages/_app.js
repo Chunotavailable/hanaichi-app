@@ -1,6 +1,7 @@
 // pages/_app.js
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { ThemeProvider } from "../lib/theme";
 import { playPop } from "../lib/sound";
 import { PermProvider } from "../lib/perm";
@@ -40,6 +41,47 @@ function GlobalClickPop() {
   return null;
 }
 
+// Nút nổi "lên đầu trang" cho mọi tab: cuộn xuống 1 đoạn thì hiện.
+function GlobalScrollTop() {
+  const [show, setShow] = useState(false);
+  const router = useRouter();
+  useEffect(() => {
+    const onScroll = () => setShow(window.scrollY > 400);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [router.pathname]);
+  if (!show || router.pathname === "/login") return null;
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      title="Lên đầu trang"
+      aria-label="Lên đầu trang"
+      style={{ position: "fixed", right: 16, bottom: "calc(20px + env(safe-area-inset-bottom, 0px))", zIndex: 44, width: 44, height: 44, borderRadius: 14, background: "#fffaf5", color: "#2c1a1e", border: "1px solid #ead9cf", cursor: "pointer", boxShadow: "0 6px 18px rgba(44,26,30,0.14)", display: "grid", placeItems: "center", padding: 0 }}
+    >
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></svg>
+    </button>
+  );
+}
+
+// Mở hộp thoại thì khoá cuộn trang phía sau (iPhone hay cuộn nhầm trang nền).
+function DialogScrollLock() {
+  useEffect(() => {
+    const check = () => {
+      const open = !!document.querySelector('[role="dialog"]');
+      document.body.style.overflow = open ? "hidden" : "";
+    };
+    const mo = new MutationObserver(check);
+    mo.observe(document.body, { childList: true, subtree: true });
+    check();
+    return () => {
+      mo.disconnect();
+      document.body.style.overflow = "";
+    };
+  }, []);
+  return null;
+}
+
 // Web do Hạnh thiết kế & xây dựng cho Hanaichi.
 const CREDIT = "Hạnh";
 
@@ -47,6 +89,8 @@ export default function App({ Component, pageProps }) {
   return (
     <ThemeProvider>
       <GlobalClickPop />
+      <GlobalScrollTop />
+      <DialogScrollLock />
       <Head>
         <meta name="author" content={CREDIT} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -62,10 +106,38 @@ export default function App({ Component, pageProps }) {
           margin: 0;
           padding: 0;
           max-width: 100%;
-          overflow-x: hidden;
           font-family: "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
+        }
+        /* Chặn tràn ngang bằng "clip" (không tạo vùng cuộn riêng như "hidden" — hidden ở cả html và
+           body làm iPhone cuộn giật, kẹt hoặc không cuộn xuống được). */
+        body {
+          overflow-x: clip;
+          -webkit-text-size-adjust: 100%;
+        }
+        @supports not (overflow: clip) {
+          body {
+            overflow-x: hidden;
+          }
+        }
+        main {
+          min-height: 100dvh !important; /* iPhone: thanh địa chỉ co giãn nên 100vh bị dư/thiếu */
+        }
+        [role="dialog"] {
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+        /* Điện thoại/cảm ứng: bỏ các hiệu ứng nặng làm cuộn giật (thẻ ẩn/hiện theo màn hình, nhấp nháy liên tục). */
+        @media (hover: none) {
+          .hnListItem,
+          .hnRowItem {
+            content-visibility: visible !important;
+          }
+          .xaKhoBadge {
+            animation: none !important;
+            will-change: auto !important;
+          }
         }
         body {
           background: #f5ebe3;

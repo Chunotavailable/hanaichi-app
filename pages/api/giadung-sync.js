@@ -32,7 +32,14 @@ async function readPending() {
 }
 
 async function syncOnce(action = {}) {
-  const recs = parseGiadungRows(await loadGiadungRows());
+  // Duyệt/bỏ qua liên tiếp: dùng lại bản sheet vừa đọc (tối đa 5 phút) cho nhanh, khỏi tải lại Google mỗi lần bấm.
+  const isAction = (action.approve || []).length + (action.reject || []).length > 0;
+  let recs;
+  if (isAction && state.recs && Date.now() - state.recs.at < 5 * 60 * 1000) recs = state.recs.recs;
+  else {
+    recs = parseGiadungRows(await loadGiadungRows());
+    state.recs = { at: Date.now(), recs };
+  }
   if (recs.length < 10) throw new Error("File Google Sheet đọc ra quá ít sản phẩm — giữ nguyên dữ liệu cũ để an toàn");
   const pend = await readPending();
   const dismissed = new Set(pend.doc.dismissed || []);
