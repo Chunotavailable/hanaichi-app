@@ -429,7 +429,7 @@ export default function ClosetPage() {
         setData(d);
       } catch {}
     }
-    const t = setInterval(refresh, 8000);
+    const t = setInterval(refresh, 180000); // 3 phút (mỗi lần hỏi tốn 1 "Advanced Request" của Vercel Blob; quay lại tab thì cập nhật ngay)
     document.addEventListener("visibilitychange", refresh);
     return () => {
       stop = true;
