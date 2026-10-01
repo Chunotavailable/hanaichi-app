@@ -266,10 +266,19 @@ export default function GomCan() {
     });
     (data.giadung || []).forEach((it) => all.push({ ...it, sourceLabel: "Gia dụng + TPCN", kind: "giadung" }));
     const joined = tokens.join("");
-    return all.filter((p) => {
+    // Ưu tiên tên chính của sản phẩm: tên khớp đủ -> (tên bắt đầu bằng từ khoá lên trước) -> chỉ khớp mã/ghi chú.
+    const scored = [];
+    all.forEach((p, i) => {
+      const nm = norm(p.name || "");
       const h = norm(p.name + " " + (p.code || "") + " " + (p.productNote || ""));
-      return tokens.every((t) => h.includes(t)) || h.replace(/ /g, "").includes(joined);
+      const inName = tokens.every((t) => nm.includes(t)) || nm.replace(/ /g, "").includes(joined);
+      const inAll = inName || tokens.every((t) => h.includes(t)) || h.replace(/ /g, "").includes(joined);
+      if (!inAll) return;
+      const pos = inName ? Math.max(0, nm.indexOf(tokens[0])) : 9999;
+      scored.push({ p, i, rank: inName ? (nm.startsWith(tokens[0]) ? 0 : 1) : 2, pos });
     });
+    scored.sort((a, b) => a.rank - b.rank || a.pos - b.pos || a.i - b.i);
+    return scored.map((x) => x.p);
   }
   const searchResults = gcQuery.trim() ? searchAll(gcQuery) : [];
 
