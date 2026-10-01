@@ -28,6 +28,8 @@ async function logChanges(summary, items, approved) {
 }
 
 const PENDING_PATH = "closet/pending.json";
+const CHECK_PATH = "closet/lastcheck.json";
+const DAY_MS = 24 * 60 * 60 * 1000; // tự động đối chiếu file gốc tối đa 1 lần / ngày (bấm "Cập nhật ngay" thì làm luôn)
 
 async function readPending() {
   try {
@@ -87,6 +89,7 @@ async function syncOnce(action = {}) {
     if (JSON.stringify({ i: next.items, d: next.dismissed }) !== JSON.stringify({ i: pend.doc.items, d: pend.doc.dismissed })) {
       try { await writeDoc(PENDING_PATH, next, pend.etag ? { ifMatch: pend.etag } : {}); } catch {}
     }
+    try { const c = await readDoc(CHECK_PATH); await writeDoc(CHECK_PATH, { at: next.at }, c.exists ? { ifMatch: c.etag } : {}); } catch {}
     return { changed, summary, at: next.at, total: recs.length, pending: proposals };
   }
   throw new Error("Dữ liệu đang được lưu ở nơi khác, thử lại sau ít giây");
@@ -110,6 +113,16 @@ export default async function handler(req, res) {
     }
     const force = req.query.force === "1";
     if (!force && state.last && Date.now() - state.at < MIN_GAP_MS) return res.status(200).json({ ...state.last, changed: false, skipped: true });
+    if (!force) {
+      // Đã đối chiếu trong vòng 24 giờ -> không tải lại Google, chỉ trả danh sách chờ duyệt đang lưu.
+      try {
+        const c = await readDoc(CHECK_PATH);
+        if (c.exists && c.raw && c.raw.at && Date.now() - new Date(c.raw.at).getTime() < DAY_MS) {
+          const pend = await readPending();
+          return res.status(200).json({ changed: false, skipped: true, at: c.raw.at, pending: pend.doc.items || [] });
+        }
+      } catch {}
+    }
     if (!state.p) state.p = syncOnce().then((r) => { state.last = r; state.at = Date.now(); return r; }).finally(() => (state.p = null));
     return res.status(200).json(await state.p);
   } catch (e) {

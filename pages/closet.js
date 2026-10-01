@@ -604,7 +604,7 @@ export default function ClosetPage() {
               : sheetSync.busy
               ? "Đang đối chiếu với file gốc của công ty..."
               : sheetSync.at
-              ? `Tự cập nhật từ file gốc · ${new Date(sheetSync.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}${sheetSync.summary ? ` · đã cập nhật số lượng ${sheetSync.summary.updated} mã` : ""}`
+              ? `Tự cập nhật mỗi ngày 1 lần từ file gốc · ${new Date(sheetSync.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}${sheetSync.summary ? ` · đã cập nhật số lượng ${sheetSync.summary.updated} mã` : ""}`
               : ""}
           </span>
           <span style={{ display: "inline-flex", gap: 6 }}>
