@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
   res.setHeader("Cache-Control", "no-store");
   try {
-    const doc = await readDoc(CACHE_PATHNAME);
+    const doc = await readDoc(CACHE_PATHNAME, { maxAgeMs: 60000 });
     if (doc.exists && doc.raw && Array.isArray(doc.raw.products)) return res.status(200).json(doc.raw);
   } catch (e) {
     // Đọc cache lỗi thì dùng bản kèm theo web, không làm hỏng trang.

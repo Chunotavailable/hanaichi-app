@@ -25,9 +25,9 @@ async function logChanges(summary, items, approved) {
     await writeDoc(LOG_PATH, { entries: entries.slice(0, 40) }, cur.exists ? { ifMatch: cur.etag } : {});
   } catch {}
 }
-async function readPending() {
+async function readPending(opts) {
   try {
-    const d = await readDoc(PENDING_PATH);
+    const d = await readDoc(PENDING_PATH, opts);
     if (d.exists) return { doc: d.raw, etag: d.etag };
   } catch {}
   return { doc: { items: [], dismissed: [] }, etag: "" };
@@ -101,7 +101,7 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Method not allowed" });
     }
     if (req.query.log === "1") {
-      const d = await readDoc(LOG_PATH);
+      const d = await readDoc(LOG_PATH, { maxAgeMs: 60000 });
       return res.status(200).json(d.exists ? d.raw : { entries: [] });
     }
     const force = req.query.force === "1";
@@ -109,9 +109,9 @@ export default async function handler(req, res) {
     if (!force) {
       // Đã đối chiếu trong vòng 24 giờ -> không tải lại Google, chỉ trả danh sách chờ duyệt đang lưu.
       try {
-        const c = await readDoc(CHECK_PATH);
+        const c = await readDoc(CHECK_PATH, { maxAgeMs: 300000 });
         if (c.exists && c.raw && c.raw.at && Date.now() - new Date(c.raw.at).getTime() < DAY_MS) {
-          const pend = await readPending();
+          const pend = await readPending({ maxAgeMs: 60000 });
           return res.status(200).json({ changed: false, skipped: true, at: c.raw.at, pending: pend.doc.items || [] });
         }
       } catch {}
