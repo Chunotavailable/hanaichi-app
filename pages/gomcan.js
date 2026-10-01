@@ -383,7 +383,7 @@ export default function GomCan() {
         )}
         {subTab === "unigu" && <OniCategory label="Uniqlo + GU" areaKey="unigu" cat="unigu" {...oniProps} />}
         {subTab === "giadung" && (
-          <SheetSyncBar st={gdSync} run={runGdSync} canEdit={perm.canEdit} onOpen={setGdModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated} sản phẩm`} />
+          <SheetSyncBar note="tự cập nhật mỗi ngày 1 lần" st={gdSync} run={runGdSync} canEdit={perm.canEdit} onOpen={setGdModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated} sản phẩm`} />
         )}
         {subTab === "giadung" && (
           <GiadungSection
