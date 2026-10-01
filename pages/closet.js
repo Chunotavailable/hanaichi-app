@@ -8,6 +8,7 @@ import { PageHeader } from "../lib/nav";
 import { goLogin, uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, showToast, ViewModeToggle, gridColumnsFor, SmartImage } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
+import { autoCheckDue, writeSyncCache } from "../lib/SheetSyncUI";
 import { Highlight, searchTokens, HL_COLOR } from "../lib/Highlight";
 import { FilterChip, SearchInput, EmptyState, GroupTitle, ImagePlaceholder, UndoToast } from "../lib/ui";
 import {
@@ -341,6 +342,13 @@ export default function ClosetPage() {
   const [logTab, setLogTab] = useState("log");
   const [sheetSync, setSheetSync] = useState({ busy: false, at: null, error: "", summary: null, pending: [] });
   async function syncSheet(force, action) {
+    if (!force && !action) {
+      const { due, cache } = autoCheckDue("/api/closet-sync");
+      if (!due) {
+        if (cache) setSheetSync((s) => ({ ...s, at: cache.at || s.at, summary: cache.summary || s.summary, pending: cache.pending || [] }));
+        return true;
+      }
+    }
     setSheetSync((s) => ({ ...s, busy: true, error: "" }));
     try {
       const r = await fetch(`/api/closet-sync${force ? "?force=1" : ""}`, action ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action), cache: "no-store" } : { cache: "no-store" });
@@ -356,6 +364,7 @@ export default function ClosetPage() {
         }
       }
       setSheetSync((s) => ({ busy: false, at: j.at || new Date().toISOString(), error: "", summary: j.changed ? j.summary : s.summary, pending: j.pending || [] }));
+      writeSyncCache("/api/closet-sync", { at: j.at || new Date().toISOString(), summary: j.changed ? j.summary : null, pending: j.pending || [] });
       // Bấm "Cập nhật ngay" thì tải lại trang; duyệt/bỏ qua thì giữ nguyên trang.
       if (force && !action) {
         try { syncerRef.current.flushNow(); } catch {}
@@ -388,7 +397,10 @@ export default function ClosetPage() {
             setData(d);
           }
         }
-        if (actCount.current === 1) setSheetSync((s) => ({ ...s, error: "", at: j.at || s.at, pending: j.pending || [] }));
+        if (actCount.current === 1) {
+          setSheetSync((s) => ({ ...s, error: "", at: j.at || s.at, pending: j.pending || [] }));
+          writeSyncCache("/api/closet-sync", { at: j.at || new Date().toISOString(), summary: null, pending: j.pending || [] }, true);
+        }
       } catch (e) {
         setSheetSync((s) => ({ ...s, error: (e && e.message) || "Không lưu được thao tác, thử lại" }));
         syncSheet(false);
@@ -429,7 +441,7 @@ export default function ClosetPage() {
         setData(d);
       } catch {}
     }
-    const t = setInterval(refresh, 180000); // 3 phút (mỗi lần hỏi tốn 1 "Advanced Request" của Vercel Blob; quay lại tab thì cập nhật ngay)
+    const t = setInterval(refresh, 600000); // 10 phút (mỗi lần hỏi tốn 1 "Advanced Request" của Vercel Blob; quay lại tab thì cập nhật ngay)
     document.addEventListener("visibilitychange", refresh);
     return () => {
       stop = true;
