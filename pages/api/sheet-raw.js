@@ -44,11 +44,24 @@ export default async function handler(req, res) {
       return res.status(200).send(fs.readFileSync(tf));
     }
     const r = await get(`https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`, 50000);
-    const buf = Buffer.from(await r.arrayBuffer());
-    if (r.ok && buf.slice(0, 2).toString() === "PK") {
-      res.setHeader("x-sheet-format", "xlsx");
-      res.setHeader("Content-Type", "application/octet-stream");
-      return res.status(200).send(buf);
+    if (r.ok && r.body) {
+      // Chuyển dần từng đoạn về trình duyệt, KHÔNG giữ cả file trong bộ nhớ (Cloudflare gói miễn phí chỉ có 128MB).
+      const reader = r.body.getReader();
+      const first = await reader.read();
+      const head = first.value || new Uint8Array(0);
+      if (head.length >= 2 && head[0] === 0x50 && head[1] === 0x4b) {
+        res.setHeader("x-sheet-format", "xlsx");
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.status(200);
+        res.write(head);
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+        return res.end();
+      }
+      try { await reader.cancel(); } catch {}
     }
     if (tab === "closet") {
       // Không tải được bản Excel (mất màu ô) -> dùng bản CSV, vẫn đối chiếu được số lượng/mã nhưng không nhận ra giá xả.
