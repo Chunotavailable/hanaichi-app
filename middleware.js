@@ -8,6 +8,7 @@
 // gửi) để API phía sau biết, và vào cookie hn_role để giao diện ẩn/hiện nút.
 import { NextResponse } from "next/server";
 import { roleForToken, AUTH_COOKIE_NAME, ROLE_COOKIE_NAME } from "./lib/authToken";
+import { getImage } from "./lib/blobDoc";
 
 function isPublicPath(pathname) {
   if (pathname === "/login" || pathname === "/api/login" || pathname === "/api/logout") return true;
@@ -48,6 +49,22 @@ async function passThroughSheet(req, role) {
   }
 }
 
+// Phục vụ ảnh bằng đường ngắn nhất (bỏ qua phần xử lý API nặng) để mỗi ảnh tốn ít thời gian tính toán nhất.
+// Lỗi gì thì trả lại cho API cũ xử lý như trước.
+async function serveImage(req) {
+  try {
+    const name = decodeURIComponent(req.nextUrl.pathname.slice("/api/img/".length)).replace(/[^\w.-]/g, "_");
+    const img = await getImage(name);
+    if (!img) return null;
+    return new Response(Buffer.from(img.b64, "base64"), {
+      status: 200,
+      headers: { "Content-Type": img.type || "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable" },
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function middleware(req) {
   const { pathname } = req.nextUrl;
   if (isPublicPath(pathname)) return NextResponse.next();
@@ -66,6 +83,11 @@ export async function middleware(req) {
     url.pathname = "/";
     url.search = "";
     return NextResponse.redirect(url);
+  }
+
+  if (pathname.startsWith("/api/img/") && req.method === "GET" && !process.env.HANAICHI_MEMORY_BLOB) {
+    const img = await serveImage(req);
+    if (img) return img;
   }
 
   if (pathname === "/api/sheet-raw" && req.method === "GET") {
