@@ -34,6 +34,7 @@
   function mount() {
     if (host) host.remove();
     host = document.createElement("div");
+    host.id = "hn-quote-host";
     host.style.cssText = "all:initial;position:fixed;z-index:2147483647;right:16px;top:16px;";
     root = host.attachShadow({ mode: "open" });
     const st = document.createElement("style");
@@ -78,7 +79,7 @@
   }
 
   // ---------- 1) Bảng báo giá ----------
-  async function showQuote(selected) {
+  async function showQuote(selected, auto) {
     const r = mount();
     const looksYen = /[¥円]|yen|jpy/i.test(selected);
     const looksVnd = !looksYen && /(₫|vnd|đ\b|\bk\b)/i.test(selected);
@@ -133,7 +134,7 @@
       el("div", { class: "muted", text: "Công thức giống tab Tính giá: Yên × tỷ giá × (1 − %giảm), làm tròn lên 5k." }),
     ]));
     render();
-    amount.focus();
+    if (!auto) amount.focus();
   }
 
   // ---------- 2) Khoanh vùng đọc mã ----------
@@ -221,7 +222,7 @@
 
   chrome.runtime.onMessage.addListener((msg) => {
     if (!msg) return;
-    if (msg.type === "quote") showQuote(String(msg.text || ""));
+    if (msg.type === "quote") showQuote(String(msg.text || ""), !!msg.auto);
     if (msg.type === "area") startArea(msg.shot);
   });
 })();

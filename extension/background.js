@@ -8,6 +8,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return;
+  if (msg.type === "sel" && sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: "quote", text: msg.text, auto: true }, { frameId: 0 }).catch(() => {});
   if (msg.type === "open" && msg.url && /^https:\/\//.test(msg.url)) chrome.tabs.create({ url: msg.url, active: msg.active !== false });
   if (msg.type === "ocr") {
     runOcr(msg.data).then(sendResponse, (e) => sendResponse({ ok: false, error: String(e) }));

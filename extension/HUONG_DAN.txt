@@ -1,4 +1,4 @@
-EXTENSION HANAICHI (Chrome / Edge) - bản 0.3.1
+EXTENSION HANAICHI (Chrome / Edge) - bản 0.4.0
 
 CÀI:
 1. Giải nén zip ra 1 thư mục cố định (đừng xoá). Nếu đã cài bản cũ: xoá thư mục cũ/ghi đè rồi bấm nút tải lại ở chrome://extensions
@@ -7,7 +7,8 @@ CÀI:
 4. Bấm biểu tượng mảnh ghép trên thanh Chrome -> ghim extension Hanaichi cho tiện.
 
 DÙNG:
-A) BÁO GIÁ: bôi đen giá Yên trên trang (VD ¥5,980) -> chuột phải -> "Hanaichi: báo giá ..." -> hiện bảng.
+A) BÁO GIÁ: chỉ cần BÔI ĐEN giá Yên trên trang (VD ¥5,980, 5980円) là bảng báo giá tự hiện, không cần bấm gì thêm.
+   (Bôi đen số khác, hoặc số không có ký hiệu Yên: chuột phải -> "Hanaichi: báo giá ..." để mở thủ công.)
    Điền mã sản phẩm vào ô mã thì câu mẫu có "Mã HV9972-003 đang sale còn ...". Bấm "Chép" ở câu cần dùng.
    Tỷ giá và % giảm được nhớ lại cho lần sau.
 B) KHOANH ĐỌC MÃ: bấm Alt+Shift+Q (hoặc bấm biểu tượng extension, hoặc chuột phải -> "khoanh vùng đọc mã")
