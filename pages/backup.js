@@ -189,6 +189,55 @@ export default function BackupPage() {
     }
   }
 
+  // Tự kiểm tra toàn bộ ảnh đang dùng trên web, báo bằng chữ dễ hiểu.
+  async function checkImages() {
+    setBusy(true);
+    setMsg({ ok: true, text: "Đang kiểm tra ảnh..." });
+    try {
+      const all = {};
+      for (const sec of SECTIONS) {
+        try {
+          const r = await fetch(sec.url, { cache: "no-store" });
+          if (r.ok) all[sec.key] = await r.json();
+        } catch {}
+      }
+      const urls = findImageUrls(all).filter((u) => u.startsWith("/api/img/"));
+      let ok = 0;
+      const bad = [];
+      for (let i = 0; i < urls.length; i += 3) {
+        setMsg({ ok: true, text: `Đang kiểm tra ảnh ${Math.min(i + 3, urls.length)}/${urls.length}...` });
+        await Promise.all(
+          urls.slice(i, i + 3).map(async (u) => {
+            try {
+              const r = await fetch(u, { cache: "no-store" });
+              if (r.ok) { await r.blob(); ok++; }
+              else bad.push(`${u.slice(9).split("?")[0]} → lỗi ${r.status}${r.status === 404 ? " (không có ảnh trong kho)" : r.status >= 500 ? " (máy chủ quá tải/lỗi)" : ""}`);
+            } catch (e) {
+              bad.push(`${u.slice(9).split("?")[0]} → không tải được (${(e && e.message) || "mất kết nối"})`);
+            }
+          })
+        );
+      }
+      const noImg = [];
+      const walk = (o, key) => {
+        if (Array.isArray(o)) o.forEach((x) => walk(x, key));
+        else if (o && typeof o === "object") {
+          if ("image" in o && !o.image && o.name) noImg.push(String(o.name).replace(/\s+/g, " ").slice(0, 40));
+          for (const k of Object.keys(o)) walk(o[k], k);
+        }
+      };
+      walk({ g: all.gomcan && all.gomcan.closet }, "");
+      const parts = [`Có ${urls.length} ảnh trên web: ${ok} ảnh tải tốt, ${bad.length} ảnh lỗi.`];
+      if (bad.length) parts.push("Ảnh lỗi: " + bad.slice(0, 6).join("; ") + (bad.length > 6 ? ` ... và ${bad.length - 6} ảnh nữa` : ""));
+      if (noImg.length) parts.push(`${noImg.length} sản phẩm Closet chưa có ảnh nào (ví dụ: ${noImg.slice(0, 3).join(", ")}).`);
+      setMsg({ ok: bad.length === 0, text: parts.join(" ") });
+    } catch {
+      setMsg({ ok: false, text: "❌ Không kiểm tra được ảnh, thử lại sau." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function onPickFile(e) {
     const file = e.target.files && e.target.files[0];
     e.target.value = "";
@@ -320,7 +369,10 @@ export default function BackupPage() {
         </section>
 
         <section style={{ ...card, padding: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Nạp lại ảnh bị trống</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Kiểm tra & nạp lại ảnh bị trống</div>
+          <button style={{ ...btn, marginBottom: 12 }} disabled={busy} onClick={checkImages}>
+            {busy ? "Đang chạy..." : "Kiểm tra ảnh ngay"}
+          </button>
           <div style={{ fontSize: 14, color: THEME.subtext, lineHeight: 1.6 }}>
             Nếu có sản phẩm hiện khung trống thay vì ảnh: chọn lại file sao lưu, web chỉ nạp lại những ảnh đang lỗi. Không đổi dữ liệu nào khác.
           </div>
