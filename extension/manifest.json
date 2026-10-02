@@ -1,13 +1,44 @@
 {
   "manifest_version": 3,
-  "name": "Hanaichi - Tìm sản phẩm từ ảnh",
-  "version": "0.2.0",
-  "description": "Chuột phải vào ảnh khách gửi để tìm sản phẩm bằng Google Lens (kèm tên hãng: Uniqlo, GU, Nike...).",
-  "permissions": ["contextMenus", "storage"],
-  "host_permissions": ["<all_urls>"],
-  "background": { "service_worker": "background.js" },
+  "name": "Hanaichi - Báo giá & tìm mã sản phẩm",
+  "version": "0.3.0",
+  "description": "Bôi đen giá Yên → báo giá ngay. Khoanh vùng trên màn hình → đọc mã → mở trang tìm.",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "offscreen",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Khoanh vùng đọc mã (Alt+Shift+Q)"
+  },
+  "commands": {
+    "khoanh-ma": {
+      "suggested_key": {
+        "default": "Alt+Shift+Q"
+      },
+      "description": "Khoanh vùng trên màn hình để đọc mã sản phẩm"
+    }
+  },
   "content_scripts": [
-    { "matches": ["<all_urls>"], "js": ["pick.js"], "all_frames": true, "run_at": "document_start" },
-    { "matches": ["https://lens.google.com/*", "https://www.google.com/*", "https://www.google.co.jp/*", "https://www.google.com.vn/*"], "js": ["lens.js"], "run_at": "document_idle" }
-  ]
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "all_frames": false,
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
 }

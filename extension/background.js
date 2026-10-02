@@ -1,49 +1,57 @@
-// Menu chuột phải: tìm ảnh trên Google Lens, có thể kèm tên hãng.
-const BRANDS = [
-  { id: "lens", title: "Tìm bằng Google Lens", brand: "" },
-  { id: "uniqlo", title: "Tìm trên Uniqlo JP", brand: "uniqlo" },
-  { id: "gu", title: "Tìm trên GU JP", brand: "GU" },
-  { id: "nike", title: "Tìm trên Nike JP", brand: "nike" },
-  { id: "adidas", title: "Tìm trên Adidas JP", brand: "adidas" },
-  { id: "rakuten", title: "Tìm trên Rakuten", brand: "rakuten" },
-];
-const lastPick = {}; // tabId -> url ảnh dưới con trỏ
-
+// Menu chuột phải + phím tắt + biểu tượng: báo giá, khoanh vùng đọc mã.
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: "hn", title: "Hanaichi: tìm sản phẩm từ ảnh", contexts: ["all"] });
-    for (const b of BRANDS) chrome.contextMenus.create({ id: "hn-" + b.id, parentId: "hn", title: b.title, contexts: ["all"] });
+    chrome.contextMenus.create({ id: "hn-quote", title: "Hanaichi: báo giá \"%s\"", contexts: ["selection"] });
+    chrome.contextMenus.create({ id: "hn-area", title: "Hanaichi: khoanh vùng đọc mã (Alt+Shift+Q)", contexts: ["all"] });
   });
 });
 
-chrome.runtime.onMessage.addListener((msg, sender) => {
-  if (msg && msg.type === "pick" && sender.tab) lastPick[sender.tab.id] = msg.url || "";
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg) return;
+  if (msg.type === "open" && msg.url && /^https:\/\//.test(msg.url)) chrome.tabs.create({ url: msg.url, active: msg.active !== false });
+  if (msg.type === "ocr") {
+    runOcr(msg.data).then(sendResponse, (e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
+  }
 });
 
-async function toDataUrl(url) {
-  if (url.startsWith("data:")) return url;
-  const r = await fetch(url, { credentials: "include" });
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  const blob = await r.blob();
-  return await new Promise((ok, no) => { const f = new FileReader(); f.onload = () => ok(f.result); f.onerror = no; f.readAsDataURL(blob); });
+// ---------- Đọc chữ (trang ẩn offscreen) ----------
+let creating = null;
+async function ensureOffscreen() {
+  const url = chrome.runtime.getURL("offscreen.html");
+  const has = await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"], documentUrls: [url] });
+  if (has.length) return;
+  if (!creating) creating = chrome.offscreen.createDocument({ url: "offscreen.html", reasons: ["WORKERS"], justification: "Đọc mã sản phẩm trong ảnh khoanh vùng bằng Tesseract" }).finally(() => { creating = null; });
+  await creating;
+}
+async function runOcr(data) {
+  await ensureOffscreen();
+  return await chrome.runtime.sendMessage({ target: "offscreen", type: "ocr", data });
 }
 
+// ---------- Khoanh vùng ----------
+async function startArea(tab) {
+  if (!tab || tab.id == null) return;
+  try {
+    const shot = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+    await chrome.tabs.sendMessage(tab.id, { type: "area", shot }, { frameId: 0 });
+  } catch (e) {
+    // Trang đặc biệt (chrome://, cửa hàng extension...) không khoanh được.
+    chrome.action.setBadgeText({ text: "!", tabId: tab.id });
+    setTimeout(() => chrome.action.setBadgeText({ text: "", tabId: tab.id }), 2500);
+  }
+}
+chrome.action.onClicked.addListener((tab) => startArea(tab));
+chrome.commands.onCommand.addListener(async (cmd) => {
+  if (cmd !== "khoanh-ma") return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  startArea(tab);
+});
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  const b = BRANDS.find((x) => "hn-" + x.id === info.menuItemId);
-  if (!b) return;
-  const url = info.srcUrl || (tab && lastPick[tab.id]) || "";
-  if (!url) {
-    chrome.tabs.create({ url: "https://lens.google.com/" });
+  if (info.menuItemId === "hn-quote") {
+    try { await chrome.tabs.sendMessage(tab.id, { type: "quote", text: info.selectionText || "" }, { frameId: 0 }); } catch {}
     return;
   }
-  // Lấy ảnh bằng chính phiên đăng nhập của trình duyệt rồi gửi thẳng lên Google Lens (không phụ thuộc ảnh có công khai hay không).
-  try {
-    const data = await toDataUrl(url);
-    await chrome.storage.session.set({ hnPending: { data, brand: b.brand, t: Date.now() } });
-    chrome.tabs.create({ url: chrome.runtime.getURL("lens.html") });
-  } catch {
-    // Không lấy được ảnh -> thử gửi đường dẫn ảnh cho Google.
-    if (/^https?:\/\//i.test(url)) chrome.tabs.create({ url: "https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(url) });
-    else chrome.tabs.create({ url: "https://lens.google.com/" });
-  }
+  if (info.menuItemId === "hn-area") return startArea(tab);
 });

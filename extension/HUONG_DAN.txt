@@ -1,7 +1,15 @@
-CÀI EXTENSION HANAICHI (Chrome hoặc Edge)
-1. Giải nén file zip ra 1 thư mục (nhớ để thư mục này cố định, đừng xoá).
-2. Mở trình duyệt, gõ vào thanh địa chỉ:  chrome://extensions  (Edge: edge://extensions)
-3. Bật "Chế độ nhà phát triển" (Developer mode) ở góc trên.
-4. Bấm "Tải tiện ích đã giải nén" (Load unpacked) rồi chọn thư mục vừa giải nén.
-5. Mở Pancake, chuột phải vào ảnh khách gửi -> "Hanaichi: tìm sản phẩm từ ảnh" -> chọn Google Lens hoặc hãng.
-Sau khi mình sửa extension: vào chrome://extensions bấm nút tải lại (hình mũi tên tròn) ở extension Hanaichi.
+EXTENSION HANAICHI (Chrome / Edge) - bản 0.3
+
+CÀI:
+1. Giải nén zip ra 1 thư mục cố định (đừng xoá). Nếu đã cài bản cũ: xoá thư mục cũ/ghi đè rồi bấm nút tải lại ở chrome://extensions
+2. Gõ chrome://extensions (Edge: edge://extensions) -> bật "Chế độ nhà phát triển"
+3. "Tải tiện ích đã giải nén" -> chọn thư mục.
+4. Bấm biểu tượng mảnh ghép trên thanh Chrome -> ghim extension Hanaichi cho tiện.
+
+DÙNG:
+A) BÁO GIÁ: bôi đen giá Yên trên trang (VD ¥5,980) -> chuột phải -> "Hanaichi: báo giá ..." -> hiện bảng.
+   Điền mã sản phẩm vào ô mã thì câu mẫu có "Mã HV9972-003 đang sale còn ...". Bấm "Chép" ở câu cần dùng.
+   Tỷ giá và % giảm được nhớ lại cho lần sau.
+B) KHOANH ĐỌC MÃ: bấm Alt+Shift+Q (hoặc bấm biểu tượng extension, hoặc chuột phải -> "khoanh vùng đọc mã")
+   -> kéo chuột khoanh quanh mã trên màn hình -> hiện mã đọc được, tự chép mã, tự mở trang tìm đã chọn (mặc định Rakuten).
+   Đổi phím tắt ở chrome://extensions/shortcuts
