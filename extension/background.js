@@ -8,7 +8,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return;
-  if (msg.type === "sel" && sender.tab) chrome.tabs.sendMessage(sender.tab.id, { type: "quote", text: msg.text, auto: true }, { frameId: 0 }).catch(() => {});
+  if (msg.type === "sel" && sender.tab) sendToTab(sender.tab.id, { type: "quote", text: msg.text, auto: true }).catch(() => {});
   if (msg.type === "open" && msg.url && /^https:\/\//.test(msg.url)) chrome.tabs.create({ url: msg.url, active: msg.active !== false });
   if (msg.type === "ocr") {
     runOcr(msg.data).then(sendResponse, (e) => sendResponse({ ok: false, error: String(e) }));
@@ -30,16 +30,29 @@ async function runOcr(data) {
   return await chrome.runtime.sendMessage({ target: "offscreen", type: "ocr", data });
 }
 
+// Gửi lệnh cho khung chính của tab. Tab mở từ TRƯỚC khi cài/tải lại extension chưa có script -> tự nạp script rồi gửi lại.
+async function sendToTab(tabId, msg) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, msg, { frameId: 0 });
+  } catch (e) {
+    await chrome.scripting.executeScript({ target: { tabId, frameIds: [0] }, files: ["guard.js", "content.js"] });
+    await new Promise((r) => setTimeout(r, 150));
+    return await chrome.tabs.sendMessage(tabId, msg, { frameId: 0 });
+  }
+}
+
 // ---------- Khoanh vùng ----------
 async function startArea(tab) {
   if (!tab || tab.id == null) return;
   try {
     const shot = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
-    await chrome.tabs.sendMessage(tab.id, { type: "area", shot }, { frameId: 0 });
+    await sendToTab(tab.id, { type: "area", shot });
   } catch (e) {
     // Trang đặc biệt (chrome://, cửa hàng extension...) không khoanh được.
     chrome.action.setBadgeText({ text: "!", tabId: tab.id });
-    setTimeout(() => chrome.action.setBadgeText({ text: "", tabId: tab.id }), 2500);
+    chrome.action.setBadgeBackgroundColor({ color: "#d11a2a", tabId: tab.id });
+    chrome.action.setTitle({ title: "Không khoanh được trên trang này: " + String((e && e.message) || e).slice(0, 120), tabId: tab.id });
+    setTimeout(() => { chrome.action.setBadgeText({ text: "", tabId: tab.id }); chrome.action.setTitle({ title: "Khoanh vùng đọc mã (Alt+Shift+Q)", tabId: tab.id }); }, 4000);
   }
 }
 chrome.action.onClicked.addListener((tab) => startArea(tab));
@@ -51,7 +64,7 @@ chrome.commands.onCommand.addListener(async (cmd) => {
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "hn-quote") {
-    try { await chrome.tabs.sendMessage(tab.id, { type: "quote", text: info.selectionText || "" }, { frameId: 0 }); } catch {}
+    try { await sendToTab(tab.id, { type: "quote", text: info.selectionText || "" }); } catch {}
     return;
   }
   if (info.menuItemId === "hn-area") return startArea(tab);
