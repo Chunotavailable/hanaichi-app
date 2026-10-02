@@ -566,9 +566,11 @@ export default function ClosetPage() {
             <button style={{ ...T.btnSub, padding: "4px 10px", fontSize: 12.5, ...(sheetSync.pending.length > 0 ? { borderColor: THEME.brand, color: THEME.brand, fontWeight: 700 } : {}) }} onClick={() => { setLogTab("log"); setShowLog(true); }}>
               Lịch sử thay đổi{sheetSync.pending.length > 0 ? ` · ${sheetSync.pending.length} chờ duyệt` : ""}
             </button>
-            <button style={{ ...T.btnSub, padding: "4px 10px", fontSize: 12.5 }} disabled={sheetSync.busy} onClick={() => syncSheet(true)}>
-              {sheetSync.busy ? "Đang cập nhật..." : "Cập nhật ngay"}
-            </button>
+            {perm.canEdit && (
+              <button style={{ ...T.btnSub, padding: "4px 10px", fontSize: 12.5 }} disabled={sheetSync.busy} onClick={() => syncSheet(true)}>
+                {sheetSync.busy ? "Đang cập nhật..." : "Cập nhật ngay"}
+              </button>
+            )}
           </span>
         </div>
         {perm.canEdit && sheetSync.pending.length > 0 && (

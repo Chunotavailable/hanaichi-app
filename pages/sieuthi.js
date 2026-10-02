@@ -5,7 +5,7 @@
 //   - dòng bôi đỏ = hết hàng
 //   - cột D "Giá bán Social" = giá chính
 //   - cột H (tiêu đề "SALE 26-30/9/2026") = giá sale trong thời gian đó
-import { readRoleCookie } from "../lib/perm";
+import { readRoleCookie, usePerm } from "../lib/perm";
 import { Highlight } from "../lib/Highlight";
 import { fetchRaw, takePrefetched } from "../lib/prefetch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -63,6 +63,7 @@ export default function SieuThiPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
   const [q, setQ] = useState("");
+  const perm = usePerm();
   useImageCodeSearch(setQ); // dán ảnh khách gửi (Ctrl+V) -> tự đọc mã và tìm
   const [filter, setFilter] = useState("con"); // con | het | all | sale
   const [sort, setSort] = useState("none"); // none | asc | desc
@@ -200,9 +201,11 @@ export default function SieuThiPage() {
               {data.updatedAt ? ` · ${ago(data.updatedAt)}` : ""}
             </span>
           </div>
-          <button style={{ ...btnSub, padding: "5px 11px", fontSize: 13 }} disabled={syncing} onClick={() => sync(true)}>
-            <RefreshCw size={14} style={syncing ? { animation: "hnSpin 0.8s linear infinite" } : undefined} /> {syncing ? "Đang cập nhật..." : "Cập nhật ngay"}
-          </button>
+          {perm.isAdmin && (
+            <button style={{ ...btnSub, padding: "5px 11px", fontSize: 13 }} disabled={syncing} onClick={() => sync(true)}>
+              <RefreshCw size={14} style={syncing ? { animation: "hnSpin 0.8s linear infinite" } : undefined} /> {syncing ? "Đang cập nhật..." : "Cập nhật ngay"}
+            </button>
+          )}
         </div>
 
         {/* Đang sale: thanh nổi bật, bấm để xem riêng hàng sale */}
