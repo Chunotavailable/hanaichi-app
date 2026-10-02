@@ -8,7 +8,7 @@
 // gửi) để API phía sau biết, và vào cookie hn_role để giao diện ẩn/hiện nút.
 import { NextResponse } from "next/server";
 import { roleForToken, AUTH_COOKIE_NAME, ROLE_COOKIE_NAME } from "./lib/authToken";
-import { getImage } from "./lib/blobDoc";
+import { getImage, peekDocEtagRaw, readDocText } from "./lib/blobDoc";
 
 function isPublicPath(pathname) {
   if (pathname === "/login" || pathname === "/api/login" || pathname === "/api/logout") return true;
@@ -65,6 +65,25 @@ async function serveImage(req) {
   }
 }
 
+// Bảng "Giá siêu thị" (~400KB) chỉ đọc: trả nguyên văn từ database, và trả "304 chưa đổi" khi máy đã có bản mới nhất
+// -> hầu như không tốn tính toán. Chưa có dữ liệu / lỗi thì trả lại cho API cũ xử lý.
+async function serveSieuthi(req) {
+  try {
+    const PATH = "sieuthi/cache.json";
+    const etag = await peekDocEtagRaw(PATH);
+    if (!etag) return null;
+    const tag = `"${etag}"`;
+    const headers = { ETag: tag, "x-hn-etag": etag, "Cache-Control": "private, no-cache" };
+    const inm = (req.headers.get("if-none-match") || "").replace(/^W\//, "");
+    if (inm === tag) return new Response(null, { status: 304, headers });
+    const doc = await readDocText(PATH);
+    if (!doc) return null;
+    return new Response(doc.text, { status: 200, headers: { ...headers, ETag: `"${doc.etag}"`, "x-hn-etag": doc.etag, "Content-Type": "application/json; charset=utf-8" } });
+  } catch {
+    return null;
+  }
+}
+
 export async function middleware(req) {
   const { pathname } = req.nextUrl;
   if (isPublicPath(pathname)) return NextResponse.next();
@@ -88,6 +107,11 @@ export async function middleware(req) {
   if (pathname.startsWith("/api/img/") && req.method === "GET" && !process.env.HANAICHI_MEMORY_BLOB) {
     const img = await serveImage(req);
     if (img) return img;
+  }
+
+  if (pathname === "/api/sieuthi" && req.method === "GET" && !process.env.HANAICHI_MEMORY_BLOB) {
+    const r = await serveSieuthi(req);
+    if (r) return r;
   }
 
   if (pathname === "/api/sheet-raw" && req.method === "GET") {
