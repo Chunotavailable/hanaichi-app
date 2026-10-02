@@ -1,0 +1,7 @@
+CÀI EXTENSION HANAICHI (Chrome hoặc Edge)
+1. Giải nén file zip ra 1 thư mục (nhớ để thư mục này cố định, đừng xoá).
+2. Mở trình duyệt, gõ vào thanh địa chỉ:  chrome://extensions  (Edge: edge://extensions)
+3. Bật "Chế độ nhà phát triển" (Developer mode) ở góc trên.
+4. Bấm "Tải tiện ích đã giải nén" (Load unpacked) rồi chọn thư mục vừa giải nén.
+5. Mở Pancake, chuột phải vào ảnh khách gửi -> "Hanaichi: tìm sản phẩm từ ảnh" -> chọn Google Lens hoặc hãng.
+Sau khi mình sửa extension: vào chrome://extensions bấm nút tải lại (hình mũi tên tròn) ở extension Hanaichi.

@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Hanaichi - Tìm sản phẩm từ ảnh",
+  "version": "0.1.0",
+  "description": "Chuột phải vào ảnh khách gửi để tìm sản phẩm bằng Google Lens (kèm tên hãng: Uniqlo, GU, Nike...).",
+  "permissions": ["contextMenus", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["pick.js"], "all_frames": true, "run_at": "document_start" },
+    { "matches": ["https://lens.google.com/*", "https://www.google.com/*", "https://www.google.co.jp/*", "https://www.google.com.vn/*"], "js": ["lens.js"], "run_at": "document_idle" }
+  ]
+}
