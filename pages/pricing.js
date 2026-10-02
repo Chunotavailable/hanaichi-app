@@ -4,6 +4,7 @@ import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
+import CodeFinder from "../lib/CodeFinder";
 import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus, ArrowRight } from "lucide-react";
 
 function uid() {
@@ -248,6 +249,8 @@ export default function PricingPage() {
             </button>
           </div>
         )}
+
+        <CodeFinder T={{ THEME, card, btn, btnSub, inp }} cardTitle={cardTitle} />
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
           <section style={{ ...card, padding: 18 }}>
