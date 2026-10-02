@@ -212,6 +212,7 @@ function SakuraFall({ theme: THEME }) {
 // Mô tả ngắn dưới mỗi ô lối vào nhanh.
 const NAV_DESC = {
   "/pricing": "Đổi giá Yên, báo giá nhanh",
+  "/timma": "Dán ảnh khách gửi, tìm mã trên Nike, Rakuten...",
   "/closet": "Hàng có sẵn, size, tồn kho",
   "/gomcan": "Gia dụng, TPCN, giá gồm cân",
   "/thietbi": "Tư vấn chậu, vòi, bộ sen",
