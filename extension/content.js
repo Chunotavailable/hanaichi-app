@@ -12,6 +12,21 @@
     { name: "Google", url: "https://www.google.com/search?q={q}" },
     { name: "Google ảnh", url: "https://www.google.com/search?tbm=isch&q={q}" },
   ];
+// Mã Uniqlo / GU (6 số, bắt đầu 4 = Uniqlo, 3 = GU; có thể có chữ E ở đầu; sau dấu gạch là mã màu).
+function uqgu(code) {
+  const m = /^(E)?([34])(\d{5})(?:-(\d{1,3}))?$/i.exec(String(code || "").trim());
+  if (!m) return null;
+  const num = "E" + m[2] + m[3];
+  const color = m[4] ? (m[4].length === 1 ? "0" + m[4] : m[4]) : "";
+  const q = color ? "?colorDisplayCode=" + color : "";
+  const uniqlo = m[2] === "4";
+  return {
+    brand: uniqlo ? "Uniqlo JP" : "GU JP",
+    plain: m[2] + m[3],
+    page: (uniqlo ? "https://www.uniqlo.com/jp/ja/products/" : "https://www.gu-global.com/jp/ja/products/") + num + "-000/00" + q,
+    site: uniqlo ? "uniqlo.com%2Fjp" : "gu-global.com%2Fjp",
+  };
+}
   const store = {
     get: (k, d) => new Promise((ok) => { try { chrome.storage.local.get(k, (r) => ok(r && r[k] !== undefined ? r[k] : d)); } catch { ok(d); } }),
     set: (k, v) => { try { chrome.storage.local.set({ [k]: v }); } catch {} },
@@ -197,9 +212,11 @@
       const c = code.value.trim();
       if (!c) return;
       const q = encodeURIComponent(c);
+      const ug = uqgu(c);
+      if (ug) chips.appendChild(el("a", { class: "chip hot", target: "_blank", rel: "noopener", href: ug.page, text: `${ug.brand} · trang sản phẩm` }));
       if (/^B0[A-Z0-9]{8}$/i.test(c)) chips.appendChild(el("a", { class: "chip hot", target: "_blank", rel: "noopener", href: `https://www.amazon.co.jp/dp/${c.toUpperCase()}`, text: "Amazon JP · trang sản phẩm" }));
       if (meta && c.toLowerCase() === meta.slug) chips.appendChild(el("a", { class: "chip hot", target: "_blank", rel: "noopener", href: `https://item.rakuten.co.jp/${meta.shop}/${meta.slug}/`, text: `Rakuten · ${meta.shop}` }));
-      for (const s of SITES) chips.appendChild(el("a", { class: "chip", target: "_blank", rel: "noopener", href: s.url.replace("{q}", q), text: s.name }));
+      for (const s of SITES) chips.appendChild(el("a", { class: "chip", target: "_blank", rel: "noopener", href: ug && s.name === ug.brand ? `https://www.google.com/search?q=${ug.plain}+site%3A${ug.site}` : s.url.replace("{q}", q), text: s.name }));
     }
     code.addEventListener("input", links);
     for (const a of codes.slice(1, 5)) alts.appendChild(el("a", { class: "chip", href: "#", text: a, onclick: (e) => { e.preventDefault(); code.value = a; links(); } }));
