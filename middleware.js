@@ -23,7 +23,32 @@ function forbidden(message) {
   return NextResponse.json({ error: message, forbidden: true }, { status: 403 });
 }
 
-export function middleware(req) {
+// Mã file Google Sheet (để truyền thẳng file về trình duyệt, xem bên dưới).
+const SHEET_IDS = {
+  closet: process.env.CLOSET_SHEET_ID || "1Tiu2VBfxwtACu5wpOTXrNSznoaxBdJj9u3J_WB0uLbc",
+  giadung: process.env.GIADUNG_SHEET_ID || "1veT2iJyBcVh8xeZDHCX671z4gVSzfdYI6NPGzeelbJs",
+  thietbi: process.env.THIETBI_SHEET_ID || "1uiRqJREl5qmeR_18eGAeVWc29B8Yt5b4tMPLZxLgR2k",
+  sieuthi: process.env.SIEUTHI_SHEET_ID || "1lvYNvdZ0wfoxGPXM8vn2UMLLKg_9CtLDCT5pJ8HiikA",
+};
+const TESTING = !!(process.env.HANAICHI_CLOSET_FILE || process.env.HANAICHI_GIADUNG_FILE || process.env.HANAICHI_THIETBI_FILE || process.env.HANAICHI_SHEET_FILE);
+
+// File Excel của Google có thể nặng vài MB. Truyền THẲNG từ Google về trình duyệt (không qua phần xử lý API,
+// vốn tốn bộ nhớ/tính toán và bị Cloudflare gói miễn phí cắt giữa chừng). Không được thì trả lại cho API xử lý (có phương án dự phòng).
+async function passThroughSheet(req, role) {
+  const tab = req.nextUrl.searchParams.get("tab") || "";
+  const id = SHEET_IDS[tab];
+  if (!id || TESTING) return null;
+  try {
+    const up = await fetch(`${process.env.SHEET_UPSTREAM || "https://docs.google.com"}/spreadsheets/d/${id}/export?format=xlsx`, { redirect: "follow", signal: AbortSignal.timeout(50000) });
+    const ct = up.headers.get("content-type") || "";
+    if (!up.ok || !up.body || /text\/html/i.test(ct)) { try { await up.body?.cancel(); } catch {} return null; }
+    return new Response(up.body, { status: 200, headers: { "Content-Type": "application/octet-stream", "Cache-Control": "no-store", "x-sheet-format": "xlsx" } });
+  } catch {
+    return null;
+  }
+}
+
+export async function middleware(req) {
   const { pathname } = req.nextUrl;
   if (isPublicPath(pathname)) return NextResponse.next();
 
@@ -41,6 +66,11 @@ export function middleware(req) {
     url.pathname = "/";
     url.search = "";
     return NextResponse.redirect(url);
+  }
+
+  if (pathname === "/api/sheet-raw" && req.method === "GET") {
+    const pass = await passThroughSheet(req, role);
+    if (pass) return pass;
   }
 
   if (pathname.startsWith("/api/") && !READ_METHODS.has(req.method)) {
