@@ -18,6 +18,7 @@ const SECTIONS = [
   { key: "customers", url: "/api/customers", label: "Khách hàng (cũ)" },
   { key: "todo", url: "/api/todo", label: "Việc cần làm (cũ)" },
   { key: "pricing", url: "/api/pricing", label: "Báo giá nhanh" },
+  { key: "codesites", url: "/api/codesites", label: "Web tìm mã sản phẩm" },
 ];
 
 function findImageUrls(obj) {
