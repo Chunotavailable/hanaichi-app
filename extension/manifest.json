@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Hanaichi - Tìm sản phẩm từ ảnh",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Chuột phải vào ảnh khách gửi để tìm sản phẩm bằng Google Lens (kèm tên hãng: Uniqlo, GU, Nike...).",
   "permissions": ["contextMenus", "storage"],
   "host_permissions": ["<all_urls>"],
