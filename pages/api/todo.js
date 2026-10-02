@@ -1,8 +1,8 @@
 // pages/api/todo.js
-// Lưu/đọc dữ liệu "Việc cần làm" bằng Vercel Blob, cùng cơ chế với gomcan.js.
+// Lưu/đọc dữ liệu "Việc cần làm" bằng cơ sở dữ liệu D1, cùng cơ chế với gomcan.js.
 // Việc cố định hàng ngày (dailyTasks) sẽ tự "rollover" mỗi ngày mới: dọn việc lặp
 // của hôm qua + việc lẻ đã xong, rồi thêm lại đúng danh sách việc cố định cho ngày hôm nay.
-import { put, head } from "@vercel/blob";
+import { readDoc, writeDoc } from "../../lib/blobDoc";
 
 const DATA_PATHNAME = "todo/data.json";
 
@@ -44,10 +44,9 @@ function rolloverDaily(st) {
 
 async function readRaw() {
   try {
-    const meta = await head(DATA_PATHNAME);
-    const r = await fetch(meta.url, { cache: "no-store" });
-    if (!r.ok) return defaultData();
-    const data = await r.json();
+    const d = await readDoc(DATA_PATHNAME);
+    if (!d.exists) return defaultData();
+    const data = d.raw;
     const base = defaultData();
     return {
       ...base,
@@ -61,12 +60,7 @@ async function readRaw() {
 }
 
 async function writeRaw(data) {
-  await put(DATA_PATHNAME, JSON.stringify(data), {
-    access: "public",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: "application/json",
-  });
+  await writeDoc(DATA_PATHNAME, data);
 }
 
 export default async function handler(req, res) {

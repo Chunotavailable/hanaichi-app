@@ -21,7 +21,7 @@ const SECTIONS = [
 ];
 
 function findImageUrls(obj) {
-  const m = JSON.stringify(obj).match(/https?:\/\/[^"\s\\]+?\.(?:png|jpe?g|webp|gif|avif)(?:\?[^"\s\\]*)?/gi) || [];
+  const m = JSON.stringify(obj).match(/(?:https?:\/\/|\/api\/img\/)[^"\s\\]+?\.(?:png|jpe?g|webp|gif|avif)(?:\?[^"\s\\]*)?/gi) || [];
   return Array.from(new Set(m));
 }
 function blobToDataUrl(blob) {
@@ -129,18 +129,40 @@ export default function BackupPage() {
       let text = JSON.stringify(pendingRestore.data);
       const imgs = pendingRestore.images || {};
       let n = 0;
-      for (const [u, du] of Object.entries(imgs)) {
-        let alive = false;
+      const entries = Object.entries(imgs);
+      const stamp = Date.now().toString(36);
+      // Ảnh ở nơi khác (kho cũ) -> tải lên lại vào kho của web này. Ảnh đã nằm sẵn ở web này thì giữ nguyên.
+      const todo = [];
+      for (const [u, du] of entries) {
+        let own = false;
         try {
-          alive = (await fetch(u, { method: "HEAD" })).ok;
+          const abs = new URL(u, window.location.origin);
+          own = abs.origin === window.location.origin;
         } catch {}
-        if (alive) continue;
-        try {
-          n++;
-          const nu = await uploadGomcanImage(`restore-${Date.now().toString(36)}-${n}`, du);
-          text = text.split(JSON.stringify(u).slice(1, -1)).join(JSON.stringify(nu).slice(1, -1));
-        } catch {}
+        if (own) {
+          let alive = false;
+          try {
+            alive = (await fetch(u, { method: "HEAD" })).ok;
+          } catch {}
+          if (alive) continue;
+        }
+        todo.push([u, du, ++n]);
       }
+      const failedUp = [];
+      for (let i = 0; i < todo.length; i += 4) {
+        setMsg({ ok: true, text: `Đang khôi phục ảnh ${Math.min(i + 4, todo.length)}/${todo.length}...` });
+        await Promise.all(
+          todo.slice(i, i + 4).map(async ([u, du, k]) => {
+            try {
+              const nu = await uploadGomcanImage(`restore-${stamp}-${k}`, du);
+              text = text.split(JSON.stringify(u).slice(1, -1)).join(JSON.stringify(nu).slice(1, -1));
+            } catch {
+              failedUp.push(u);
+            }
+          })
+        );
+      }
+      if (failedUp.length) throw new Error("images:" + failedUp.length);
       const restored = JSON.parse(text);
       for (const s of SECTIONS) {
         const body = restored[s.key];
@@ -154,7 +176,7 @@ export default function BackupPage() {
       }
       setMsg({ ok: true, text: "✅ Đã khôi phục xong. Tải lại trang (F5) để thấy dữ liệu mới." });
     } catch (e) {
-      setMsg({ ok: false, text: "❌ Khôi phục bị lỗi giữa chừng — thử lại, hoặc kiểm tra lại từng mục." });
+      setMsg({ ok: false, text: String(e && e.message || "").startsWith("images:") ? `❌ Có ${String(e.message).slice(7)} ảnh không tải lên lại được nên CHƯA khôi phục dữ liệu — thử khôi phục lại lần nữa.` : "❌ Khôi phục bị lỗi giữa chừng — thử lại, hoặc kiểm tra lại từng mục." });
     } finally {
       setPendingRestore(null);
       setBusy(false);

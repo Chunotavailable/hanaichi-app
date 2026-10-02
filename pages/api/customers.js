@@ -1,16 +1,15 @@
 // pages/api/customers.js
-// Lưu/đọc danh sách khách hàng bằng Vercel Blob — cùng cơ chế các API khác trong app.
-import { put, head } from "@vercel/blob";
+// Lưu/đọc danh sách khách hàng bằng cơ sở dữ liệu D1 — cùng cơ chế các API khác trong app.
+import { readDoc, writeDoc } from "../../lib/blobDoc";
 
 const DATA_PATHNAME = "customers/data.json";
 const DEFAULT_DATA = { customers: [] };
 
 async function readData() {
   try {
-    const meta = await head(DATA_PATHNAME);
-    const r = await fetch(meta.url, { cache: "no-store" });
-    if (!r.ok) return DEFAULT_DATA;
-    const data = await r.json();
+    const d = await readDoc(DATA_PATHNAME);
+    if (!d.exists) return DEFAULT_DATA;
+    const data = d.raw;
     return { ...DEFAULT_DATA, ...data, customers: Array.isArray(data.customers) ? data.customers : [] };
   } catch (e) {
     return DEFAULT_DATA;
@@ -27,12 +26,7 @@ export default async function handler(req, res) {
       if (!body || typeof body !== "object") {
         return res.status(400).json({ error: "Dữ liệu không hợp lệ" });
       }
-      await put(DATA_PATHNAME, JSON.stringify(body), {
-        access: "public",
-        addRandomSuffix: false,
-        allowOverwrite: true,
-        contentType: "application/json",
-      });
+      await writeDoc(DATA_PATHNAME, body);
       return res.status(200).json({ ok: true });
     } catch (e) {
       return res.status(500).json({ error: e.message || "Không lưu được" });

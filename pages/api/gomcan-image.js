@@ -1,7 +1,7 @@
 // pages/api/gomcan-image.js
-// Nhận ảnh dạng base64 (data URL) từ trình duyệt, lưu lên Vercel Blob thay vì ghi
-// file trực tiếp lên đĩa — để hoạt động đúng khi deploy serverless (Vercel/Cloudflare).
-import { put, del } from "@vercel/blob";
+// Nhận ảnh dạng base64 (data URL) từ trình duyệt, lưu vào cơ sở dữ liệu D1 của Cloudflare
+// (cắt đoạn base64). Ảnh được phục vụ qua /api/img/<tên>.
+import { putImage, deleteImagesByPrefix } from "../../lib/blobDoc";
 
 export const config = {
   api: { bodyParser: { sizeLimit: "8mb" } },
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
       const { id, dataUrl, imageUrl } = req.body || {};
       if (!id) return res.status(400).json({ error: "Thiếu id" });
 
-      let ext, contentType, buffer;
+      let ext, contentType, b64;
 
       if (imageUrl && typeof imageUrl === "string") {
         // Dán link ảnh từ ngoài (Google Images, web bán hàng...) — tải giúp
@@ -46,27 +46,23 @@ export default async function handler(req, res) {
         contentType = `image/${m[1]}`;
         ext = m[1] === "jpeg" ? "jpg" : m[1];
         const arrBuf = await r.arrayBuffer();
-        buffer = Buffer.from(arrBuf);
-        if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: "Ảnh quá lớn (trên 8MB)" });
+        if (arrBuf.byteLength > 8 * 1024 * 1024) return res.status(400).json({ error: "Ảnh quá lớn (trên 8MB)" });
+        b64 = Buffer.from(arrBuf).toString("base64");
       } else if (dataUrl && typeof dataUrl === "string" && dataUrl.startsWith("data:image/")) {
         const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
         if (!match) return res.status(400).json({ error: "Định dạng ảnh không đúng" });
         ext = match[1] === "jpeg" ? "jpg" : match[1];
         contentType = `image/${match[1]}`;
-        buffer = Buffer.from(match[2], "base64");
+        b64 = match[2];
       } else {
         return res.status(400).json({ error: "Thiếu ảnh hoặc link ảnh" });
       }
 
-      const blob = await put(`gomcan/images/${id}.${ext}`, buffer, {
-        access: "public",
-        addRandomSuffix: false,
-        allowOverwrite: true,
-        contentType,
-      });
-      // Thêm tham số ?v= để "phá cache" của trình duyệt/CDN — nếu không, khi thay ảnh
-      // mới cho cùng 1 sản phẩm (URL không đổi), trình duyệt vẫn hiển thị ảnh cũ đã lưu cache.
-      return res.status(200).json({ url: `${blob.url}?v=${Date.now()}` });
+      const safeId = String(id).replace(/[^\w.-]/g, "_");
+      if (b64.length > 2.9 * 1024 * 1024) return res.status(400).json({ error: "Ảnh quá lớn, hãy chọn ảnh nhỏ hơn (dưới khoảng 2MB)" });
+      // Lưu theo tên cố định; thêm ?v= để trình duyệt không giữ ảnh cũ khi thay ảnh mới cho cùng 1 sản phẩm.
+      await putImage(`${safeId}.${ext}`, contentType, b64);
+      return res.status(200).json({ url: `/api/img/${safeId}.${ext}?v=${Date.now()}` });
     } catch (e) {
       return res.status(500).json({ error: e.message || "Không lưu được ảnh" });
     }
@@ -76,9 +72,7 @@ export default async function handler(req, res) {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: "Thiếu id" });
       // Không biết chắc đuôi file gốc nên thử xoá vài đuôi phổ biến, bỏ qua lỗi không tồn tại
-      await Promise.allSettled(
-        ["jpg", "jpeg", "png", "webp"].map((ext) => del(`gomcan/images/${id}.${ext}`))
-      );
+      await deleteImagesByPrefix(`${String(id).replace(/[^\w.-]/g, "_")}.`);
       return res.status(200).json({ ok: true });
     } catch (e) {
       return res.status(500).json({ error: e.message || "Không xoá được ảnh" });
