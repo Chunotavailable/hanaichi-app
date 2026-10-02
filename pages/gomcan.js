@@ -108,15 +108,7 @@ export default function GomCan() {
   }, []);
 
   // Đối chiếu tab Gia dụng + TPCN với Google Sheet BẢNG GIÁ GỒM CÂN.
-  async function reloadAfterSync() {
-    if (syncerRef.current.hasPending()) return;
-    const fr = await fetch("/api/gomcan", { cache: "no-store" }); // không dùng bản tải trước (cũ)
-    if (!fr.ok) return;
-    const d = await fr.json();
-    syncerRef.current.init(d, fr.headers.get("x-hn-etag") || "");
-    setData(d);
-  }
-  const [gdSync, runGdSync, actGdSync] = useSheetSync("/api/giadung-sync", reloadAfterSync);
+  const [gdSync, runGdSync, actGdSync] = useSheetSync("giadung", () => dataRef.current, async (patch) => { const next = { ...dataRef.current, ...patch }; dataRef.current = next; persist(next); try { await syncerRef.current.flushNow(); } catch {} });
   const [gdModal, setGdModal] = useState(null); // null | "pending" | "log"
   useEffect(() => {
     runGdSync(false);
@@ -399,7 +391,7 @@ export default function GomCan() {
       {gdModal && (
         <SheetSyncModal
           onClose={() => setGdModal(null)}
-          changesUrl="/api/giadung-sync?log=1"
+          changesUrl="/api/sheet-state?tab=giadung&log=1"
           st={gdSync}
           onAct={actGdSync}
           canEdit={perm.canEdit}

@@ -121,14 +121,7 @@ export default function ThietBiPage() {
     };
   }, []);
 
-  async function reloadAfterSync() {
-    const fr = await fetch("/api/thietbi", { cache: "no-store" });
-    if (!fr.ok) return;
-    const d = await fr.json();
-    syncerRef.current.init(d, fr.headers.get("x-hn-etag") || "");
-    setData(d);
-  }
-  const [tbSync, runTbSync, actTbSync] = useSheetSync("/api/thietbi-sync", reloadAfterSync);
+  const [tbSync, runTbSync, actTbSync] = useSheetSync("thietbi", () => dataRef.current, async (patch) => { const next = { ...dataRef.current, ...patch }; dataRef.current = next; persist(next); try { await syncerRef.current.flushNow(); } catch {} });
   const [tbModal, setTbModal] = useState(null); // null | "pending" | "log"
   useEffect(() => {
     runTbSync(false);
@@ -229,7 +222,7 @@ export default function ThietBiPage() {
       {tbModal && (
         <SheetSyncModal
           onClose={() => setTbModal(null)}
-          changesUrl="/api/thietbi-sync?log=1"
+          changesUrl="/api/sheet-state?tab=thietbi&log=1"
           st={tbSync}
           onAct={actTbSync}
           canEdit={permTb.canEdit}

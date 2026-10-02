@@ -5,6 +5,7 @@
 //   - dòng bôi đỏ = hết hàng
 //   - cột D "Giá bán Social" = giá chính
 //   - cột H (tiêu đề "SALE 26-30/9/2026") = giá sale trong thời gian đó
+import { readRoleCookie } from "../lib/perm";
 import { Highlight } from "../lib/Highlight";
 import { fetchRaw, takePrefetched } from "../lib/prefetch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -68,9 +69,17 @@ export default function SieuThiPage() {
 
   // Lấy bản mới nhất từ file gốc (chạy ngầm, trang vẫn dùng được trong lúc chờ).
   const sync = useCallback(async (manual) => {
+    if (readRoleCookie() !== "admin") return; // Khách chỉ xem, không đọc file gốc
     setSyncing(true);
     try {
-      const r = await fetch("/api/sieuthi-sync");
+      const rr = await fetch("/api/sheet-raw?tab=sieuthi", { cache: "no-store" });
+      if (rr.status === 401) return goLogin();
+      if (!rr.ok) throw new Error("raw failed");
+      const buf = new Uint8Array(await rr.arrayBuffer());
+      const { parseWorkbook } = await import("../lib/sieuthiSheet");
+      const parsed = parseWorkbook(buf);
+      if (!parsed.products.length) throw new Error("empty");
+      const r = await fetch("/api/sieuthi-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ doc: parsed }) });
       if (r.status === 401) return goLogin();
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || "sync failed");

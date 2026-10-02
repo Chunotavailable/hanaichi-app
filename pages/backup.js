@@ -24,6 +24,14 @@ function findImageUrls(obj) {
   const m = JSON.stringify(obj).match(/(?:https?:\/\/|\/api\/img\/)[^"\s\\]+?\.(?:png|jpe?g|webp|gif|avif)(?:\?[^"\s\\]*)?/gi) || [];
   return Array.from(new Set(m));
 }
+// Máy chủ miễn phí đôi khi từ chối vài ảnh khi bị hỏi dồn -> thử lại vài lần, chậm dần, rồi mới tính là lỗi.
+async function retry(fn, times = 5) {
+  let err;
+  for (let i = 0; i < times; i++) {
+    try { return await fn(); } catch (e) { err = e; await new Promise((r) => setTimeout(r, 400 * (i + 1) * (i + 1))); }
+  }
+  throw err;
+}
 function blobToDataUrl(blob) {
   return new Promise((ok, no) => {
     const fr = new FileReader();
@@ -67,13 +75,16 @@ export default function BackupPage() {
       const images = {};
       const failed = [];
       setMsg({ ok: true, text: `Đang lưu ${urls.length} ảnh vào file sao lưu...` });
-      for (let i = 0; i < urls.length; i += 4) {
+      for (let i = 0; i < urls.length; i += 2) {
+        setMsg({ ok: true, text: `Đang lưu ảnh ${Math.min(i + 2, urls.length)}/${urls.length} vào file sao lưu...` });
         await Promise.all(
-          urls.slice(i, i + 4).map(async (u) => {
+          urls.slice(i, i + 2).map(async (u) => {
             try {
-              const r = await fetch(u, { cache: "no-store" });
-              if (!r.ok) throw new Error("x");
-              images[u] = await blobToDataUrl(await r.blob());
+              images[u] = await retry(async () => {
+                const r = await fetch(u, { cache: "no-store" });
+                if (!r.ok) { if (r.status === 404) { const e = new Error("404"); e.final = true; } throw new Error("x" + r.status); }
+                return blobToDataUrl(await r.blob());
+              }, /^\/api\/img\//.test(u) ? 5 : 2);
             } catch {
               failed.push(u);
             }
@@ -149,12 +160,12 @@ export default function BackupPage() {
         todo.push([u, du, ++n]);
       }
       const failedUp = [];
-      for (let i = 0; i < todo.length; i += 4) {
-        setMsg({ ok: true, text: `Đang khôi phục ảnh ${Math.min(i + 4, todo.length)}/${todo.length}...` });
+      for (let i = 0; i < todo.length; i += 2) {
+        setMsg({ ok: true, text: `Đang khôi phục ảnh ${Math.min(i + 2, todo.length)}/${todo.length}...` });
         await Promise.all(
-          todo.slice(i, i + 4).map(async ([u, du, k]) => {
+          todo.slice(i, i + 2).map(async ([u, du, k]) => {
             try {
-              const nu = await uploadGomcanImage(`restore-${stamp}-${k}`, du);
+              const nu = await retry(() => uploadGomcanImage(`restore-${stamp}-${k}`, du));
               text = text.split(JSON.stringify(u).slice(1, -1)).join(JSON.stringify(nu).slice(1, -1));
             } catch {
               failedUp.push(u);

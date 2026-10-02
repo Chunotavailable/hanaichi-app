@@ -8,7 +8,7 @@ import { PageHeader } from "../lib/nav";
 import { goLogin, uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanImage, importGomcanImageFromUrl, showToast, ViewModeToggle, gridColumnsFor, SmartImage } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
-import { autoCheckDue, writeSyncCache } from "../lib/SheetSyncUI";
+import { useSheetSync } from "../lib/SheetSyncUI";
 import { Highlight, searchTokens, HL_COLOR } from "../lib/Highlight";
 import { FilterChip, SearchInput, EmptyState, GroupTitle, ImagePlaceholder, UndoToast } from "../lib/ui";
 import {
@@ -340,75 +340,17 @@ export default function ClosetPage() {
   // Đối chiếu với file Google Sheet Closet của công ty (số lượng, thêm/bớt mã).
   const [showLog, setShowLog] = useState(false);
   const [logTab, setLogTab] = useState("log");
-  const [sheetSync, setSheetSync] = useState({ busy: false, at: null, error: "", summary: null, pending: [] });
-  async function syncSheet(force, action) {
-    if (!force && !action) {
-      const { due, cache } = autoCheckDue("/api/closet-sync");
-      if (!due) {
-        if (cache) setSheetSync((s) => ({ ...s, at: cache.at || s.at, summary: cache.summary || s.summary, pending: cache.pending || [] }));
-        return true;
-      }
+  // Đối chiếu chạy ngay trên máy Quản lý (lib/sheetClient.js); dữ liệu đổi được lưu bằng cơ chế sửa thường.
+  const [sheetSync, syncSheet, actPending] = useSheetSync(
+    "closet",
+    () => dataRef.current,
+    async (patch) => {
+      const next = { ...dataRef.current, ...patch };
+      dataRef.current = next;
+      persist(next);
+      try { await syncerRef.current.flushNow(); } catch {}
     }
-    setSheetSync((s) => ({ ...s, busy: true, error: "" }));
-    try {
-      const r = await fetch(`/api/closet-sync${force ? "?force=1" : ""}`, action ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action), cache: "no-store" } : { cache: "no-store" });
-      if (r.status === 401) return goLogin();
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || "Không đọc được file Google Sheet");
-      if (j.changed && !syncerRef.current.hasPending()) {
-        const fr = await fetch("/api/gomcan", { cache: "no-store" }); // không dùng bản tải trước (cũ)
-        if (fr.ok) {
-          const d = await fr.json();
-          syncerRef.current.init(d, fr.headers.get("x-hn-etag") || "");
-          setData(d);
-        }
-      }
-      setSheetSync((s) => ({ busy: false, at: j.at || new Date().toISOString(), error: "", summary: j.changed ? j.summary : s.summary, pending: j.pending || [] }));
-      writeSyncCache("/api/closet-sync", { at: j.at || new Date().toISOString(), summary: j.changed ? j.summary : null, pending: j.pending || [] });
-      // Bấm "Cập nhật ngay" thì tải lại trang; duyệt/bỏ qua thì giữ nguyên trang.
-      if (force && !action) {
-        try { syncerRef.current.flushNow(); } catch {}
-        setTimeout(() => window.location.reload(), 500);
-      }
-      return true;
-    } catch (e) {
-      setSheetSync((s) => ({ ...s, busy: false, error: (e && e.message) || "Không cập nhật được từ file gốc" }));
-      return false;
-    }
-  }
-  // Duyệt / Bỏ qua: mục biến mất ngay, gửi lên máy chủ ở phía sau (xếp hàng), không khoá nút.
-  const actChain = useRef(Promise.resolve());
-  const actCount = useRef(0);
-  function actPending(approve, reject) {
-    const done = new Set([...approve, ...reject].map((x) => x.k + x.key));
-    setSheetSync((s) => ({ ...s, pending: s.pending.filter((x) => !done.has(x.k + x.key)) }));
-    actCount.current++;
-    actChain.current = actChain.current.then(async () => {
-      try {
-        const r = await fetch("/api/closet-sync?force=1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approve, reject }), cache: "no-store" });
-        if (r.status === 401) return goLogin();
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(j.error || "Không lưu được thao tác");
-        if (j.changed && !syncerRef.current.hasPending()) {
-          const fr = await fetch("/api/gomcan", { cache: "no-store" });
-          if (fr.ok) {
-            const d = await fr.json();
-            syncerRef.current.init(d, fr.headers.get("x-hn-etag") || "");
-            setData(d);
-          }
-        }
-        if (actCount.current === 1) {
-          setSheetSync((s) => ({ ...s, error: "", at: j.at || s.at, pending: j.pending || [] }));
-          writeSyncCache("/api/closet-sync", { at: j.at || new Date().toISOString(), summary: null, pending: j.pending || [] }, true);
-        }
-      } catch (e) {
-        setSheetSync((s) => ({ ...s, error: (e && e.message) || "Không lưu được thao tác, thử lại" }));
-        syncSheet(false);
-      } finally {
-        actCount.current--;
-      }
-    });
-  }
+  );
   useEffect(() => {
     loadData();
     syncSheet(false);
@@ -666,7 +608,7 @@ function ChangeLogModal({ onClose, lastAt, pending = [], canEdit, busy, initialT
   const [err, setErr] = useState(false);
   const [open, setOpen] = useState(0);
   useEffect(() => {
-    fetch("/api/closet-changes", { cache: "no-store" })
+    fetch("/api/sheet-state?tab=closet&log=1", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setLog)
       .catch(() => setErr(true));
