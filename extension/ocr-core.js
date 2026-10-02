@@ -115,30 +115,36 @@ async function readCodesFromRegion(blob, rect) {
   const y = Math.max(0, Math.floor(rect.y - pad));
   const cw = Math.min(img.width - x, Math.ceil(rect.w + pad * 2));
   const ch = Math.min(img.height - y, Math.ceil(rect.h + pad * 2));
-  // Phóng to khoảng 4 lần (đã thử: vùng nhỏ cần phóng đủ lớn mới đọc chuẩn), nhưng không quá lớn để khỏi chậm.
-  const k = Math.max(1, Math.min(4, 3000 / Math.max(cw, 1), 2400 / Math.max(ch, 1)));
+  // Phóng/thu về chiều cao vùng khoảng 150 điểm ảnh: vùng nhỏ phóng lên (tối đa 4 lần), vùng lớn KHÔNG phóng thêm (phóng quá lớn chỉ làm chậm mà không đọc tốt hơn).
+  const k = ch >= 150 ? Math.min(1, 1800 / Math.max(cw, 1)) : Math.max(1, Math.min(4, 150 / Math.max(ch, 1), 2400 / Math.max(cw, 1)));
   const c = document.createElement("canvas");
   c.width = Math.max(8, Math.round(cw * k));
   c.height = Math.max(8, Math.round(ch * k));
   const cctx = c.getContext("2d");
   cctx.imageSmoothingQuality = "high";
   cctx.drawImage(img, x, y, cw, ch, 0, 0, c.width, c.height);
-  // Đọc vùng khoanh theo nhiều cách (ảnh gốc / đen-trắng 2 chiều), rồi "bỏ phiếu": mã nào được đọc ra nhiều lần nhất thắng.
+  // Đọc vùng khoanh theo nhiều cách rồi "bỏ phiếu"; NHƯNG dừng sớm ngay khi 2 cách khác nhau cùng ra 1 mã đúng dạng quen thuộc
+  // (Nike, Uniqlo/GU, Amazon, adidas...) — phần lớn ảnh chỉ cần 2 lượt thay vì 5.
+  const STRONG = /^(?:[A-Z]{2}\d{4}-\d{3}|E[34]\d{5}(?:-\d{1,3})?|B0[A-Z0-9]{8}|[A-Z]{1,3}\d{4,5}[A-Z]?(?:-[A-Z0-9]{2,4})?)$/;
   const variants = [
-    { cv: c, psm: ["7", "6"] },
-    ...(ch * k < 140 ? [{ cv: scaleCanvas(img, x, y, cw, ch, Math.min(8, 160 / Math.max(ch, 1))), psm: ["7"] }] : []),
-    { cv: binarize(c, false), psm: ["7"] },
-    { cv: binarize(c, true), psm: ["7"] },
+    () => ({ cv: c, psm: "7" }),
+    () => ({ cv: binarize(c, false), psm: "7" }),
+    () => ({ cv: binarize(c, true), psm: "7" }),
+    ...(ch * k < 140 ? [() => ({ cv: scaleCanvas(img, x, y, cw, ch, Math.min(8, 160 / Math.max(ch, 1))), psm: "7" })] : []),
+    () => ({ cv: c, psm: "6" }),
   ];
   const texts = [];
   const votes = new Map();
-  for (const v of variants) {
-    for (const psm of v.psm) {
-      await w.setParameters({ tessedit_pageseg_mode: psm });
-      const { data } = await w.recognize(v.cv);
-      texts.push(data.text);
-      for (const code of new Set(extractCodes(data.text))) votes.set(code, (votes.get(code) || 0) + 1);
-    }
+  let lastPsm = "";
+  for (const make of variants) {
+    const v = make();
+    if (v.psm !== lastPsm) { await w.setParameters({ tessedit_pageseg_mode: v.psm }); lastPsm = v.psm; }
+    const { data } = await w.recognize(v.cv);
+    texts.push(data.text);
+    for (const code of new Set(extractCodes(data.text))) votes.set(code, (votes.get(code) || 0) + 1);
+    if ([...votes].some(([code, n]) => n >= 2 && STRONG.test(code))) break;
+    // Lượt đầu đã ra mã đúng dạng quen thuộc và máy rất tự tin -> khỏi đọc thêm.
+    if (texts.length === 1 && data.confidence >= 88 && [...votes.keys()].some((code) => STRONG.test(code))) break;
   }
   await w.setParameters({ tessedit_pageseg_mode: "3" });
   const codes = Array.from(votes.keys()).sort((p, q) => (votes.get(q) - votes.get(p)) || codeTieBreak(p, q));

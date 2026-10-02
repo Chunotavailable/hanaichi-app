@@ -12,6 +12,7 @@ async function getWorker() {
   return workerP;
 }
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg && msg.target === "offscreen" && msg.type === "warm") { getWorker().then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false })); return true; }
   if (!msg || msg.target !== "offscreen" || msg.type !== "ocr") return;
   (async () => {
     try {

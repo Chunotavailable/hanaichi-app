@@ -25,6 +25,10 @@ async function ensureOffscreen() {
   if (!creating) creating = chrome.offscreen.createDocument({ url: "offscreen.html", reasons: ["WORKERS"], justification: "Đọc mã sản phẩm trong ảnh khoanh vùng bằng Tesseract" }).finally(() => { creating = null; });
   await creating;
 }
+// Làm nóng sẵn máy đọc chữ (nạp ~7MB dữ liệu) để lúc khoanh xong là đọc được ngay.
+function warm() { ensureOffscreen().then(() => chrome.runtime.sendMessage({ target: "offscreen", type: "warm" })).catch(() => {}); }
+chrome.runtime.onStartup.addListener(warm);
+chrome.runtime.onInstalled.addListener(warm);
 async function runOcr(data) {
   await ensureOffscreen();
   return await chrome.runtime.sendMessage({ target: "offscreen", type: "ocr", data });
@@ -44,6 +48,7 @@ async function sendToTab(tabId, msg) {
 // ---------- Khoanh vùng ----------
 async function startArea(tab) {
   if (!tab || tab.id == null) return;
+  warm(); // trong lúc bạn kéo khoanh, máy đọc chữ được nạp sẵn
   try {
     const shot = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
     await sendToTab(tab.id, { type: "area", shot });
