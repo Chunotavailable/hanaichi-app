@@ -11,6 +11,7 @@ import { fetchRaw, takePrefetched } from "../lib/prefetch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, LoadError } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
+import { useImageCodeSearch } from "../lib/imageCode";
 import { norm, showToast, goLogin } from "../lib/gomcanHelpers";
 import { FilterChip, SearchInput, EmptyState } from "../lib/ui";
 import { Copy, Check, SearchX, ArrowUpDown, Globe, ExternalLink, PackageX, Flame, RefreshCw, FileSpreadsheet, ChevronRight } from "lucide-react";
@@ -62,6 +63,7 @@ export default function SieuThiPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
   const [q, setQ] = useState("");
+  useImageCodeSearch(setQ); // dán ảnh khách gửi (Ctrl+V) -> tự đọc mã và tìm
   const [filter, setFilter] = useState("con"); // con | het | all | sale
   const [sort, setSort] = useState("none"); // none | asc | desc
   const [visible, setVisible] = useState(PAGE);

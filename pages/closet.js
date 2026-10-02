@@ -9,6 +9,7 @@ import { goLogin, uid, norm, resizeImageFile, uploadGomcanImage, deleteGomcanIma
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
 import { useSheetSync } from "../lib/SheetSyncUI";
+import { useImageCodeSearch } from "../lib/imageCode";
 import { Highlight, searchTokens, HL_COLOR } from "../lib/Highlight";
 import { FilterChip, SearchInput, EmptyState, GroupTitle, ImagePlaceholder, UndoToast } from "../lib/ui";
 import {
@@ -841,6 +842,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
   const { THEME, card, btn, btnSub, inp, iconBtn } = T;
   const list = data.closet || [];
   const [q, setQ] = useState("");
+  useImageCodeSearch(setQ); // dán ảnh khách gửi (Ctrl+V) -> tự đọc mã và tìm
   const [viewId, setViewId] = useState(null);
   const [confirmDelId, setConfirmDelId] = useState(null);
   const [addingCategory, setAddingCategory] = useState(null); // category đang thêm sản phẩm mới

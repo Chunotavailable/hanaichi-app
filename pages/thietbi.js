@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
+import { useImageCodeSearch } from "../lib/imageCode";
 import { uid, norm } from "../lib/gomcanHelpers";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
@@ -396,6 +397,7 @@ function ProductSection({ list, addProduct, saveProduct, delProduct, T }) {
   const { THEME, card, btn, btnSub } = T;
   const perm = usePerm();
   const [q, setQ] = useState("");
+  useImageCodeSearch(setQ); // dán ảnh khách gửi (Ctrl+V) -> tự đọc mã và tìm
   const [area, setArea] = useState("Tất cả");
   const [showAdd, setShowAdd] = useState(false);
   const [viewId, setViewId] = useState(null);

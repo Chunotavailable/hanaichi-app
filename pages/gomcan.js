@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
+import { useImageCodeSearch } from "../lib/imageCode";
 import {
   uid,
   norm,
@@ -68,6 +69,7 @@ export default function GomCan() {
   const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState("giadung");
   const [gcQuery, setGcQuery] = useState("");
+  useImageCodeSearch(setGcQuery); // dán ảnh khách gửi (Ctrl+V) -> tự đọc mã và tìm
   const [editKey, setEditKey] = useState(null); // { area, id } đang sửa
   const [viewGiadungId, setViewGiadungId] = useState(null); // id sản phẩm đang xem chi tiết
   const [loadFailed, setLoadFailed] = useState(false);
