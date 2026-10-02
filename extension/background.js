@@ -36,14 +36,18 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     chrome.tabs.create({ url: "https://lens.google.com/" });
     return;
   }
-  // Lấy ảnh bằng chính phiên đăng nhập của trình duyệt rồi đưa vào Lens (chắc hơn việc gửi đường dẫn ảnh, vì ảnh Facebook/Pancake có thể không mở công khai được).
+  // Ảnh có đường dẫn web bình thường: mở thẳng trang KẾT QUẢ của Google Lens, không phải dán gì cả.
+  if (/^https?:\/\//i.test(url)) {
+    const q = b.brand ? "&q=" + encodeURIComponent(b.brand) : "";
+    chrome.tabs.create({ url: "https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(url) + q });
+    return;
+  }
+  // Ảnh kiểu blob:/data: (Google không tải được từ đường dẫn) -> lấy ảnh rồi tự dán vào Lens.
   try {
     const data = await toDataUrl(url);
     await chrome.storage.session.set({ hnPending: { data, brand: b.brand, t: Date.now() } });
     chrome.tabs.create({ url: "https://lens.google.com/" });
   } catch {
-    // Không lấy được ảnh -> thử cách gửi đường dẫn.
-    const q = b.brand ? "&q=" + encodeURIComponent(b.brand) : "";
-    chrome.tabs.create({ url: "https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(url) + q });
+    chrome.tabs.create({ url: "https://lens.google.com/" });
   }
 });
