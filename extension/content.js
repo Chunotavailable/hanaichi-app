@@ -185,7 +185,7 @@
 
   async function showResult(data, res) {
     const r = mount();
-    const auto = await store.get(K.auto, "Rakuten");
+    const auto = await store.get(K.auto, "Không tự mở");
     const codes = res && res.ok ? res.codes || [] : [];
     const code = el("input", { value: codes[0] || "", placeholder: "Gõ mã nếu máy đọc sai" });
     const chips = el("div", { class: "chips" });
@@ -202,7 +202,7 @@
     code.addEventListener("input", links);
     for (const a of codes.slice(1, 5)) alts.appendChild(el("a", { class: "chip", href: "#", text: a, onclick: (e) => { e.preventDefault(); code.value = a; links(); } }));
     const autoSel = el("select", {}, ["Không tự mở"].concat(SITES.map((s) => s.name)).map((n) => el("option", { value: n, text: n })));
-    autoSel.value = auto === "Không tự mở" || SITES.some((s) => s.name === auto) ? auto : "Rakuten";
+    autoSel.value = auto === "Không tự mở" || SITES.some((s) => s.name === auto) ? auto : "Không tự mở";
     autoSel.addEventListener("change", () => store.set(K.auto, autoSel.value));
     r.appendChild(el("div", { class: "box" }, [
       el("h3", {}, [el("span", { text: codes.length ? "Đã đọc mã" : "Chưa đọc được mã" }), closeBtn()]),
