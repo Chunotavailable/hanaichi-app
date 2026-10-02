@@ -221,16 +221,38 @@ const NAV_DESC = {
   "/backup": "Tải về & khôi phục dữ liệu",
 };
 
+const MAIN_HREFS = ["/timma", "/pricing"]; // 2 việc làm nhiều nhất: nổi bật ở trên
+const LOOKUP_HREFS = ["/sieuthi", "/closet", "/gomcan", "/thietbi", "/tracuu"]; // tra cứu hàng & giá: ô nhỏ gọn
+
+function todayText() {
+  try {
+    const d = new Date();
+    const wd = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"][d.getDay()];
+    return `${wd}, ${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+  } catch {
+    return "";
+  }
+}
+
 export default function Home() {
   const { theme: THEME } = useTheme();
   const { card, iconBtn } = makeStyles(THEME);
   const perm = usePerm();
   const [quote, setQuote] = useState(null);
+  const [today, setToday] = useState("");
 
-  // Chọn quote ngẫu nhiên sau khi mount ở client — tránh lệch giữa server/client (hydration).
+  // Chọn quote ngẫu nhiên và ngày sau khi mount ở client — tránh lệch giữa server/client (hydration).
   useEffect(() => {
     setQuote(QUOTES[Math.floor(Math.random() * QUOTES.length)]);
+    setToday(todayText());
   }, []);
+
+  const items = visibleNavItems(perm);
+  const byHref = (h) => items.find((n) => n.href === h);
+  const mainItems = MAIN_HREFS.map(byHref).filter(Boolean);
+  const lookupItems = LOOKUP_HREFS.map(byHref).filter(Boolean);
+  const backupItem = byHref("/backup");
+  const label = { fontSize: 12.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: THEME.subtext, margin: "26px 0 10px" };
 
   return (
     <main
@@ -240,7 +262,7 @@ export default function Home() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "0 20px 48px",
+        padding: "0 20px 40px",
         position: "relative",
         overflow: "hidden",
       }}
@@ -256,61 +278,80 @@ export default function Home() {
         </div>
       </div>
 
-      <div style={{ flex: 1, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: 24 }}>
-        <p
-          key={quote}
-          className="hnCard"
-          style={{
-            maxWidth: 640,
-            minHeight: 78,
-            textAlign: "center",
-            fontFamily: THEME.headingFont,
-            fontStyle: "italic",
-            fontSize: "clamp(21px, 4.2vw, 27px)",
-            lineHeight: 1.5,
-            color: THEME.text,
-            margin: 0,
-            position: "relative",
-            zIndex: 2,
-          }}
-        >
-          {quote ? `“${quote}”` : ""}
-        </p>
-        <div style={{ marginTop: 14, width: 40, height: 2, borderRadius: 2, background: THEME.primary, position: "relative", zIndex: 2 }} />
+      <div style={{ width: "100%", maxWidth: 760, position: "relative", zIndex: 2, paddingTop: 10 }}>
+        {/* Lời chào + ngày + 1 câu quote nhỏ */}
+        <div style={{ minHeight: 96 }}>
+          <div style={{ fontFamily: THEME.headingFont, fontSize: "clamp(26px, 5vw, 34px)", fontWeight: 700, color: THEME.text, lineHeight: 1.2 }}>
+            {perm.role === "admin" ? "Chào Hạnh" : "Xin chào"} <span style={{ fontWeight: 400 }}>🌸</span>
+          </div>
+          <div style={{ fontSize: 13.5, color: THEME.subtext, marginTop: 4, minHeight: 20 }}>{today}</div>
+          <p
+            key={quote}
+            className="hnCard"
+            style={{ fontFamily: THEME.headingFont, fontStyle: "italic", fontSize: "clamp(15px, 3.4vw, 17px)", lineHeight: 1.55, color: THEME.subtext, margin: "12px 0 0", minHeight: 26 }}
+          >
+            {quote ? `“${quote}”` : ""}
+          </p>
+        </div>
 
-        {/* Lối vào nhanh các tính năng — hiện thẳng ra ngay trên trang chủ. */}
-        <div
-          style={{
-            marginTop: 36,
-            width: "100%",
-            maxWidth: 720,
-            position: "relative",
-            zIndex: 2,
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 12,
-          }}
-        >
-          {visibleNavItems(perm).map((n) => {
+        {/* Việc làm nhiều nhất: 2 ô lớn nổi bật */}
+        <div style={{ ...label, marginTop: 22 }}>Việc làm hằng ngày</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+          {mainItems.map((n) => {
             const { Icon } = n;
             return (
               <Link
                 key={n.href}
                 href={n.href}
                 className="menuCard hnCard hnClickable"
-                style={{ ...card, textDecoration: "none", color: THEME.text, padding: 16, display: "flex", alignItems: "center", gap: 12 }}
+                style={{ textDecoration: "none", color: "#fff", background: `linear-gradient(135deg, ${THEME.brand}, #b93a4d)`, borderRadius: 18, padding: 20, display: "flex", alignItems: "center", gap: 14, boxShadow: "0 8px 22px rgba(158,42,59,0.22)" }}
               >
-                <span style={{ width: 42, height: 42, borderRadius: 11, background: THEME.chipBg, color: THEME.brand, display: "grid", placeItems: "center", flexShrink: 0 }}>
-                  <Icon size={21} />
+                <span style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  <Icon size={26} />
                 </span>
                 <span style={{ minWidth: 0 }}>
-                  <span style={{ display: "block", fontSize: 15, fontWeight: 600 }}>{n.label}</span>
-                  <span style={{ display: "block", fontSize: 12.5, color: THEME.subtext, marginTop: 1 }}>{NAV_DESC[n.href]}</span>
+                  <span style={{ display: "block", fontSize: 17.5, fontWeight: 700 }}>{n.label}</span>
+                  <span style={{ display: "block", fontSize: 13, opacity: 0.88, marginTop: 2 }}>{NAV_DESC[n.href]}</span>
                 </span>
               </Link>
             );
           })}
         </div>
+
+        {/* Tra cứu hàng & giá: ô nhỏ, 2 cột trên điện thoại */}
+        {lookupItems.length > 0 && (
+          <>
+            <div style={label}>Tra cứu hàng &amp; giá</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(138px, 1fr))", gap: 10 }}>
+              {lookupItems.map((n) => {
+                const { Icon } = n;
+                return (
+                  <Link
+                    key={n.href}
+                    href={n.href}
+                    className="menuCard hnCard hnClickable"
+                    style={{ ...card, textDecoration: "none", color: THEME.text, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}
+                  >
+                    <span style={{ width: 36, height: 36, borderRadius: 10, background: THEME.chipBg, color: THEME.brand, display: "grid", placeItems: "center" }}>
+                      <Icon size={19} />
+                    </span>
+                    <span>
+                      <span style={{ display: "block", fontSize: 14.5, fontWeight: 600, lineHeight: 1.25 }}>{n.label}</span>
+                      <span style={{ display: "block", fontSize: 12, color: THEME.subtext, marginTop: 3, lineHeight: 1.35 }}>{NAV_DESC[n.href]}</span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Sao lưu: ít dùng, chỉ Quản lý thấy -> 1 dòng nhỏ */}
+        {backupItem && (
+          <Link href={backupItem.href} style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 22, fontSize: 13.5, color: THEME.subtext, textDecoration: "none" }}>
+            <backupItem.Icon size={16} /> {backupItem.label} · {NAV_DESC[backupItem.href]}
+          </Link>
+        )}
       </div>
     </main>
   );
