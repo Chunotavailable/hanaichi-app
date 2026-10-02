@@ -32,6 +32,28 @@ async function retry(fn, times = 5) {
   }
   throw err;
 }
+// Thu nhỏ ảnh nặng (máy chủ miễn phí khó phục vụ ảnh to). Giữ nguyên loại ảnh (đuôi .jpg/.png/.webp) để đường dẫn không đổi.
+function shrinkDataUrl(du, maxSide = 1000) {
+  return new Promise((ok) => {
+    const m = /^data:(image\/(?:jpeg|png|webp));base64,/.exec(du);
+    if (!m || du.length < 260 * 1024 * 1.34) return ok(du);
+    const im = new Image();
+    im.onload = () => {
+      try {
+        const k = Math.min(1, maxSide / Math.max(im.width, im.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+        const g = c.getContext("2d");
+        if (m[1] === "image/jpeg") { g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); }
+        g.drawImage(im, 0, 0, c.width, c.height);
+        const out = c.toDataURL(m[1], 0.82);
+        ok(out.startsWith("data:" + m[1]) && out.length < du.length ? out : du);
+      } catch { ok(du); }
+    };
+    im.onerror = () => ok(du);
+    im.src = du;
+  });
+}
 function blobToDataUrl(blob) {
   return new Promise((ok, no) => {
     const fr = new FileReader();
@@ -110,6 +132,63 @@ export default function BackupPage() {
     }
   }
 
+  // Chỉ nạp lại những ảnh đang bị thiếu/lỗi trên web từ file sao lưu — KHÔNG đổi dữ liệu, KHÔNG đổi đường dẫn ảnh.
+  async function onRepairFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    setMsg({ ok: true, text: "Đang đọc file sao lưu..." });
+    try {
+      const parsed = JSON.parse(await file.text());
+      const imgs = parsed.images || {};
+      // Ghép ảnh trong file với ảnh hiện tại của CÙNG sản phẩm (cùng mã id), vì tên ảnh đã đổi sau khi chuyển web.
+      const pairs = [];
+      const isImg = (v) => typeof v === "string" && /\.(png|jpe?g|webp|gif|avif)(\?|$)/i.test(v);
+      const walk = (bk, cu) => {
+        if (Array.isArray(bk) && Array.isArray(cu)) {
+          const byId = new Map(cu.filter((x) => x && typeof x === "object" && x.id != null).map((x) => [x.id, x]));
+          bk.forEach((x, i) => {
+            const y = x && typeof x === "object" && x.id != null ? byId.get(x.id) : cu[i];
+            if (y !== undefined) walk(x, y);
+          });
+        } else if (bk && cu && typeof bk === "object" && typeof cu === "object") {
+          for (const k of Object.keys(bk)) if (k in cu) walk(bk[k], cu[k]);
+        } else if (isImg(bk) && isImg(cu) && cu.startsWith("/api/img/") && imgs[bk]) pairs.push([bk, cu]);
+      };
+      for (const sec of SECTIONS) {
+        const bk = (parsed.data || {})[sec.key];
+        if (bk === undefined) continue;
+        try {
+          const r = await fetch(sec.url, { cache: "no-store" });
+          if (r.ok) walk(bk, await r.json());
+        } catch {}
+      }
+      if (!pairs.length) throw new Error("none");
+      let fixed = 0, ok = 0, bad = 0, i = 0;
+      for (const [bu, u] of pairs) {
+        i++;
+        setMsg({ ok: true, text: `Đang kiểm tra ảnh ${i}/${pairs.length} (đã sửa ${fixed})...` });
+        let alive = false;
+        try { alive = (await retry(async () => { const r = await fetch(u.split("?")[0], { cache: "no-store" }); if (!r.ok) throw new Error("x"); return r; }, 2)).ok; } catch {}
+        if (alive) { ok++; continue; }
+        const name = decodeURIComponent(u.split("?")[0].slice("/api/img/".length));
+        const id = name.replace(/\.(jpg|jpeg|png|webp|gif|avif)$/i, "");
+        try {
+          const small = await shrinkDataUrl(imgs[bu], 900);
+          const nu = await retry(() => uploadGomcanImage(id, small));
+          if (nu.split("?")[0] !== u.split("?")[0]) throw new Error("name");
+          fixed++;
+        } catch { bad++; }
+      }
+      setMsg({ ok: bad === 0, text: `${bad ? "⚠️" : "✅"} Đã nạp lại ${fixed} ảnh bị thiếu; ${ok} ảnh vẫn tốt${bad ? `; ${bad} ảnh chưa nạp được — bấm chạy lại lần nữa` : ""}. Tải lại trang Closet / Giá gồm cân để xem.` });
+    } catch {
+      setMsg({ ok: false, text: "❌ Không đọc được file sao lưu này." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function onPickFile(e) {
     const file = e.target.files && e.target.files[0];
     e.target.value = "";
@@ -165,7 +244,8 @@ export default function BackupPage() {
         await Promise.all(
           todo.slice(i, i + 2).map(async ([u, du, k]) => {
             try {
-              const nu = await retry(() => uploadGomcanImage(`restore-${stamp}-${k}`, du));
+              const small = await shrinkDataUrl(du);
+              const nu = await retry(() => uploadGomcanImage(`restore-${stamp}-${k}`, small));
               text = text.split(JSON.stringify(u).slice(1, -1)).join(JSON.stringify(nu).slice(1, -1));
             } catch {
               failedUp.push(u);
@@ -237,6 +317,17 @@ export default function BackupPage() {
               </label>
             </div>
           </div>
+        </section>
+
+        <section style={{ ...card, padding: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Nạp lại ảnh bị trống</div>
+          <div style={{ fontSize: 14, color: THEME.subtext, lineHeight: 1.6 }}>
+            Nếu có sản phẩm hiện khung trống thay vì ảnh: chọn lại file sao lưu, web chỉ nạp lại những ảnh đang lỗi. Không đổi dữ liệu nào khác.
+          </div>
+          <label style={{ ...btnSub, marginTop: 12, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+            <FolderOpen size={16} /> Chọn file sao lưu để nạp lại ảnh...
+            <input type="file" accept="application/json" disabled={busy} onChange={onRepairFile} style={{ display: "none" }} />
+          </label>
         </section>
 
         {msg && (
