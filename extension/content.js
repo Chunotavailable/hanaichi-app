@@ -197,6 +197,7 @@
       const c = code.value.trim();
       if (!c) return;
       const q = encodeURIComponent(c);
+      if (/^B0[A-Z0-9]{8}$/i.test(c)) chips.appendChild(el("a", { class: "chip hot", target: "_blank", rel: "noopener", href: `https://www.amazon.co.jp/dp/${c.toUpperCase()}`, text: "Amazon JP · trang sản phẩm" }));
       if (meta && c.toLowerCase() === meta.slug) chips.appendChild(el("a", { class: "chip hot", target: "_blank", rel: "noopener", href: `https://item.rakuten.co.jp/${meta.shop}/${meta.slug}/`, text: `Rakuten · ${meta.shop}` }));
       for (const s of SITES) chips.appendChild(el("a", { class: "chip", target: "_blank", rel: "noopener", href: s.url.replace("{q}", q), text: s.name }));
     }

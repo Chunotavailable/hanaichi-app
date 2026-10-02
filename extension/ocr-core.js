@@ -15,6 +15,8 @@ function extractCodes(text) {
   const up = String(text || "").toUpperCase().replace(/[|]/g, "I");
   const out = [];
   const add = (c) => { if (c && !out.includes(c)) out.push(c); };
+  // Mã Amazon (ASIN): 10 ký tự, luôn bắt đầu bằng "B0" — máy đọc hay nhầm số 0 thành chữ O (BOG5GHDJ56 -> B0G5GHDJ56).
+  for (const m of up.matchAll(/\bB[0O][A-Z0-9]{8}\b/g)) { add("B0" + m[0].slice(2)); add(m[0]); }
   // Kiểu Nike: 2 ký tự + 4 số + "-" + 3 số (kể cả khi 2 ký tự đầu bị đọc thành số)
   for (const m of up.matchAll(/\b([A-Z0-9]{2}\d{4}-\d{3})\b/g)) { add(fixLead(m[1])); add(m[1]); }
   for (const m of up.matchAll(CODE_RE)) {
