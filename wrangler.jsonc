@@ -6,6 +6,6 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   "d1_databases": [
-    { "binding": "DB", "database_name": "hanaichi-db", "database_id": "00000000-0000-0000-0000-000000000000" }
+    { "binding": "DB", "database_name": "hanaichi-db", "database_id": "afde57da-f7d7-4c64-9630-ec7c0f9d316b" }
   ]
 }
