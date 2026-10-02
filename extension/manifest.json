@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Hanaichi - Báo giá & tìm mã sản phẩm",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Bôi đen giá Yên → báo giá ngay. Khoanh vùng trên màn hình → đọc mã → mở trang tìm.",
   "permissions": [
     "activeTab",

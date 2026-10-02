@@ -3,13 +3,12 @@
   if (window.top !== window) return;
   const K = { rate: "hnRate", disc: "hnDisc", auto: "hnAutoOpen", mode: "hnMode" };
   const SITES = [
-    { name: "Nike JP", url: "https://www.nike.com/jp/w?q={q}" },
     { name: "Rakuten", url: "https://search.rakuten.co.jp/search/mall/{q}/" },
     { name: "Amazon JP", url: "https://www.amazon.co.jp/s?k={q}" },
+    { name: "Nike JP", url: "https://www.nike.com/jp/w?q={q}" },
     { name: "Adidas JP", url: "https://www.google.com/search?q={q}+site%3Aadidas.jp" },
     { name: "Uniqlo JP", url: "https://www.google.com/search?q={q}+site%3Auniqlo.com%2Fjp" },
     { name: "GU JP", url: "https://www.google.com/search?q={q}+site%3Agu-global.com%2Fjp" },
-    { name: "Michael Kors JP", url: "https://www.google.com/search?q={q}+site%3Amichaelkorsoutlet.jp" },
     { name: "Michael Kors JP", url: "https://www.google.com/search?q={q}+site%3Amichaelkorsoutlet.jp" },
     { name: "Google", url: "https://www.google.com/search?q={q}" },
     { name: "Google ảnh", url: "https://www.google.com/search?tbm=isch&q={q}" },
