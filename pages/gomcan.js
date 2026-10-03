@@ -265,7 +265,7 @@ export default function GomCan() {
     const scored = [];
     all.forEach((p, i) => {
       const nm = norm(p.name || "");
-      const h = norm(p.name + " " + (p.code || "") + " " + (p.productNote || ""));
+      const h = norm(p.name + " " + (p.code || "") + " " + (p.productNote || "") + " " + (p.consultNote || ""));
       const inName = tokens.every((t) => nm.includes(t)) || nm.replace(/ /g, "").includes(joined);
       const inAll = inName || tokens.every((t) => h.includes(t)) || h.replace(/ /g, "").includes(joined);
       if (!inAll) return;
@@ -824,6 +824,14 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
   const linkOk = it.link && /^https?:\/\//i.test(it.link);
   const priceLine = giadungOuterPrice(it);
   const [copied, setCopied] = useState(false);
+  const [copiedC, setCopiedC] = useState(false);
+  function copyConsult() {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(it.consultNote || "").then(() => {
+      setCopiedC(true);
+      setTimeout(() => setCopiedC(false), 1500);
+    });
+  }
   function copyQuote() {
     if (!navigator.clipboard) return;
     navigator.clipboard.writeText(quote).then(() => {
@@ -889,6 +897,17 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
             <div style={{ marginTop: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: THEME.subtext, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Tính năng sản phẩm</div>
               <div style={{ fontSize: 14.5, color: THEME.text, whiteSpace: "pre-line", overflowWrap: "anywhere", lineHeight: 1.55 }}>{it.productNote}</div>
+            </div>
+          )}
+          {it.consultNote && (
+            <div style={{ marginTop: 14, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 12, padding: "10px 12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: THEME.brand, textTransform: "uppercase", letterSpacing: 0.5 }}>Note tư vấn</span>
+                <button style={{ ...btnSub, padding: "5px 10px", fontSize: 13, color: copiedC ? THEME.success : THEME.text }} onClick={copyConsult}>
+                  {copiedC ? <Check size={15} /> : <Copy size={15} />} {copiedC ? "Đã chép" : "Chép"}
+                </button>
+              </div>
+              <div style={{ fontSize: 14.5, color: THEME.text, whiteSpace: "pre-line", overflowWrap: "anywhere", lineHeight: 1.55 }}>{it.consultNote}</div>
             </div>
           )}
         </div>
@@ -964,6 +983,15 @@ function GiadungEditModal({ it, onDone, onSave, onPickImage, T }) {
           defaultValue={it.productNote || ""}
           placeholder="Ghi chú riêng cho sản phẩm này: đặc điểm, size, màu, lưu ý khi bán..."
           onBlur={(e) => onSave({ productNote: e.target.value })}
+          lang="vi"
+          spellCheck={false}
+        />
+        <span style={label}>Note tư vấn (để tư vấn kỹ cho khách)</span>
+        <textarea
+          style={{ ...inp, minHeight: 120, marginBottom: 14, resize: "vertical", lineHeight: 1.5 }}
+          defaultValue={it.consultNote || ""}
+          placeholder="Thông tin tư vấn chi tiết: công dụng, so sánh, cách dùng, câu trả lời khách hay hỏi..."
+          onBlur={(e) => onSave({ consultNote: e.target.value })}
           lang="vi"
           spellCheck={false}
         />
