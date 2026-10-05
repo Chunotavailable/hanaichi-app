@@ -55,6 +55,12 @@ function buildGiadungQuote(it) {
 // tiên hiện GIÁ GỒM CÂN (vnd) — không hiện giá Yên ra ngoài nữa. Mã nào chưa
 // có giá gồm cân (và cũng chưa có giá Yên để tham khảo) thì hiện "------"
 // thay vì dòng chữ "Tính giá như bình thường" như trước.
+const recentPrice = (it) => !!it.priceChangedAt && Date.now() - Date.parse(it.priceChangedAt) < 7 * 864e5;
+function PriceChangedChip({ it, T }) {
+  if (!recentPrice(it)) return null;
+  const { THEME, chip } = T;
+  return <span title="Giá vừa được cập nhật theo file gốc" style={{ ...chip, fontSize: 11, padding: "1px 8px", background: "#fff3d6", borderColor: "#f0d28a", color: "#6b4a00" }}>Vừa đổi giá</span>;
+}
 function giadungOuterPrice(it) {
   if (it.vnd) return it.vnd;
   if (!it.jpy) return "------";
@@ -378,7 +384,7 @@ export default function GomCan() {
         )}
         {subTab === "unigu" && <OniCategory label="Uniqlo + GU" areaKey="unigu" cat="unigu" {...oniProps} />}
         {subTab === "giadung" && (
-          <SheetSyncBar note="tự cập nhật mỗi ngày 1 lần" st={gdSync} run={runGdSync} canEdit={perm.canEdit} onOpen={setGdModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated} sản phẩm`} />
+          <SheetSyncBar note="tự kiểm tra file gốc vài giờ 1 lần" st={gdSync} run={runGdSync} canEdit={perm.canEdit} onOpen={setGdModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated} sản phẩm`} />
         )}
         {subTab === "giadung" && (
           <GiadungSection
@@ -758,6 +764,11 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
       {isReady ? "Hàng sẵn" : "Hàng order"}
     </span>
   );
+  const typeChips = (
+    <>
+      {typeChip} <PriceChangedChip it={it} T={T} />
+    </>
+  );
   const favButton = (extraStyle) =>
     perm.canEdit ? (
       <button
@@ -786,7 +797,7 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}{it.gone && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: T.THEME.danger, border: `1px solid ${T.THEME.danger}`, borderRadius: 999, padding: "0 6px", whiteSpace: "nowrap" }}>Không còn trong file</span>}</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 3 }}>
-            {typeChip}
+            {typeChips}
             <span style={{ fontWeight: 700, color: THEME.brand, fontSize: 14.5 }}>{priceLine}</span>
           </div>
         </div>
@@ -809,7 +820,7 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
         <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontWeight: 700, color: THEME.brand, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{priceLine}</span>
         </div>
-        <div style={{ marginTop: 6 }}>{typeChip}</div>
+        <div style={{ marginTop: 6 }}>{typeChips}</div>
       </div>
     </div>
   );
@@ -876,6 +887,7 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
           </div>
           <div style={{ marginTop: 8, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ ...chip, ...(isReady ? { background: THEME.successBg, borderColor: THEME.successLine, color: THEME.success } : {}) }}>{isReady ? "Hàng sẵn" : "Hàng order"}</span>
+            <PriceChangedChip it={it} T={T} />
             {linkOk && (
               <a href={it.link} target="_blank" rel="noopener noreferrer" style={{ color: THEME.brand, fontSize: 13.5, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
                 Link gốc <ExternalLink size={13} />
