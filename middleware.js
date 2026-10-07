@@ -18,7 +18,7 @@ function isPublicPath(pathname) {
 }
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const ADMIN_ONLY_PAGES = new Set(["/backup"]);
+const ADMIN_ONLY_PAGES = new Set(["/backup", "/gomcan"]);
 
 function forbidden(message) {
   return NextResponse.json({ error: message, forbidden: true }, { status: 403 });

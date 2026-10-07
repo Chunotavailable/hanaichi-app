@@ -284,4 +284,8 @@ function withClosetSeed(data) {
 export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
 
 // GET / PATCH (chỉ gửi phần sửa) / POST (cả khối) — xem lib/docApi.js.
-export default makeDocHandler({ pathname: DATA_PATHNAME, normalize, defaults });
+// Khách chỉ được xem Hàng Closet sẵn: các phần Giá gồm cân (Oni, Uni+GU, Gia dụng + TPCN) chỉ Quản lý xem.
+function viewFor(data) {
+  return { ...data, oniRates: { adult: [], kid: [] }, oniAdult: [], oniKid: [], unigu: [], giadung: [], giadungDeletedIds: [] };
+}
+export default makeDocHandler({ pathname: DATA_PATHNAME, normalize, defaults, viewFor });
