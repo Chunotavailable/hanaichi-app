@@ -305,6 +305,23 @@ function buildClosetQuote(p, discount) {
   return `Dạ ${name} bên em có sẵn giá ${priceLine.text} ạ`;
 }
 
+// Giá Zalo: luôn rẻ hơn giá đang bán ra ngoài (đã tính giảm giá nếu có) 30k.
+const ZALO_DISCOUNT_K = 30;
+function zaloPriceLine(variants, discount) {
+  const prices = (variants || []).map((v) => Number(v.price) || 0).filter((n) => n > 0);
+  if (!prices.length) return "";
+  const zalo = prices.map((pr) => Math.max(applyDiscount(pr, discount) - ZALO_DISCOUNT_K, 0));
+  const min = Math.min(...zalo);
+  const max = Math.max(...zalo);
+  return min === max ? fmtClosetPrice(min) : `${fmtClosetPrice(min)} - ${fmtClosetPrice(max)}`;
+}
+function buildZaloQuote(p, discount) {
+  const line = zaloPriceLine(p.variants, discount);
+  if (!line) return "";
+  const name = (p.name || "").replace(/\n/g, " ").trim();
+  return `Dạ ${name} bên em có sẵn, giá Zalo bên em chỉ còn ${line} (đã giảm ${ZALO_DISCOUNT_K}k so với giá thường) ạ`;
+}
+
 export default function ClosetPage() {
   const { theme: THEME } = useTheme();
   const { card, btn, btnSub, iconBtn, inp, chip, thumb } = makeStyles(THEME);
@@ -1331,6 +1348,7 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
   const xaKho = isXaKho(p);
   const effectiveDiscount = xaKho ? null : discount;
   const quote = buildClosetQuote(p, effectiveDiscount);
+  const zaloQuote = buildZaloQuote(p, effectiveDiscount);
 
   function applyCommonPrice() {
     const price = Number(commonPrice);
@@ -1365,6 +1383,14 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
     navigator.clipboard.writeText(quote).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+    });
+  }
+  const [copiedZalo, setCopiedZalo] = useState(false);
+  function copyZaloQuote() {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(zaloQuote).then(() => {
+      setCopiedZalo(true);
+      setTimeout(() => setCopiedZalo(false), 1500);
     });
   }
   const smallIcon = { ...iconBtn, width: 30, height: 30 };
@@ -1441,6 +1467,19 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
               <span style={{ flex: 1, lineHeight: 1.45 }}>{quote}</span>
               <button style={{ ...btnSub, padding: "6px 10px", fontSize: 13, color: copied ? THEME.success : THEME.text }} title="Sao chép câu báo giá" onClick={copyQuote}>
                 {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Đã chép" : "Chép"}
+              </button>
+            </div>
+          )}
+
+          {zaloQuote && (
+            <div style={{ marginTop: 8, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 12, padding: "10px 12px", fontSize: 14, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+              <MessageSquareQuote size={17} color="#0068ff" style={{ flexShrink: 0 }} />
+              <div style={{ flex: 1, lineHeight: 1.45 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#0068ff", marginBottom: 2 }}>GIÁ ZALO · {zaloPriceLine(p.variants, effectiveDiscount)}</div>
+                {zaloQuote}
+              </div>
+              <button style={{ ...btnSub, padding: "6px 10px", fontSize: 13, color: copiedZalo ? THEME.success : THEME.text }} title="Sao chép câu báo giá Zalo" onClick={copyZaloQuote}>
+                {copiedZalo ? <Check size={15} /> : <Copy size={15} />} {copiedZalo ? "Đã chép" : "Chép"}
               </button>
             </div>
           )}
