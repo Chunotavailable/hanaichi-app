@@ -15,6 +15,7 @@ import {
   gridColumnsFor,
   SmartImage,
 } from "../lib/gomcanHelpers";
+import DysonGuide from "../lib/DysonGuide";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
 import { useSheetSync, SheetSyncBar, SheetSyncModal } from "../lib/SheetSyncUI";
@@ -386,6 +387,7 @@ export default function GomCan() {
         {subTab === "giadung" && (
           <SheetSyncBar note="tự kiểm tra file gốc mỗi ngày 1 lần" st={gdSync} run={runGdSync} canEdit={perm.canEdit} onOpen={setGdModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated} sản phẩm`} />
         )}
+        {subTab === "giadung" && <DysonGuide T={T} />}
         {subTab === "giadung" && (
           <GiadungSection
             data={data} editKey={editKey} setEditKey={setEditKey}
