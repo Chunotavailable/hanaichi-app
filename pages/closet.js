@@ -319,7 +319,7 @@ function buildZaloQuote(p, discount) {
   const line = zaloPriceLine(p.variants, discount);
   if (!line) return "";
   const name = (p.name || "").replace(/\n/g, " ").trim();
-  return `Dạ ${name} bên em có sẵn, giá Zalo bên em chỉ còn ${line} (đã giảm ${ZALO_DISCOUNT_K}k so với giá thường) ạ`;
+  return `Dạ ${name} bên em có sẵn, giá Zalo bên em chỉ còn ${line} ạ`;
 }
 
 export default function ClosetPage() {
