@@ -39,6 +39,7 @@ import {
   Copy,
   MessageSquareQuote,
   ImagePlus,
+  Wind,
 } from "lucide-react";
 
 /* ================== Helpers ================== */
@@ -307,6 +308,7 @@ export default function GomCan() {
     ["giadung", "Gia dụng + TPCN", House],
     ["oni", "Giày Onitsuka gồm cân", Footprints],
     ["unigu", "Uniqlo + GU", Shirt],
+    ["dyson", "Dyson", Wind],
   ];
   const oniProps = { data, editKey, setEditKey, addRate, saveRate, delRate, addOniItem, saveOniItem, delOniItem, toggleOniFavorite, T };
 
@@ -387,7 +389,7 @@ export default function GomCan() {
         {subTab === "giadung" && (
           <SheetSyncBar note="tự kiểm tra file gốc mỗi ngày 1 lần" st={gdSync} run={runGdSync} canEdit={perm.canEdit} onOpen={setGdModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated} sản phẩm`} />
         )}
-        {subTab === "giadung" && <DysonGuide T={T} />}
+        {subTab === "dyson" && <DysonGuide T={T} />}
         {subTab === "giadung" && (
           <GiadungSection
             data={data} editKey={editKey} setEditKey={setEditKey}
