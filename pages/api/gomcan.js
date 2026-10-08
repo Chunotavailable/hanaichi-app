@@ -56,6 +56,7 @@ const DEFAULT_DATA = {
   oniKid: [],
   unigu: [],
   giadung: [],
+  dyson: [],
   closet: [],
   // Chương trình giảm giá áp dụng chung cho tab "Hàng Closet sẵn" — mặc định
   // tắt, chủ shop tự bật lên khi có đợt khuyến mãi.

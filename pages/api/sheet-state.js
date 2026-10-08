@@ -8,7 +8,7 @@
 // POST { tab, pending?, checkedAt?, log? }   (chỉ Quản lý)
 import { readDoc, writeDoc, isPrecondition } from "../../lib/blobDoc";
 
-const TABS = new Set(["closet", "giadung", "thietbi"]);
+const TABS = new Set(["closet", "giadung", "thietbi", "dyson"]);
 const P = (tab) => ({ pending: `${tab}/pending.json`, changes: `${tab}/changes.json`, check: `${tab}/lastcheck.json` });
 
 export default async function handler(req, res) {

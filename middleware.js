@@ -28,6 +28,7 @@ function forbidden(message) {
 const SHEET_IDS = {
   closet: process.env.CLOSET_SHEET_ID || "1Tiu2VBfxwtACu5wpOTXrNSznoaxBdJj9u3J_WB0uLbc",
   giadung: process.env.GIADUNG_SHEET_ID || "1veT2iJyBcVh8xeZDHCX671z4gVSzfdYI6NPGzeelbJs",
+  dyson: process.env.GIADUNG_SHEET_ID || "1veT2iJyBcVh8xeZDHCX671z4gVSzfdYI6NPGzeelbJs",
   thietbi: process.env.THIETBI_SHEET_ID || "1uiRqJREl5qmeR_18eGAeVWc29B8Yt5b4tMPLZxLgR2k",
   sieuthi: process.env.SIEUTHI_SHEET_ID || "1lvYNvdZ0wfoxGPXM8vn2UMLLKg_9CtLDCT5pJ8HiikA",
 };

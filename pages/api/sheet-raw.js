@@ -9,10 +9,11 @@ import { SHEET_ID as SIEUTHI_ID } from "../../lib/sieuthiSheet";
 
 export const config = { api: { responseLimit: false } };
 
-const IDS = { closet: CLOSET_ID, giadung: GIADUNG_ID, thietbi: THIETBI_ID, sieuthi: SIEUTHI_ID };
+const IDS = { closet: CLOSET_ID, giadung: GIADUNG_ID, dyson: GIADUNG_ID, thietbi: THIETBI_ID, sieuthi: SIEUTHI_ID };
 const TEST_FILES = {
   closet: process.env.HANAICHI_CLOSET_FILE,
   giadung: process.env.HANAICHI_GIADUNG_FILE,
+  dyson: process.env.HANAICHI_GIADUNG_FILE,
   thietbi: process.env.HANAICHI_THIETBI_FILE,
   sieuthi: process.env.HANAICHI_SHEET_FILE,
 };

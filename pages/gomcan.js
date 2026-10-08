@@ -124,6 +124,17 @@ export default function GomCan() {
     runGdSync(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Tab Dyson: đối chiếu với tab "SO SÁNH CÁC DÒNG HÚT BỤI DYSON" của file gốc, chỉ khi mở tab này lần đầu.
+  const [dySync, runDySync, actDySync] = useSheetSync("dyson", () => dataRef.current, async (patch) => { const next = { ...dataRef.current, ...patch }; dataRef.current = next; persist(next); try { await syncerRef.current.flushNow(); } catch {} });
+  const [dyModal, setDyModal] = useState(null); // null | "pending" | "log"
+  const dyRan = useRef(false);
+  useEffect(() => {
+    if (subTab === "dyson" && data && !dyRan.current) {
+      dyRan.current = true;
+      runDySync(false);
+    }
+  }, [subTab, data]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function persist(next) {
     setData(next);
     syncerRef.current.schedule(next);
@@ -389,7 +400,10 @@ export default function GomCan() {
         {subTab === "giadung" && (
           <SheetSyncBar note="tự kiểm tra file gốc mỗi ngày 1 lần" st={gdSync} run={runGdSync} canEdit={perm.canEdit} onOpen={setGdModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated} sản phẩm`} />
         )}
-        {subTab === "dyson" && <DysonGuide T={T} />}
+        {subTab === "dyson" && (
+          <SheetSyncBar note="tự kiểm tra file gốc mỗi ngày 1 lần" st={dySync} run={runDySync} canEdit={perm.canEdit} onOpen={setDyModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated + m.added} bài`} />
+        )}
+        {subTab === "dyson" && <DysonGuide items={data.dyson} T={T} />}
         {subTab === "giadung" && (
           <GiadungSection
             data={data} editKey={editKey} setEditKey={setEditKey}
@@ -424,6 +438,27 @@ export default function GomCan() {
               : it.k === "back"
               ? { text: "Có lại trong file", color: TH.success }
               : { text: Object.entries(it.f || {}).map(([k, [a, b]]) => `${{ name: "Tên", link: "Link", jpy: "Giá Yên", vnd: "Giá gồm cân" }[k] || k}: ${a || "—"} → ${b || "—"}`).join("\n"), color: TH.text }
+          }
+          T={T}
+        />
+      )}
+
+      {dyModal && (
+        <SheetSyncModal
+          onClose={() => setDyModal(null)}
+          changesUrl="/api/sheet-state?tab=dyson&log=1"
+          st={dySync}
+          onAct={actDySync}
+          canEdit={perm.canEdit}
+          initialTab={dyModal}
+          refOf={(x) => ({ k: x.k, key: x.key })}
+          pendingView={() => ({ kind: "", color: THEME.text, text: "" })}
+          logView={(it, TH) =>
+            it.k === "new"
+              ? { text: "Bài mới", color: TH.success }
+              : it.k === "gone"
+              ? { text: "Không còn trong file (đã gỡ)", color: TH.danger }
+              : { text: "Nội dung đã sửa", color: TH.text }
           }
           T={T}
         />
