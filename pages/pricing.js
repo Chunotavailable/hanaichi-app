@@ -4,7 +4,7 @@ import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
-import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus, ArrowRight } from "lucide-react";
+import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus, ArrowRight, TriangleAlert, X } from "lucide-react";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -260,12 +260,33 @@ export default function PricingPage() {
                 <input id="pr-rate" style={inp} inputMode="decimal" placeholder="202" value={rate} onChange={(e) => setRate(e.target.value)} />
               </div>
               <div>
-                <label style={fieldLabel} htmlFor="pr-disc">% Giảm (nếu có)</label>
-                <input id="pr-disc" style={inp} inputMode="decimal" placeholder="0" value={disc} onChange={(e) => setDisc(e.target.value)} />
+                <label style={{ ...fieldLabel, ...(orderDisc > 0 ? { color: THEME.danger, fontWeight: 700 } : null) }} htmlFor="pr-disc">
+                  {orderDisc > 0 ? "⚠ % Giảm đang được áp dụng" : "% Giảm (nếu có)"}
+                </label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    id="pr-disc"
+                    style={{ ...inp, ...(orderDisc > 0 ? { border: `2px solid ${THEME.danger}`, background: THEME.dangerBg, color: THEME.danger, fontWeight: 700 } : null) }}
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={disc}
+                    onChange={(e) => setDisc(e.target.value)}
+                  />
+                  {orderDisc > 0 && (
+                    <button style={{ ...btnSub, flexShrink: 0, color: THEME.danger }} onClick={() => setDisc("")} title="Xoá % giảm" aria-label="Xoá % giảm">
+                      <X size={15} /> Xoá
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
             {orderResult && (
               <div style={resultBox}>
+                {orderDisc > 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, background: THEME.dangerBg, border: `1px solid ${THEME.danger}`, color: THEME.danger, borderRadius: 10, padding: "6px 10px", marginBottom: 8, fontSize: 13, fontWeight: 700 }}>
+                    <TriangleAlert size={15} style={{ flexShrink: 0 }} /> Giá này đã trừ {orderDisc}% giảm — kiểm tra lại có đúng không
+                  </div>
+                )}
                 <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá báo khách</div>
                 <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(orderResult.total)}</div>
                 <MsgRow text={orderResult.msg} T={T} />
