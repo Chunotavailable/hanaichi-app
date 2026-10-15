@@ -4,7 +4,7 @@ import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
-import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus, ArrowRight, X } from "lucide-react";
+import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus, ArrowRight, X, Plus, Layers } from "lucide-react";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -71,6 +71,8 @@ export default function PricingPage() {
   const [rate, setRate] = useState("202");
   const [disc, setDisc] = useState("");
   const [ready, setReadyPrice] = useState("");
+  // Báo giá nhiều mức giá Yên (1 sản phẩm có nhiều phân loại/size giá khác nhau).
+  const [multi, setMulti] = useState([{ label: "", jpy: "" }, { label: "", jpy: "" }]);
   const [orderResult, setOrderResult] = useState(null); // { total, msg }
   const [readyResult, setReadyResult] = useState(null);
   const [editId, setEditId] = useState(null);
@@ -132,6 +134,25 @@ export default function PricingPage() {
     const total = roundUp5k(orderNum * orderRate * (1 - orderDisc / 100));
     setOrderResult({ total, msg: `Mã này đang sale còn ${fmtK(total)} + KG ạ`, altMsg: `Mã này giá ${fmtK(total)} + KG ạ` });
   }, [orderNum, orderRate, orderDisc]);
+
+  // Dùng chung tỷ giá và % giảm với khung "Báo giá hàng Order".
+  const multiRows = multi
+    .map((r) => ({ label: r.label.trim(), total: (numOnly(r.jpy) || 0) > 0 ? roundUp5k(numOnly(r.jpy) * orderRate * (1 - orderDisc / 100)) : 0 }))
+    .filter((r) => r.total > 0);
+  const multiQuote = (() => {
+    if (!multiRows.length) return null;
+    const prices = multiRows.map((r) => r.total);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const sale = orderDisc > 0 ? "đang sale " : "";
+    const range = min === max ? fmtK(min) : `${fmtK(min)} - ${fmtK(max)}`;
+    const lines = multiRows.map((r, i) => `${r.label || `Loại ${i + 1}`}: ${fmtK(r.total)}`);
+    return {
+      detail: `Mã này ${sale}có nhiều mức giá ạ:\n${lines.join("\n")}\n(giá trên chưa gồm KG)`,
+      short: `Mã này ${sale}giá ${range} + KG ạ`,
+    };
+  })();
+  const setMultiRow = (i, patch) => setMulti((m) => m.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
   const readyBase = (numOnly(ready) || 0) * 1000;
   useEffect(() => {
@@ -306,6 +327,45 @@ export default function PricingPage() {
           </section>
         </div>
 
+        <section style={{ ...card, padding: 18, marginBottom: 14 }}>
+          {cardTitle(Layers, "Báo giá nhiều giá Yên", "Sản phẩm có nhiều phân loại, mỗi loại một giá Yên")}
+          <div style={{ fontSize: 13, color: orderDisc > 0 ? THEME.danger : THEME.subtext, fontWeight: orderDisc > 0 ? 700 : 500, marginBottom: 10 }}>
+            Tỷ giá {orderRate}
+            {orderDisc > 0 ? ` · đang trừ ${orderDisc}% giảm` : ""} (lấy từ khung Báo giá hàng Order)
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {multi.map((r, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input style={{ ...inp, flex: 1.2, minWidth: 0 }} placeholder={`Tên loại ${i + 1} (không bắt buộc)`} value={r.label} onChange={(e) => setMultiRow(i, { label: e.target.value })} />
+                <input style={{ ...inp, flex: 1, minWidth: 0, fontWeight: 600 }} inputMode="decimal" placeholder="Giá Yên" value={r.jpy} onChange={(e) => setMultiRow(i, { jpy: e.target.value })} />
+                <span style={{ width: 62, textAlign: "right", fontWeight: 700, color: THEME.brand, fontSize: 14, flexShrink: 0 }}>
+                  {(numOnly(r.jpy) || 0) > 0 ? fmtK(roundUp5k(numOnly(r.jpy) * orderRate * (1 - orderDisc / 100))) : ""}
+                </span>
+                {multi.length > 2 && (
+                  <button style={{ ...iconBtn, flexShrink: 0 }} onClick={() => setMulti((m) => m.filter((_, j) => j !== i))} title="Xoá dòng" aria-label="Xoá dòng">
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <button style={btnSub} onClick={() => setMulti((m) => [...m, { label: "", jpy: "" }])}>
+              <Plus size={15} /> Thêm giá
+            </button>
+            <button style={btnSub} onClick={() => setMulti([{ label: "", jpy: "" }, { label: "", jpy: "" }])}>
+              Làm lại
+            </button>
+          </div>
+          {multiQuote && (
+            <div style={resultBox}>
+              <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Câu báo giá</div>
+              <MsgRow text={multiQuote.detail} T={T} />
+              <MsgRow text={multiQuote.short} T={T} />
+            </div>
+          )}
+        </section>
+
         <section style={{ ...card, padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8 }}>
             <div style={{ fontWeight: 700, fontSize: 15.5, display: "flex", alignItems: "center", gap: 8 }}>
@@ -442,7 +502,7 @@ function MsgRow({ text, T, small }) {
   const [copied, setCopied] = useState(false);
   return (
     <div style={{ background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 10, padding: small ? "6px 6px 6px 10px" : "8px 8px 8px 12px", marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: small ? 13.5 : 14.5 }}>
-      <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word", lineHeight: 1.45 }}>{text}</span>
+      <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word", lineHeight: 1.45, whiteSpace: "pre-wrap" }}>{text}</span>
       <button
         style={{ ...btnSub, flexShrink: 0, padding: small ? "4px 9px" : "6px 11px", fontSize: 13, color: copied ? THEME.success : THEME.text }}
         title="Sao chép"
