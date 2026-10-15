@@ -48,7 +48,7 @@ function buildGiadungQuote(it) {
   if (!it.name) return "";
   if (!it.vnd) return "";
   if (it.orderType === "ready") return `Dạ ${it.name} giá ${it.vnd} bên em có sẵn ạ`;
-  return `Dạ ${it.name} ${it.vnd} ạ`;
+  return `Dạ ${it.name} giá order ${it.vnd} ạ`;
 }
 // Giá gồm cân KHÁC của cùng 1 sản phẩm (it.altPrices: [{ id, label, jpy, vnd }]) — dự phòng khi giá Yên
 // thay đổi hoặc sản phẩm có nhiều mức giá. Câu báo giá viết y như giá chính, chỉ thay giá.
