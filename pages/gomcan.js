@@ -17,7 +17,6 @@ import {
   SmartImage,
 } from "../lib/gomcanHelpers";
 import DysonGuide from "../lib/DysonGuide";
-import MultiYenQuote from "../lib/MultiYenQuote";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
 import { useSheetSync, SheetSyncBar, SheetSyncModal } from "../lib/SheetSyncUI";
@@ -50,6 +49,11 @@ function buildGiadungQuote(it) {
   if (!it.vnd) return "";
   if (it.orderType === "ready") return `Dạ ${it.name} giá ${it.vnd} bên em có sẵn ạ`;
   return `Dạ ${it.name} ${it.vnd} ạ`;
+}
+// Giá gồm cân KHÁC của cùng 1 sản phẩm (it.altPrices: [{ id, label, jpy, vnd }]) — dự phòng khi giá Yên
+// thay đổi hoặc sản phẩm có nhiều mức giá. Câu báo giá viết y như giá chính, chỉ thay giá.
+function buildGiadungAltQuote(it, alt) {
+  return buildGiadungQuote({ ...it, vnd: alt.vnd });
 }
 // Dòng giá hiển thị ra ngoài (thẻ sản phẩm, kết quả tìm kiếm...): luôn ưu
 // tiên hiện GIÁ GỒM CÂN (vnd) — không hiện giá Yên ra ngoài nữa. Mã nào chưa
@@ -405,7 +409,6 @@ export default function GomCan() {
           <SheetSyncBar note="tự kiểm tra file gốc mỗi ngày 1 lần" st={dySync} run={runDySync} canEdit={perm.canEdit} onOpen={setDyModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated + m.added} bài`} />
         )}
         {subTab === "dyson" && <DysonGuide items={data.dyson} T={T} />}
-        {subTab === "giadung" && <MultiYenQuote T={T} />}
         {subTab === "giadung" && (
           <GiadungSection
             data={data} editKey={editKey} setEditKey={setEditKey}
@@ -867,6 +870,69 @@ function GiadungCard({ it, idx, listMode, onOpen, onFavorite, T }) {
   );
 }
 
+// 1 giá gồm cân khác trong popup xem nhanh: tên + giá + câu báo giá riêng, có nút Chép.
+function AltQuoteRow({ it, alt, n, T }) {
+  const { THEME, btnSub } = T;
+  const [copied, setCopied] = useState(false);
+  const quote = buildGiadungAltQuote(it, alt);
+  return (
+    <div style={{ marginTop: 10, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 12, padding: "10px 12px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: THEME.brand, textTransform: "uppercase", letterSpacing: 0.5 }}>{alt.label || `Giá gồm cân ${n}`}</span>
+        <span style={{ fontSize: 13, color: THEME.subtext }}>{alt.jpy ? `¥${alt.jpy} · ` : ""}<b style={{ color: THEME.brand, fontSize: 16 }}>{alt.vnd}</b></span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", fontSize: 14 }}>
+        <MessageSquareQuote size={17} color={THEME.brand} style={{ flexShrink: 0 }} />
+        <span style={{ flex: 1, lineHeight: 1.45 }}>{quote}</span>
+        <button
+          style={{ ...btnSub, padding: "6px 10px", fontSize: 13, color: copied ? THEME.success : THEME.text }}
+          onClick={() => {
+            if (!navigator.clipboard) return;
+            navigator.clipboard.writeText(quote).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            });
+          }}
+        >
+          {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Đã chép" : "Chép"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Ô sửa các giá gồm cân khác trong popup Sửa sản phẩm. Lưu khi rời ô nhập / bấm thêm / xoá.
+function AltPricesEditor({ it, onSave, T }) {
+  const { THEME, inp, btnSub, iconBtn } = T;
+  const [rows, setRows] = useState(() => it.altPrices || []);
+  const commit = (next) => {
+    setRows(next);
+    onSave({ altPrices: next });
+  };
+  const edit = (i, patch) => setRows((m) => m.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const label = { fontSize: 12.5, fontWeight: 600, color: THEME.subtext, marginBottom: 5, display: "block" };
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <span style={label}>Giá gồm cân khác (khi giá Yên đổi / có nhiều mức giá)</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {rows.map((r, i) => (
+          <div key={r.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input style={{ ...inp, flex: 1.1, minWidth: 0 }} value={r.label || ""} placeholder={`Tên (Giá ${i + 2})`} onChange={(e) => edit(i, { label: e.target.value })} onBlur={() => onSave({ altPrices: rows })} />
+            {it.orderType !== "ready" && <input style={{ ...inp, flex: 0.8, minWidth: 0 }} inputMode="numeric" value={r.jpy || ""} placeholder="Giá Yên" onChange={(e) => edit(i, { jpy: e.target.value })} onBlur={() => onSave({ altPrices: rows })} />}
+            <input style={{ ...inp, flex: 1, minWidth: 0, fontWeight: 600 }} value={r.vnd || ""} placeholder="Giá gồm cân" onChange={(e) => edit(i, { vnd: e.target.value })} onBlur={() => onSave({ altPrices: rows })} />
+            <button style={{ ...iconBtn, flexShrink: 0, color: THEME.danger }} onClick={() => commit(rows.filter((_, j) => j !== i))} title="Xoá giá này" aria-label="Xoá giá này">
+              <X size={15} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button style={{ ...btnSub, marginTop: 8 }} onClick={() => commit([...rows, { id: uid(), label: "", jpy: "", vnd: "" }])}>
+        <Plus size={15} /> Thêm giá gồm cân khác
+      </button>
+    </div>
+  );
+}
+
 /* ---- Popup xem nhanh, gọn, bao quát 1 sản phẩm ---- */
 function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
   const { THEME, card, chip, iconBtn, btnSub } = T;
@@ -946,6 +1012,9 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, T }) {
               </button>
             </div>
           )}
+          {(it.altPrices || []).filter((a) => a.vnd).map((a, i) => (
+            <AltQuoteRow key={a.id || i} it={it} alt={a} n={i + 2} T={T} />
+          ))}
           {it.productNote && (
             <div style={{ marginTop: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: THEME.subtext, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Tính năng sản phẩm</div>
@@ -1030,6 +1099,7 @@ function GiadungEditModal({ it, onDone, onSave, onPickImage, T }) {
             <input style={inp} defaultValue={it.vnd} placeholder="Giá gồm cân" onBlur={(e) => onSave({ vnd: e.target.value })} />
           </div>
         </div>
+        <AltPricesEditor it={it} onSave={onSave} T={T} />
         <span style={label}>Ghi chú / tính năng sản phẩm</span>
         <textarea
           style={{ ...inp, minHeight: 90, marginBottom: 14, resize: "vertical", lineHeight: 1.5 }}
