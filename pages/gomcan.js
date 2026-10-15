@@ -17,6 +17,7 @@ import {
   SmartImage,
 } from "../lib/gomcanHelpers";
 import DysonGuide from "../lib/DysonGuide";
+import MultiYenQuote from "../lib/MultiYenQuote";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
 import { useSheetSync, SheetSyncBar, SheetSyncModal } from "../lib/SheetSyncUI";
@@ -404,6 +405,7 @@ export default function GomCan() {
           <SheetSyncBar note="tự kiểm tra file gốc mỗi ngày 1 lần" st={dySync} run={runDySync} canEdit={perm.canEdit} onOpen={setDyModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated + m.added} bài`} />
         )}
         {subTab === "dyson" && <DysonGuide items={data.dyson} T={T} />}
+        {subTab === "giadung" && <MultiYenQuote T={T} />}
         {subTab === "giadung" && (
           <GiadungSection
             data={data} editKey={editKey} setEditKey={setEditKey}
