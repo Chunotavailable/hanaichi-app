@@ -85,13 +85,33 @@ function DialogScrollLock() {
 // Web do Hạnh thiết kế & xây dựng cho Hanaichi.
 const CREDIT = "Hạnh";
 
+// Tên hiện trên thanh tab trình duyệt: tên trang đứng ĐẦU (tab hẹp thì chỉ thấy vài chữ đầu), để treo
+// nhiều tab Hanaichi vẫn phân biệt được. Riêng "Giá gồm cân" tự đổi theo tab con đang mở (xem pages/gomcan.js).
+const PAGE_TITLES = {
+  "/": "Trang chủ",
+  "/login": "Đăng nhập",
+  "/pricing": "Tính giá",
+  "/timma": "Tìm mã từ ảnh",
+  "/sieuthi": "Giá siêu thị",
+  "/closet": "Hàng Closet sẵn",
+  "/gomcan": "Giá gồm cân",
+  "/thietbi": "Thiết bị bếp & vệ sinh",
+  "/tracuu": "Tra cứu nhanh",
+  "/backup": "Sao lưu dữ liệu",
+  "/customers": "Khách hàng",
+  "/todo": "Việc cần làm",
+};
+
 export default function App({ Component, pageProps }) {
+  const router = useRouter();
+  const pageTitle = PAGE_TITLES[router.pathname];
   return (
     <ThemeProvider>
       <GlobalClickPop />
       <GlobalScrollTop />
       <DialogScrollLock />
       <Head>
+        <title>{pageTitle ? `${pageTitle} · Hanaichi` : "Hanaichi"}</title>
         <meta name="author" content={CREDIT} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

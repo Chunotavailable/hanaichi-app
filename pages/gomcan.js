@@ -1,5 +1,6 @@
 // pages/gomcan.js
 import { useEffect, useRef, useState } from "react";
+import Head from "next/head";
 import { useTheme, makeStyles, Loading, LoadError, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import { useImageCodeSearch } from "../lib/imageCode";
@@ -45,13 +46,9 @@ import {
 /* ================== Helpers ================== */
 function buildGiadungQuote(it) {
   if (!it.name) return "";
-  if (it.orderType === "ready") {
-    if (!it.vnd) return "";
-    return `Dạ ${it.name} giá ${it.vnd} bên em có sẵn ạ`;
-  }
-  if (!it.vnd) return `Dạ ${it.name} (phí cân hiện 19k/lạng) ạ`;
-  if (!it.jpy) return `Dạ ${it.name} bên em nhận order giá ${it.vnd} (phí cân hiện 19k/lạng) ạ`;
-  return `Dạ ${it.name} bên em nhận order về tay ${it.vnd} ạ`;
+  if (!it.vnd) return "";
+  if (it.orderType === "ready") return `Dạ ${it.name} giá ${it.vnd} bên em có sẵn ạ`;
+  return `Dạ ${it.name} ${it.vnd} ạ`;
 }
 // Dòng giá hiển thị ra ngoài (thẻ sản phẩm, kết quả tìm kiếm...): luôn ưu
 // tiên hiện GIÁ GỒM CÂN (vnd) — không hiện giá Yên ra ngoài nữa. Mã nào chưa
@@ -325,6 +322,9 @@ export default function GomCan() {
 
   return (
     <main style={{ minHeight: "100vh", background: THEME.bg, paddingBottom: 90 }}>
+      <Head>
+        <title>{`${{ giadung: "Gia dụng", oni: "Onitsuka", unigu: "Uniqlo + GU", dyson: "Dyson" }[subTab] || "Giá gồm cân"} · Gồm cân · Hanaichi`}</title>
+      </Head>
       <PageHeader title="Giá gồm cân" current="/gomcan" maxWidth={900} />
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 18px" }}>
