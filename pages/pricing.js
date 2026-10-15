@@ -4,7 +4,7 @@ import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
-import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus, ArrowRight, TriangleAlert, X } from "lucide-react";
+import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus, ArrowRight, X } from "lucide-react";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -282,11 +282,6 @@ export default function PricingPage() {
             </div>
             {orderResult && (
               <div style={resultBox}>
-                {orderDisc > 0 && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, background: THEME.dangerBg, border: `1px solid ${THEME.danger}`, color: THEME.danger, borderRadius: 10, padding: "6px 10px", marginBottom: 8, fontSize: 13, fontWeight: 700 }}>
-                    <TriangleAlert size={15} style={{ flexShrink: 0 }} /> Giá này đã trừ {orderDisc}% giảm — kiểm tra lại có đúng không
-                  </div>
-                )}
                 <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá báo khách</div>
                 <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(orderResult.total)}</div>
                 <MsgRow text={orderResult.msg} T={T} />
