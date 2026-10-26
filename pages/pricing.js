@@ -4,7 +4,7 @@ import { useTheme, makeStyles, Loading, ConfirmDialog } from "../lib/theme";
 import { PageHeader } from "../lib/nav";
 import { createSyncer, loadDoc } from "../lib/syncer";
 import { usePerm } from "../lib/perm";
-import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus, ArrowRight, X } from "lucide-react";
+import { Plane, PackageCheck, History, Trash2, Pencil, Check, Copy, WifiOff, RotateCw, BookmarkPlus, ArrowRight, X, Weight } from "lucide-react";
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -70,6 +70,10 @@ export default function PricingPage() {
   const [jpy, setJpy] = useState("");
   const [rate, setRate] = useState("202");
   const [disc, setDisc] = useState("");
+  // Tính giá gồm cân từ giá cũ: giá Yên cũ + giá gồm cân cũ -> phí cân; áp phí cân đó cho giá Yên mới.
+  const [gcOldJpy, setGcOldJpy] = useState("");
+  const [gcOldVnd, setGcOldVnd] = useState("");
+  const [gcNewJpy, setGcNewJpy] = useState("");
   const [ready, setReadyPrice] = useState("");
   const [orderResult, setOrderResult] = useState(null); // { total, msg }
   const [readyResult, setReadyResult] = useState(null);
@@ -204,6 +208,15 @@ export default function PricingPage() {
     return <Loading />;
   }
 
+  // Giá gồm cân = làm tròn lên 5k (Yên × tỷ giá) + phí cân. Phí cân suy ra từ cặp giá cũ.
+  const gcRate = numOnly(rate) || 202;
+  const gcOJ = numOnly(gcOldJpy);
+  const gcOV = parsePrice(gcOldVnd);
+  const gcNJ = numOnly(gcNewJpy);
+  const gcFee = gcOJ > 0 && gcOV > 0 ? gcOV - roundUp5k(gcOJ * gcRate) : NaN;
+  const gcFeeBad = !isNaN(gcFee) && gcFee < 0; // giá gồm cân cũ thấp hơn cả giá Yên quy đổi -> nhập nhầm
+  const gcTotal = !isNaN(gcFee) && !gcFeeBad && gcNJ > 0 ? roundUp5k(gcNJ * gcRate) + gcFee : NaN;
+
   const fieldLabel = { fontSize: 12.5, fontWeight: 600, color: THEME.subtext, marginBottom: 5, display: "block" };
   const resultBox = { marginTop: 14, paddingTop: 14, borderTop: `1px solid ${THEME.line}` };
   const cardTitle = (Icon, text, sub) => (
@@ -301,6 +314,35 @@ export default function PricingPage() {
                 <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(readyResult.total)}</div>
                 <MsgRow text={readyResult.msg} T={T} />
                 <SaveRow note={noteReady} setNote={setNoteReady} onSave={saveReadyToHistory} saved={savedFlag === "ready"} disabled={loadFailed} T={T} />
+              </div>
+            )}
+          </section>
+
+          <section style={{ ...card, padding: 18 }}>
+            {cardTitle(Weight, "Giá gồm cân từ giá cũ", "Giữ nguyên phí cân khi giá Yên đổi")}
+            <label style={fieldLabel} htmlFor="gc-old-jpy">Giá Yên cũ</label>
+            <input id="gc-old-jpy" style={{ ...inp, marginBottom: 10, fontSize: 18, fontWeight: 600 }} inputMode="decimal" value={gcOldJpy} onChange={(e) => setGcOldJpy(e.target.value)} />
+            <label style={fieldLabel} htmlFor="gc-old-vnd">Giá gồm cân cũ (VD: 390k)</label>
+            <input id="gc-old-vnd" style={{ ...inp, marginBottom: 10, fontSize: 18, fontWeight: 600 }} inputMode="decimal" value={gcOldVnd} onChange={(e) => setGcOldVnd(e.target.value)} />
+            {gcFeeBad && (
+              <div style={{ fontSize: 13, color: THEME.danger, marginBottom: 10 }}>
+                Giá gồm cân cũ ({fmtK(gcOV)}) thấp hơn giá Yên quy đổi ({fmtK(roundUp5k(gcOJ * gcRate))}) — bác kiểm tra lại 2 số này giúp em ạ.
+              </div>
+            )}
+            {!isNaN(gcFee) && !gcFeeBad && (
+              <div style={{ fontSize: 13.5, color: THEME.subtext, marginBottom: 10 }}>
+                Phí cân: <b style={{ color: THEME.text }}>{fmtK(gcFee)}</b> (tỷ giá {gcRate})
+              </div>
+            )}
+            <label style={fieldLabel} htmlFor="gc-new-jpy">Giá Yên mới</label>
+            <input id="gc-new-jpy" style={{ ...inp, fontSize: 18, fontWeight: 600 }} inputMode="decimal" value={gcNewJpy} onChange={(e) => setGcNewJpy(e.target.value)} />
+            {!isNaN(gcTotal) && (
+              <div style={resultBox}>
+                <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá gồm cân mới</div>
+                <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 6px" }}>{fmtK(gcTotal)}</div>
+                <div style={{ fontSize: 13, color: THEME.subtext }}>
+                  = {fmtK(roundUp5k(gcNJ * gcRate))} (¥{gcNJ.toLocaleString("vi-VN")} × {gcRate}, làm tròn lên 5k) + phí cân {fmtK(gcFee)}
+                </div>
               </div>
             )}
           </section>
