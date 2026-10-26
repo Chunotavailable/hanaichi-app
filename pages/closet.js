@@ -305,12 +305,18 @@ function buildClosetQuote(p, discount) {
   return `Dạ ${name} bên em có sẵn giá ${priceLine.text} ạ`;
 }
 
-// Giá Zalo: luôn rẻ hơn giá đang bán ra ngoài (đã tính giảm giá nếu có) 30k.
+// Giá Zalo: rẻ hơn giá đang bán ra ngoài 30k. RIÊNG sản phẩm đang được áp
+// chương trình giảm giá (VD giảm 5%) thì giá Zalo tính như giá bình thường
+// (đã giảm), KHÔNG trừ thêm 30k nữa. Sản phẩm không thuộc diện giảm (VD giá
+// dưới ngưỡng) thì vẫn trừ 30k như cũ.
 const ZALO_DISCOUNT_K = 30;
 function zaloPriceLine(variants, discount) {
   const prices = (variants || []).map((v) => Number(v.price) || 0).filter((n) => n > 0);
   if (!prices.length) return "";
-  const zalo = prices.map((pr) => Math.max(applyDiscount(pr, discount) - ZALO_DISCOUNT_K, 0));
+  const zalo = prices.map((pr) => {
+    const sale = applyDiscount(pr, discount);
+    return sale !== pr ? sale : Math.max(pr - ZALO_DISCOUNT_K, 0);
+  });
   const min = Math.min(...zalo);
   const max = Math.max(...zalo);
   return min === max ? fmtClosetPrice(min) : `${fmtClosetPrice(min)} - ${fmtClosetPrice(max)}`;
