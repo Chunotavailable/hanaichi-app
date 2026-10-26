@@ -42,6 +42,7 @@ import {
   ImagePlus,
   Wind,
 } from "lucide-react";
+import { vndForNewYen } from "../lib/gomcanHelpers";
 
 /* ================== Helpers ================== */
 function buildGiadungQuote(it) {
@@ -912,11 +913,22 @@ function AltPriceAdder({ it, onSave, T }) {
   const { THEME, inp, btn, btnSub } = T;
   const [open, setOpen] = useState(false);
   const [f, setF] = useState({ label: "", jpy: "", vnd: "" });
+  const [vndTouched, setVndTouched] = useState(false); // đã tự gõ giá gồm cân thì không tự tính đè nữa
   const isReady = it.orderType === "ready";
+  // Nhập giá Yên mới -> tự tính giá gồm cân mới, giữ nguyên phí cân của sản phẩm.
+  const auto = isReady ? null : vndForNewYen(it, f.jpy);
+  function onJpyChange(v) {
+    const calc = vndForNewYen(it, v);
+    setF((cur) => ({ ...cur, jpy: v, vnd: !vndTouched && calc ? calc.vnd : vndTouched ? cur.vnd : "" }));
+  }
+  function reset() {
+    setF({ label: "", jpy: "", vnd: "" });
+    setVndTouched(false);
+  }
   function add() {
     if (!f.vnd.trim()) return;
     onSave({ altPrices: [...(it.altPrices || []), { id: uid(), label: f.label.trim(), jpy: isReady ? "" : f.jpy.trim(), vnd: f.vnd.trim() }] });
-    setF({ label: "", jpy: "", vnd: "" });
+    reset();
     setOpen(false);
   }
   if (!open)
@@ -929,14 +941,24 @@ function AltPriceAdder({ it, onSave, T }) {
     <div style={{ marginTop: 10, border: `1px dashed ${THEME.brand}`, borderRadius: 12, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
       <input style={inp} placeholder="Tên (VD: Giá mới) — không bắt buộc" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} />
       <div style={{ display: "flex", gap: 8 }}>
-        {!isReady && <input style={{ ...inp, flex: 1, minWidth: 0 }} inputMode="numeric" placeholder="Giá Yên" value={f.jpy} onChange={(e) => setF({ ...f, jpy: e.target.value })} />}
-        <input style={{ ...inp, flex: 1, minWidth: 0, fontWeight: 600 }} placeholder="Giá gồm cân (VD: 280k)" value={f.vnd} onChange={(e) => setF({ ...f, vnd: e.target.value })} onKeyDown={(e) => e.key === "Enter" && add()} autoFocus />
+        {!isReady && <input style={{ ...inp, flex: 1, minWidth: 0 }} inputMode="numeric" placeholder="Giá Yên mới" value={f.jpy} onChange={(e) => onJpyChange(e.target.value)} autoFocus />}
+        <input style={{ ...inp, flex: 1, minWidth: 0, fontWeight: 600 }} placeholder="Giá gồm cân (VD: 280k)" value={f.vnd} onChange={(e) => { setVndTouched(true); setF({ ...f, vnd: e.target.value }); }} onKeyDown={(e) => e.key === "Enter" && add()} autoFocus={isReady} />
       </div>
+      {auto && !vndTouched && (
+        <div style={{ fontSize: 12.5, color: THEME.subtext, lineHeight: 1.4 }}>
+          Tự tính: giữ phí cân {`${(auto.fee / 1000).toLocaleString("vi-VN")}k`} (từ ¥{auto.fromJpy.toLocaleString("vi-VN")} → {Math.round(auto.fromVnd / 1000)}k, tỷ giá 202). Bạn vẫn sửa được ô giá gồm cân.
+        </div>
+      )}
+      {!isReady && f.jpy.trim() && !auto && (
+        <div style={{ fontSize: 12.5, color: THEME.subtext, lineHeight: 1.4 }}>
+          Chưa tự tính được vì giá cũ của sản phẩm này không ở dạng số (VD “885y” → “390k”). Bạn nhập giá gồm cân tay nhé.
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8 }}>
         <button style={{ ...btn, flex: 1, justifyContent: "center" }} onClick={add} disabled={!f.vnd.trim()}>
           <Check size={15} /> Lưu giá
         </button>
-        <button style={btnSub} onClick={() => setOpen(false)}>
+        <button style={btnSub} onClick={() => { reset(); setOpen(false); }}>
           Huỷ
         </button>
       </div>
@@ -961,7 +983,20 @@ function AltPricesEditor({ it, onSave, T }) {
         {rows.map((r, i) => (
           <div key={r.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input style={{ ...inp, flex: 1.1, minWidth: 0 }} value={r.label || ""} placeholder={`Tên (Giá ${i + 2})`} onChange={(e) => edit(i, { label: e.target.value })} onBlur={() => onSave({ altPrices: rows })} />
-            {it.orderType !== "ready" && <input style={{ ...inp, flex: 0.8, minWidth: 0 }} inputMode="numeric" value={r.jpy || ""} placeholder="Giá Yên" onChange={(e) => edit(i, { jpy: e.target.value })} onBlur={() => onSave({ altPrices: rows })} />}
+            {it.orderType !== "ready" && (
+              <input
+                style={{ ...inp, flex: 0.8, minWidth: 0 }}
+                inputMode="numeric"
+                value={r.jpy || ""}
+                placeholder="Giá Yên"
+                onChange={(e) => {
+                  // Dòng này chưa có giá gồm cân thì tự điền theo phí cân của sản phẩm (vẫn sửa tay được).
+                  const calc = !(r.vnd || "").trim() ? vndForNewYen(it, e.target.value) : null;
+                  edit(i, calc ? { jpy: e.target.value, vnd: calc.vnd } : { jpy: e.target.value });
+                }}
+                onBlur={() => onSave({ altPrices: rows })}
+              />
+            )}
             <input style={{ ...inp, flex: 1, minWidth: 0, fontWeight: 600 }} value={r.vnd || ""} placeholder="Giá gồm cân" onChange={(e) => edit(i, { vnd: e.target.value })} onBlur={() => onSave({ altPrices: rows })} />
             <button style={{ ...iconBtn, flexShrink: 0, color: THEME.danger }} onClick={() => commit(rows.filter((_, j) => j !== i))} title="Xoá giá này" aria-label="Xoá giá này">
               <X size={15} />
