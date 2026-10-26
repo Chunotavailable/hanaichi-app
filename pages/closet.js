@@ -272,9 +272,19 @@ function todayISO() {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
 }
+// Chương trình giảm giá chỉ có hiệu lực khi: đang bật VÀ nằm trong khoảng ngày áp dụng
+// (nếu có đặt "từ ngày"/"đến ngày"). Hết ngày kết thúc là TỰ TẮT — không cần ai bấm tắt.
+// Đến hết ngày "đến ngày" vẫn còn giảm (so theo ngày trên máy đang xem).
+function discountStatus(d) {
+  if (!d || !d.enabled) return "off";
+  const today = todayISO();
+  if (d.from && today < d.from) return "pending"; // chưa đến ngày bắt đầu
+  if (d.to && today > d.to) return "expired"; // đã quá ngày kết thúc
+  return "active";
+}
 function applyDiscount(price, discount) {
   const d = discount || DEFAULT_DISCOUNT;
-  if (!d.enabled) return price;
+  if (discountStatus(d) !== "active") return price;
   const threshold = Number(d.threshold) || 0;
   const percent = Number(d.percent) || 0;
   if (threshold > 0 && percent > 0 && price >= threshold) {
@@ -1021,7 +1031,7 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
             giảm giá cho mọi sản phẩm từ mức giá đã đặt, bấm sửa để đổi % giảm
             hoặc mức giá áp dụng theo từng đợt khuyến mãi khác nhau. Khách chỉ
             thấy dòng này khi chương trình đang bật. */}
-        {(perm.canEdit || discount.enabled) && (
+        {(perm.canEdit || discountStatus(discount) === "active") && (
           <div
             style={{
               display: "flex",
@@ -1029,8 +1039,8 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
               gap: 10,
               marginTop: 12,
               padding: "9px 12px",
-              background: discount.enabled ? THEME.successBg : THEME.surfaceAlt,
-              border: `1px solid ${discount.enabled ? THEME.successLine : THEME.line}`,
+              background: discountStatus(discount) === "active" ? THEME.successBg : THEME.surfaceAlt,
+              border: `1px solid ${discountStatus(discount) === "active" ? THEME.successLine : THEME.line}`,
               borderRadius: 10,
               flexWrap: "wrap",
             }}
@@ -1067,10 +1077,12 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
               </div>
             ) : (
               <>
-                <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13.5, color: discount.enabled ? THEME.success : THEME.subtext }}>
+                <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13.5, color: discountStatus(discount) === "active" ? THEME.success : THEME.subtext }}>
                   <BadgePercent size={16} />
-                  {discount.enabled ? "Đang giảm" : "Giảm"} {discount.percent}% cho sản phẩm từ {fmtClosetPrice(discount.threshold)} trở lên
-                  {!discount.enabled && <span style={{ fontWeight: 400 }}>(đang tắt)</span>}
+                  {discountStatus(discount) === "active" ? "Đang giảm" : "Giảm"} {discount.percent}% cho sản phẩm từ {fmtClosetPrice(discount.threshold)} trở lên
+                  {discountStatus(discount) === "off" && <span style={{ fontWeight: 400 }}>(đang tắt)</span>}
+                  {discountStatus(discount) === "pending" && <span style={{ fontWeight: 400 }}>(chưa đến ngày áp dụng)</span>}
+                  {discountStatus(discount) === "expired" && <span style={{ fontWeight: 700, color: THEME.danger }}>(đã hết hạn — đã tự tắt)</span>}
                   {discount.name ? <span style={{ fontWeight: 700 }}>· {discount.name}</span> : null}
                   {(discount.from || discount.to) && (
                     <span style={{ fontWeight: 400 }}>
@@ -1078,9 +1090,6 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
                       {discount.from && discount.to ? " " : ""}
                       {discount.to ? `đến ${fmtDiscountDate(discount.to)}` : ""}
                     </span>
-                  )}
-                  {perm.canEdit && discount.enabled && discount.to && discount.to < todayISO() && (
-                    <span style={{ fontWeight: 700, color: THEME.danger }}>· Đã hết hạn — nhớ tắt chương trình</span>
                   )}
                 </span>
                 {perm.canEdit && (
