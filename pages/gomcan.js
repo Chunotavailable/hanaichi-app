@@ -490,6 +490,8 @@ export default function GomCan() {
           canEdit={perm.canEdit}
           initialTab={gdModal}
           refOf={(x) => ({ k: x.k, key: x.key, sig: x.sig })}
+          editIdOf={(x) => (x.k === "chg" && typeof x.key === "string" && x.key.includes("|") ? x.key.split("|").pop() : null)}
+          onEditItem={(id) => { if ((data.giadung || []).some((g) => g.id === id)) setEditKey({ area: "giadung", id }); else showToast("Không tìm thấy sản phẩm này trong danh sách."); }}
           pendingView={(x, TH) =>
             x.k === "new"
               ? { kind: "Sản phẩm mới", color: TH.success, text: `· Yên: ${x.jpy || "—"} · Giá gồm cân: ${x.vnd || "—"}` }
