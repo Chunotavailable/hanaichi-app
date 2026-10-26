@@ -42,7 +42,8 @@ import {
   ImagePlus,
   Wind,
 } from "lucide-react";
-import { vndForNewYen } from "../lib/gomcanHelpers";
+import { vndForNewYen, latestYenOf } from "../lib/gomcanHelpers";
+import { useLinkCheck, LinkCheckModal } from "../lib/linkCheck";
 
 /* ================== Helpers ================== */
 function buildGiadungQuote(it) {
@@ -129,6 +130,8 @@ export default function GomCan() {
 
   // Tab Dyson: đối chiếu với tab "SO SÁNH CÁC DÒNG HÚT BỤI DYSON" của file gốc, chỉ khi mở tab này lần đầu.
   const [dySync, runDySync, actDySync] = useSheetSync("dyson", () => dataRef.current, async (patch) => { const next = { ...dataRef.current, ...patch }; dataRef.current = next; persist(next); try { await syncerRef.current.flushNow(); } catch {} });
+  const linkCheck = useLinkCheck();
+  const [lcOpen, setLcOpen] = useState(false);
   const [dyModal, setDyModal] = useState(null); // null | "pending" | "log"
   const dyRan = useRef(false);
   useEffect(() => {
@@ -268,6 +271,18 @@ export default function GomCan() {
       onCommit: () => deleteGomcanImage(id),
     });
   }
+  function startLinkCheck() {
+    const items = (data.giadung || [])
+      .filter((it) => /^https?:\/\//i.test((it.link || "").trim()) && it.orderType !== "ready" && !it.gone)
+      .map((it) => ({ id: it.id, name: it.name, link: it.link.trim(), ref: latestYenOf(it) }));
+    setLcOpen(true);
+    linkCheck.start(items);
+  }
+  function addNewYenPrice(it, jpy) {
+    const calc = vndForNewYen(it, String(jpy));
+    const row = { id: uid(), label: "Giá mới", jpy: `${jpy}y`, vnd: calc ? calc.vnd : "" };
+    saveGiadungItem(it.id, { altPrices: [...(it.altPrices || []), row] });
+  }
   function toggleGiadungFavorite(id) {
     const it = data.giadung.find((x) => x.id === id);
     saveGiadungItem(id, { favorite: !it.favorite });
@@ -406,6 +421,11 @@ export default function GomCan() {
         {subTab === "giadung" && (
           <SheetSyncBar note="tự kiểm tra file gốc mỗi ngày 1 lần" st={gdSync} run={runGdSync} canEdit={perm.canEdit} onOpen={setGdModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated} sản phẩm`} />
         )}
+        {subTab === "giadung" && perm.canEdit && (
+          <div style={{ margin: "0 0 10px" }}>
+            <button style={btnSub} onClick={startLinkCheck}>Kiểm tra giá các link gốc</button>
+          </div>
+        )}
         {subTab === "dyson" && (
           <SheetSyncBar note="tự kiểm tra file gốc mỗi ngày 1 lần" st={dySync} run={runDySync} canEdit={perm.canEdit} onOpen={setDyModal} T={T} summaryText={(m) => `đã cập nhật ${m.updated + m.added} bài`} />
         )}
@@ -419,6 +439,18 @@ export default function GomCan() {
           />
         )}
       </div>
+
+      {lcOpen && linkCheck.run && (
+        <LinkCheckModal
+          run={linkCheck.run}
+          items={data.giadung}
+          onClose={() => setLcOpen(false)}
+          onCancel={linkCheck.cancel}
+          onAddNew={addNewYenPrice}
+          onView={(id) => { setLcOpen(false); setViewGiadungId(id); }}
+          T={T}
+        />
+      )}
 
       {gdModal && (
         <SheetSyncModal

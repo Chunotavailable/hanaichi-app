@@ -1,4 +1,4 @@
-EXTENSION HANAICHI (Chrome / Edge) - bản 0.5.3
+EXTENSION HANAICHI (Chrome / Edge) - bản 0.6.0
 
 CÀI:
 1. Giải nén zip ra 1 thư mục cố định (đừng xoá). Nếu đã cài bản cũ: xoá thư mục cũ/ghi đè rồi bấm nút tải lại ở chrome://extensions
@@ -14,3 +14,9 @@ A) BÁO GIÁ: chỉ cần BÔI ĐEN con số giá trên trang (VD 5,980 hoặc �
 B) KHOANH ĐỌC MÃ: bấm Alt+Shift+Q (hoặc bấm biểu tượng extension, hoặc chuột phải -> "khoanh vùng đọc mã")
    -> kéo chuột khoanh quanh mã trên màn hình -> hiện mã đọc được, tự chép mã, chọn trang để tìm (có thể bật tự mở).
    Đổi phím tắt ở chrome://extensions/shortcuts
+C) KIỂM TRA GIÁ CÁC LINK GỐC (mới): vào web Hanaichi -> tab Gồm cân -> Gia dụng -> bấm "Kiểm tra giá các link gốc" (chỉ quản lý thấy).
+   Extension tự mở từng link Amazon.co.jp / Rakuten (cách nhau vài giây) và báo: giá Yên TĂNG, HẾT HÀNG, link bị xoá.
+   Giá giảm thì không báo. Cần mở Chrome đã đăng nhập sẵn; cứ để tab web mở tới khi chạy xong.
+   Nếu Amazon hiện bảng "xác nhận không phải robot" thì extension tự dừng - bạn mở Amazon, xác nhận rồi chạy lại sau.
+   Luôn mở link kiểm tra lại trước khi báo khách (giá có thể khác theo màu/size/người bán).
+   Sau khi cập nhật extension: bấm F5 trang web Hanaichi.
