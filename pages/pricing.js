@@ -325,10 +325,7 @@ export default function PricingPage() {
             {!isNaN(gcTotal) && (
               <div style={resultBox}>
                 <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá gồm cân mới</div>
-                <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 6px" }}>{fmtK(gcTotal)}</div>
-                <div style={{ fontSize: 13, color: THEME.subtext }}>
-                  = {fmtK(roundUp5k(gcNJ * gcRate))} (¥{gcNJ.toLocaleString("vi-VN")} × {gcRate}, làm tròn lên 5k) + phí cân {fmtK(gcFee)}
-                </div>
+                <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 0" }}>{fmtK(gcTotal)}</div>
               </div>
             )}
           </section>
