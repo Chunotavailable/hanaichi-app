@@ -442,6 +442,11 @@ export default function GomCan() {
         {subTab === "giadung" && perm.canEdit && (
           <div style={{ margin: "0 0 10px" }}>
             <button style={btnSub} onClick={startLinkCheck}>Kiểm tra giá các link gốc</button>
+            {linkCheck.run && linkCheck.run.phase !== "running" && linkCheck.run.phase !== "noext" && (
+              <button style={{ ...btnSub, marginLeft: 8 }} onClick={() => setLcOpen(true)}>
+                Xem lại kết quả lần trước{linkCheck.run.savedAt ? ` (${new Date(linkCheck.run.savedAt).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })})` : ""}
+              </button>
+            )}
           </div>
         )}
         {subTab === "dyson" && (
