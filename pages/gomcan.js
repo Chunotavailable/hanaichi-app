@@ -132,6 +132,21 @@ export default function GomCan() {
   const [dySync, runDySync, actDySync] = useSheetSync("dyson", () => dataRef.current, async (patch) => { const next = { ...dataRef.current, ...patch }; dataRef.current = next; persist(next); try { await syncerRef.current.flushNow(); } catch {} });
   const linkCheck = useLinkCheck();
   const [lcOpen, setLcOpen] = useState(false);
+  // Chạy xong (hoặc bị dừng giữa chừng) thì tự bật bảng kết quả, dù trước đó bạn đã đóng bảng.
+  const lcPhase = linkCheck.run ? linkCheck.run.phase : null;
+  const lcPrev = useRef(null);
+  useEffect(() => {
+    const prev = lcPrev.current;
+    lcPrev.current = lcPhase;
+    if (prev === "running" && lcPhase && lcPhase !== "running") {
+      setLcOpen(true);
+      try {
+        if (typeof Notification !== "undefined" && Notification.permission === "granted" && document.hidden) {
+          new Notification("Hanaichi", { body: "Đã kiểm tra xong giá các link gốc — mở tab để xem kết quả." });
+        }
+      } catch {}
+    }
+  }, [lcPhase]);
   const [dyModal, setDyModal] = useState(null); // null | "pending" | "log"
   const dyRan = useRef(false);
   useEffect(() => {
@@ -276,6 +291,9 @@ export default function GomCan() {
       .filter((it) => /^https?:\/\//i.test((it.link || "").trim()) && it.orderType !== "ready" && !it.gone)
       .map((it) => ({ id: it.id, name: it.name, link: it.link.trim(), ref: latestYenOf(it) }));
     setLcOpen(true);
+    try {
+      if (typeof Notification !== "undefined" && Notification.permission === "default") Notification.requestPermission();
+    } catch {}
     linkCheck.start(items);
   }
   function addNewYenPrice(it, jpy) {
@@ -439,6 +457,12 @@ export default function GomCan() {
           />
         )}
       </div>
+
+      {!lcOpen && linkCheck.run && linkCheck.run.phase === "running" && (
+        <button onClick={() => setLcOpen(true)} style={{ position: "fixed", right: 16, bottom: 16, zIndex: 80, ...btn, boxShadow: "0 8px 24px rgba(44,26,30,0.3)" }}>
+          Đang kiểm tra link {linkCheck.run.done}/{linkCheck.run.total}…
+        </button>
+      )}
 
       {lcOpen && linkCheck.run && (
         <LinkCheckModal
