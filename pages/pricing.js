@@ -305,20 +305,6 @@ export default function PricingPage() {
           </section>
 
           <section style={{ ...card, padding: 18 }}>
-            {cardTitle(PackageCheck, "Báo giá hàng sẵn", "Tự giảm 5%, làm tròn lên 5k")}
-            <label style={fieldLabel} htmlFor="pr-ready">Giá gốc (nghìn VNĐ)</label>
-            <input id="pr-ready" style={{ ...inp, fontSize: 18, fontWeight: 600 }} inputMode="decimal" value={ready} onChange={(e) => setReadyPrice(e.target.value)} />
-            {readyResult && (
-              <div style={resultBox}>
-                <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá sau giảm 5%</div>
-                <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(readyResult.total)}</div>
-                <MsgRow text={readyResult.msg} T={T} />
-                <SaveRow note={noteReady} setNote={setNoteReady} onSave={saveReadyToHistory} saved={savedFlag === "ready"} disabled={loadFailed} T={T} />
-              </div>
-            )}
-          </section>
-
-          <section style={{ ...card, padding: 18 }}>
             {cardTitle(Weight, "Giá gồm cân từ giá cũ", "Giữ nguyên phí cân khi giá Yên đổi")}
             <label style={fieldLabel} htmlFor="gc-old-jpy">Giá Yên cũ</label>
             <input id="gc-old-jpy" style={{ ...inp, marginBottom: 10, fontSize: 18, fontWeight: 600 }} inputMode="decimal" value={gcOldJpy} onChange={(e) => setGcOldJpy(e.target.value)} />
@@ -343,6 +329,20 @@ export default function PricingPage() {
                 <div style={{ fontSize: 13, color: THEME.subtext }}>
                   = {fmtK(roundUp5k(gcNJ * gcRate))} (¥{gcNJ.toLocaleString("vi-VN")} × {gcRate}, làm tròn lên 5k) + phí cân {fmtK(gcFee)}
                 </div>
+              </div>
+            )}
+          </section>
+
+          <section style={{ ...card, padding: 18 }}>
+            {cardTitle(PackageCheck, "Báo giá hàng sẵn", "Tự giảm 5%, làm tròn lên 5k")}
+            <label style={fieldLabel} htmlFor="pr-ready">Giá gốc (nghìn VNĐ)</label>
+            <input id="pr-ready" style={{ ...inp, fontSize: 18, fontWeight: 600 }} inputMode="decimal" value={ready} onChange={(e) => setReadyPrice(e.target.value)} />
+            {readyResult && (
+              <div style={resultBox}>
+                <div style={{ fontSize: 12.5, color: THEME.subtext, fontWeight: 600 }}>Giá sau giảm 5%</div>
+                <div style={{ fontWeight: 700, fontSize: 30, color: THEME.brand, lineHeight: 1.2, margin: "2px 0 10px" }}>{fmtK(readyResult.total)}</div>
+                <MsgRow text={readyResult.msg} T={T} />
+                <SaveRow note={noteReady} setNote={setNoteReady} onSave={saveReadyToHistory} saved={savedFlag === "ready"} disabled={loadFailed} T={T} />
               </div>
             )}
           </section>
