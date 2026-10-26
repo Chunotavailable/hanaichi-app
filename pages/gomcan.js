@@ -132,6 +132,7 @@ export default function GomCan() {
   const [dySync, runDySync, actDySync] = useSheetSync("dyson", () => dataRef.current, async (patch) => { const next = { ...dataRef.current, ...patch }; dataRef.current = next; persist(next); try { await syncerRef.current.flushNow(); } catch {} });
   const linkCheck = useLinkCheck();
   const [lcOpen, setLcOpen] = useState(false);
+  const [pendEdit, setPendEdit] = useState(null); // { x, id } mục đang sửa bên cạnh bảng duyệt
   // Chạy xong (hoặc bị dừng giữa chừng) thì tự bật bảng kết quả, dù trước đó bạn đã đóng bảng.
   const lcPhase = linkCheck.run ? linkCheck.run.phase : null;
   const lcPrev = useRef(null);
@@ -483,7 +484,7 @@ export default function GomCan() {
 
       {gdModal && (
         <SheetSyncModal
-          onClose={() => setGdModal(null)}
+          onClose={() => { setGdModal(null); setPendEdit(null); }}
           changesUrl="/api/sheet-state?tab=giadung&log=1"
           st={gdSync}
           onAct={actGdSync}
@@ -491,7 +492,18 @@ export default function GomCan() {
           initialTab={gdModal}
           refOf={(x) => ({ k: x.k, key: x.key, sig: x.sig })}
           editIdOf={(x) => (x.k === "chg" && typeof x.key === "string" && x.key.includes("|") ? x.key.split("|").pop() : null)}
-          onEditItem={(id) => { if ((data.giadung || []).some((g) => g.id === id)) setEditKey({ area: "giadung", id }); else showToast("Không tìm thấy sản phẩm này trong danh sách."); }}
+          onEditItem={(id, x) => { if ((data.giadung || []).some((g) => g.id === id)) setPendEdit({ x, id }); else showToast("Không tìm thấy sản phẩm này trong danh sách."); }}
+          sidePanel={pendEdit && (data.giadung || []).find((g) => g.id === pendEdit.id) ? (
+            <PendingEditPanel
+              key={pendEdit.id}
+              it={data.giadung.find((g) => g.id === pendEdit.id)}
+              x={gdSync.pending.find((p) => p.key === pendEdit.x.key) || pendEdit.x}
+              onSave={(patch) => saveGiadungItem(pendEdit.id, patch)}
+              onSaveDismiss={(patch) => { saveGiadungItem(pendEdit.id, patch); actGdSync([], [{ k: pendEdit.x.k, key: pendEdit.x.key, sig: pendEdit.x.sig }]); setPendEdit(null); }}
+              onClose={() => setPendEdit(null)}
+              T={T}
+            />
+          ) : null}
           pendingView={(x, TH) =>
             x.k === "new"
               ? { kind: "Sản phẩm mới", color: TH.success, text: `· Yên: ${x.jpy || "—"} · Giá gồm cân: ${x.vnd || "—"}` }
@@ -1263,6 +1275,50 @@ function GiadungEditModal({ it, onDone, onSave, onPickImage, T }) {
         <button style={{ ...btn, width: "100%" }} onClick={onDone}>
           <Check size={16} /> Xong
         </button>
+      </div>
+    </div>
+  );
+}
+
+// Khung sửa nằm cạnh bảng duyệt: ô giá được điền sẵn giá MỚI từ file công ty để bạn chỉnh lại rồi lưu.
+function PendingEditPanel({ it, x, onSave, onSaveDismiss, onClose, T }) {
+  const { THEME, card, inp, btn, btnSub, iconBtn } = T;
+  const nv = (k) => (x && x.f && x.f[k] ? x.f[k][1] : null);
+  const [f, setF] = useState({
+    name: it.name || "",
+    link: it.link || "",
+    jpy: nv("jpy") != null ? nv("jpy") : it.jpy || "",
+    vnd: nv("vnd") != null ? nv("vnd") : it.vnd || "",
+  });
+  const label = { fontSize: 12.5, fontWeight: 600, color: THEME.subtext, margin: "10px 0 5px", display: "block" };
+  const ta = { ...inp, minHeight: 74, resize: "vertical", fontFamily: "inherit", lineHeight: 1.45 };
+  const patch = () => ({ name: f.name, link: f.link, jpy: f.jpy, vnd: f.vnd });
+  const old = (k) => (x && x.f && x.f[k] ? x.f[k][0] : null);
+  return (
+    <div style={{ ...card, padding: 16, maxHeight: "86vh", overflowY: "auto" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>Sửa & lưu ngay</div>
+        <button onClick={onClose} aria-label="Đóng" style={iconBtn}>
+          <X size={17} />
+        </button>
+      </div>
+      <div style={{ fontSize: 12.5, color: THEME.subtext, marginTop: 4, lineHeight: 1.45 }}>
+        Ô giá đã điền sẵn giá mới từ file công ty. Chỉnh lại rồi bấm lưu.
+      </div>
+      <span style={label}>Tên sản phẩm</span>
+      <input style={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+      <span style={label}>Link</span>
+      <input style={inp} value={f.link} onChange={(e) => setF({ ...f, link: e.target.value })} />
+      <span style={label}>Giá Yên{old("jpy") != null ? " (đang lưu: " + (old("jpy") || "—").split("\n")[0].slice(0, 40) + ")" : ""}</span>
+      <textarea style={ta} value={f.jpy} onChange={(e) => setF({ ...f, jpy: e.target.value })} />
+      <span style={label}>Giá gồm cân{old("vnd") != null ? " (đang lưu: " + (old("vnd") || "—").split("\n")[0].slice(0, 40) + ")" : ""}</span>
+      <textarea style={ta} value={f.vnd} onChange={(e) => setF({ ...f, vnd: e.target.value })} />
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+        <button style={btn} onClick={() => onSaveDismiss(patch())}>Lưu & xong mục này</button>
+        <button style={btnSub} onClick={() => onSave(patch())}>Chỉ lưu</button>
+      </div>
+      <div style={{ fontSize: 12, color: THEME.subtext, marginTop: 8, lineHeight: 1.45 }}>
+        “Lưu & xong mục này” = lưu bản bạn vừa sửa và bỏ mục này khỏi danh sách chờ duyệt (file công ty đổi tiếp thì mới báo lại). “Chỉ lưu” giữ mục này ở danh sách chờ.
       </div>
     </div>
   );
