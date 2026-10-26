@@ -1083,6 +1083,11 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
                   {discountStatus(discount) === "off" && <span style={{ fontWeight: 400 }}>(đang tắt)</span>}
                   {discountStatus(discount) === "pending" && <span style={{ fontWeight: 400 }}>(chưa đến ngày áp dụng)</span>}
                   {discountStatus(discount) === "expired" && <span style={{ fontWeight: 700, color: THEME.danger }}>(đã hết hạn — đã tự tắt)</span>}
+                  {discountStatus(discount) === "active" && discount.to && discount.to === todayISO() && (
+                    <span style={{ fontWeight: 800, color: THEME.danger, background: THEME.dangerBg, border: `1px solid ${THEME.danger}`, borderRadius: 999, padding: "1px 10px", whiteSpace: "nowrap" }}>
+                      ⚠ HÔM NAY LÀ NGÀY CUỐI SALE
+                    </span>
+                  )}
                   {discount.name ? <span style={{ fontWeight: 700 }}>· {discount.name}</span> : null}
                   {(discount.from || discount.to) && (
                     <span style={{ fontWeight: 400 }}>
