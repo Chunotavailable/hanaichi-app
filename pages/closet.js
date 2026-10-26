@@ -262,7 +262,16 @@ function composeLabel(code, size) {
 }
 // Chương trình giảm giá áp dụng cho cả tab Closet: bật lên thì mọi sản phẩm
 // có giá từ "threshold" trở lên được giảm "percent"% khi hiển thị ra ngoài.
-const DEFAULT_DISCOUNT = { enabled: false, threshold: 500, percent: 5 };
+const DEFAULT_DISCOUNT = { enabled: false, threshold: 500, percent: 5, name: "", from: "", to: "" };
+// Ngày lưu dạng "YYYY-MM-DD" (ô chọn ngày của trình duyệt) -> hiện "DD/MM/YYYY".
+function fmtDiscountDate(d) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || "");
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+function todayISO() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+}
 function applyDiscount(price, discount) {
   const d = discount || DEFAULT_DISCOUNT;
   if (!d.enabled) return price;
@@ -1042,6 +1051,16 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
                 <span>% cho sản phẩm từ</span>
                 <input style={{ ...inp, width: 84, padding: "5px 8px" }} defaultValue={discount.threshold} onBlur={(e) => saveClosetDiscount({ threshold: Number(e.target.value) || 0 })} />
                 <span>k trở lên</span>
+                <div style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span>Tên chương trình</span>
+                  <input style={{ ...inp, flex: 1, minWidth: 160, padding: "5px 8px" }} placeholder="VD: Sale 11/11" defaultValue={discount.name || ""} onBlur={(e) => saveClosetDiscount({ name: e.target.value.trim() })} />
+                </div>
+                <div style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span>Áp dụng từ</span>
+                  <input type="date" style={{ ...inp, width: 150, padding: "5px 8px" }} defaultValue={discount.from || ""} onChange={(e) => saveClosetDiscount({ from: e.target.value })} />
+                  <span>đến</span>
+                  <input type="date" style={{ ...inp, width: 150, padding: "5px 8px" }} defaultValue={discount.to || ""} onChange={(e) => saveClosetDiscount({ to: e.target.value })} />
+                </div>
                 <button style={{ ...btnSub, padding: "5px 12px" }} onClick={() => setEditingDiscount(false)}>
                   Xong
                 </button>
@@ -1052,6 +1071,17 @@ function ClosetSection({ data, addClosetProduct, saveClosetProduct, bulkSaveClos
                   <BadgePercent size={16} />
                   {discount.enabled ? "Đang giảm" : "Giảm"} {discount.percent}% cho sản phẩm từ {fmtClosetPrice(discount.threshold)} trở lên
                   {!discount.enabled && <span style={{ fontWeight: 400 }}>(đang tắt)</span>}
+                  {discount.name ? <span style={{ fontWeight: 700 }}>· {discount.name}</span> : null}
+                  {(discount.from || discount.to) && (
+                    <span style={{ fontWeight: 400 }}>
+                      · {discount.from ? `từ ${fmtDiscountDate(discount.from)}` : ""}
+                      {discount.from && discount.to ? " " : ""}
+                      {discount.to ? `đến ${fmtDiscountDate(discount.to)}` : ""}
+                    </span>
+                  )}
+                  {perm.canEdit && discount.enabled && discount.to && discount.to < todayISO() && (
+                    <span style={{ fontWeight: 700, color: THEME.danger }}>· Đã hết hạn — nhớ tắt chương trình</span>
+                  )}
                 </span>
                 {perm.canEdit && (
                   <button style={{ ...iconBtn, width: 30, height: 30 }} title="Sửa chương trình giảm giá" aria-label="Sửa chương trình giảm giá" onClick={() => setEditingDiscount(true)}>

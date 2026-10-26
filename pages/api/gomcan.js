@@ -60,7 +60,7 @@ const DEFAULT_DATA = {
   closet: [],
   // Chương trình giảm giá áp dụng chung cho tab "Hàng Closet sẵn" — mặc định
   // tắt, chủ shop tự bật lên khi có đợt khuyến mãi.
-  closetDiscount: { enabled: false, threshold: 500, percent: 5 },
+  closetDiscount: { enabled: false, threshold: 500, percent: 5, name: "", from: "", to: "" },
   // Mã/size của hàng Closet đã bị chủ shop tự xoá tay — withClosetSeed bên
   // dưới phải tra vào đây để KHÔNG tự thêm lại, nếu không mã seed gốc sẽ
   // tự hiện lại mỗi khi tải trang (readData chạy merge lại từ SEED_CLOSET).
