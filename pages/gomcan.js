@@ -1016,11 +1016,15 @@ function buildSizeQuote(it, z) {
 }
 // Báo giá chung tất cả size: "Dạ {tên} giá order size M 450k, size L 520k ạ" (hàng sẵn: "... giá ... bên em có sẵn ạ").
 function buildCombinedSizeQuote(it) {
+  // Giá size chính: lấy đúng chữ bạn ghi trong ô giá gồm cân (đã kèm size/dung tích, VD "350k chai 500ml"),
+  // chỉ lấy dòng đầu (bỏ các dòng ghi chú phía dưới) và bỏ đuôi "gồm cân".
+  const clean = (v) => String(v || "").split("\n").map((x) => x.trim()).find(Boolean)?.replace(/\s*gồm cân\s*$/i, "") || "";
   const parts = [];
-  if ((it.vnd || "").trim()) parts.push((it.vnd || "").trim());
+  if (clean(it.vnd)) parts.push(clean(it.vnd));
   (it.sizes || []).forEach((z) => {
-    if (!(z.vnd || "").trim()) return;
-    parts.push(z.label ? `size ${z.label} ${z.vnd.trim()}` : z.vnd.trim());
+    const v = clean(z.vnd);
+    if (!v) return;
+    parts.push(z.label ? `size ${z.label} ${v}` : v);
   });
   if (!it.name || parts.length < 2) return "";
   const list = parts.join(", ");
