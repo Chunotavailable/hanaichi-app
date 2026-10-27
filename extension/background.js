@@ -1,5 +1,6 @@
 // Menu chuột phải + phím tắt + biểu tượng: báo giá, khoanh vùng đọc mã, kiểm tra giá link gốc.
-importScripts("pricecheck.js");
+// Nếu thiếu file pricecheck.js (copy chưa đủ file) thì chỉ mất tính năng kiểm tra link, báo giá/khoanh mã vẫn chạy.
+try { importScripts("pricecheck.js"); } catch (e) { console.warn("Hanaichi: thiếu pricecheck.js", e); }
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({ id: "hn-quote", title: "Hanaichi: báo giá \"%s\"", contexts: ["selection"] });
