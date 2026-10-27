@@ -980,11 +980,8 @@ function AltQuoteRow({ it, alt, n, onDelete, T }) {
   return (
     <div style={{ marginTop: 10, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 12, padding: "10px 12px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: THEME.brand, textTransform: "uppercase", letterSpacing: 0.5 }}>{alt.label || `Size ${n}`}</span>
-        <span style={{ fontSize: 13, color: THEME.subtext }}>
-          <b style={{ color: THEME.brand, fontSize: 16 }}>{alt.vnd}</b>
-          {alt.jpy ? ` - ¥${alt.jpy}` : ""}
-        </span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: THEME.brand, textTransform: "uppercase", letterSpacing: 0.5 }}>{alt.label || `Giá gồm cân ${n}`}</span>
+        <span style={{ fontSize: 13, color: THEME.subtext }}>{alt.jpy ? `¥${alt.jpy} · ` : ""}<b style={{ color: THEME.brand, fontSize: 16 }}>{alt.vnd}</b></span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", fontSize: 14 }}>
         <MessageSquareQuote size={17} color={THEME.brand} style={{ flexShrink: 0 }} />
@@ -1220,7 +1217,7 @@ function AltPricesEditor({ it, onSave, T }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {rows.map((r, i) => (
           <div key={r.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input style={{ ...inp, flex: 1.1, minWidth: 0 }} value={r.label || ""} placeholder={`Tên (để trống = Size ${i + 2})`} onChange={(e) => edit(i, { label: e.target.value })} onBlur={() => onSave({ altPrices: rows })} />
+            <input style={{ ...inp, flex: 1.1, minWidth: 0 }} value={r.label || ""} placeholder={`Tên (Giá ${i + 2})`} onChange={(e) => edit(i, { label: e.target.value })} onBlur={() => onSave({ altPrices: rows })} />
             {it.orderType !== "ready" && (
               <input
                 style={{ ...inp, flex: 0.8, minWidth: 0 }}
