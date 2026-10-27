@@ -1014,8 +1014,8 @@ function buildSizeQuote(it, z) {
   const nm = z.label ? `${it.name} ${sizeName(z.label)}` : it.name;
   return it.orderType === "ready" ? `Dạ ${nm} giá ${z.vnd} bên em có sẵn ạ` : `Dạ ${nm} giá order ${z.vnd} ạ`;
 }
-// Tên size hiển thị: tự thêm chữ "size" phía trước, trừ khi bạn đã gõ sẵn chữ size (VD "size 26" hoặc "Size M").
-const sizeName = (label) => (/^\s*size\b/i.test(label || "") ? String(label).trim() : `size ${String(label || "").trim()}`);
+// Tên size hiển thị: đúng chữ bạn gõ (VD "Loại D", "size 26", "500ml"), app không tự thêm chữ "size".
+const sizeName = (label) => String(label || "").trim();
 // Báo giá chung tất cả size: "Dạ {tên} giá order size M 450k, size L 520k ạ" (hàng sẵn: "... giá ... bên em có sẵn ạ").
 function buildCombinedSizeQuote(it) {
   // Giá size chính: lấy đúng chữ bạn ghi trong ô giá gồm cân (đã kèm size/dung tích, VD "350k chai 500ml"),
@@ -1124,7 +1124,7 @@ function SizeAdder({ it, onSave, T }) {
     );
   return (
     <div style={{ marginTop: 10, border: `1px dashed ${THEME.brand}`, borderRadius: 12, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-      <input style={inp} placeholder="Tên size (VD: M, 38, 500ml) — để trống = Giá gồm cân 2, 3, 4…" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} autoFocus />
+      <input style={inp} placeholder="Tên (VD: size M, Loại D, 500ml) — để trống = Giá gồm cân 2, 3, 4…" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} autoFocus />
       {!isReady && <input style={inp} placeholder="Link gốc của size này" value={f.link} onChange={(e) => setF({ ...f, link: e.target.value })} />}
       <div style={{ display: "flex", gap: 8 }}>
         {!isReady && <input style={{ ...inp, flex: 1, minWidth: 0 }} inputMode="numeric" placeholder="Giá Yên" value={f.jpy} onChange={(e) => setF({ ...f, jpy: e.target.value })} />}
