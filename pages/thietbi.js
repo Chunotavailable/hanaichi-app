@@ -31,6 +31,7 @@ import {
   ExternalLink,
   MessageSquareQuote,
 } from "lucide-react";
+import { backdropClick } from "../lib/ui";
 
 function copyText(text) {
   if (navigator.clipboard) navigator.clipboard.writeText(text || "").catch(() => {});
@@ -634,7 +635,7 @@ function ProductDetailModal({ p, onClose, saveProduct, onDelete, T }) {
   const quote = buildThietbiQuote(p);
   const Icon = areaIcon(p.area);
   return (
-    <div onClick={onClose} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
+    <div {...backdropClick(onClose)} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
       <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="hnPop" style={{ ...card, width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto", padding: 0, boxShadow: "0 24px 60px rgba(44,26,30,0.25)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "14px 18px", borderBottom: `1px solid ${THEME.line}`, position: "sticky", top: 0, background: THEME.surface, zIndex: 1 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, color: THEME.subtext, fontSize: 13.5, fontWeight: 600 }}>

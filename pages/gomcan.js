@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { vndForNewYen, vndForNewYenSize, latestYenOf, parseYenNum } from "../lib/gomcanHelpers";
 import { useLinkCheck, LinkCheckModal } from "../lib/linkCheck";
+import { backdropClick } from "../lib/ui";
 
 /* ================== Helpers ================== */
 function buildGiadungQuote(it) {
@@ -1268,7 +1269,7 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, onSave,
   }
 
   return (
-    <div onClick={onClose} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
+    <div {...backdropClick(onClose)} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
       <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="hnPop" style={{ ...card, width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto", padding: 0, boxShadow: "0 24px 60px rgba(44,26,30,0.25)" }}>
         <div style={{ position: "relative", width: "100%", paddingTop: "80%", background: THEME.surfaceAlt, borderBottom: `1px solid ${THEME.line}` }}>
           <div style={{ position: "absolute", inset: 0 }}>
@@ -1359,7 +1360,7 @@ function GiadungEditModal({ it, onDone, onSave, onPickImage, T }) {
   const label = { fontSize: 12.5, fontWeight: 600, color: THEME.subtext, marginBottom: 5, display: "block" };
 
   return (
-    <div onClick={onDone} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
+    <div {...backdropClick(onDone)} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
       <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="hnPop" style={{ ...card, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto", padding: 20, boxShadow: "0 24px 60px rgba(44,26,30,0.25)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>

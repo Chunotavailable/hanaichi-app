@@ -32,6 +32,7 @@ import {
   MessageSquareQuote,
   ScanSearch,
 } from "lucide-react";
+import { backdropClick } from "../lib/ui";
 
 // Lấy phần trong ngoặc của mã biến thể để hiện gọn khi cần (VD "WRS...-235
 // (EU 38)" -> "EU 38").
@@ -672,7 +673,7 @@ function ChangeLogModal({ onClose, lastAt, pending = [], canEdit, busy, initialT
   const color = (it) => (it.k === "gone" ? THEME.danger : it.k === "add" || it.k === "new" || it.k === "back" ? THEME.success : THEME.text);
   const ref = (x) => ({ k: x.k, key: x.key, to: x.to });
   return (
-    <div className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(40,20,25,0.45)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }} onClick={onClose}>
+    <div className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(40,20,25,0.45)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }} {...backdropClick(onClose)}>
       <div role="dialog" className="hnPop" onClick={(e) => e.stopPropagation()} style={{ ...card, width: "100%", maxWidth: 640, maxHeight: "86vh", display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "14px 16px", borderBottom: `1px solid ${THEME.line}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <div>
@@ -826,7 +827,7 @@ function BulkImportModal({ list, bulkSaveClosetImages, onClose, T }) {
   const okCount = rows ? rows.filter((r) => r.status === "ok").length : 0;
 
   return (
-    <div onClick={onClose} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 90, display: "grid", placeItems: "center", padding: 16 }}>
+    <div {...backdropClick(onClose)} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 90, display: "grid", placeItems: "center", padding: 16 }}>
       <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="hnPop" style={{ ...card, width: "100%", maxWidth: 640, maxHeight: "88vh", overflowY: "auto", padding: 20, boxShadow: "0 24px 60px rgba(44,26,30,0.25)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
@@ -1447,7 +1448,7 @@ function ClosetDetailModal({ p, onClose, onDelete, saveClosetProduct, addClosetV
   const sectionLabel = { fontSize: 12, fontWeight: 600, color: THEME.subtext, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 };
 
   return (
-    <div onClick={onClose} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
+    <div {...backdropClick(onClose)} className="hnFade" style={{ position: "fixed", inset: 0, background: "rgba(44,26,30,0.45)", zIndex: 80, display: "grid", placeItems: "center", padding: 16 }}>
       <div
         role="dialog"
         aria-modal="true"
