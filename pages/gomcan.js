@@ -42,7 +42,7 @@ import {
   ImagePlus,
   Wind,
 } from "lucide-react";
-import { vndForNewYen, latestYenOf } from "../lib/gomcanHelpers";
+import { vndForNewYen, vndForNewYenSize, latestYenOf, parseYenNum } from "../lib/gomcanHelpers";
 import { useLinkCheck, LinkCheckModal } from "../lib/linkCheck";
 
 /* ================== Helpers ================== */
@@ -67,8 +67,24 @@ function PriceChangedChip({ it, T }) {
   const { THEME, chip } = T;
   return <span title="Giá vừa được cập nhật theo file gốc" style={{ ...chip, fontSize: 11, padding: "1px 8px", background: "#fff3d6", borderColor: "#f0d28a", color: "#6b4a00" }}>Vừa đổi giá</span>;
 }
+// Danh sách phẳng cho kiểm tra link: sản phẩm + từng size (mỗi size có link riêng). id size = "idSP::idSize".
+function lcFlat(list) {
+  const out = [];
+  (list || []).forEach((it) => {
+    out.push(it);
+    (it.sizes || []).forEach((z) => out.push({ id: `${it.id}::${z.id}`, name: `${it.name} — size ${z.label || ""}`.trim(), link: z.link || "", jpy: z.jpy || "", vnd: z.vnd || "", altPrices: [], orderType: it.orderType, gone: it.gone, sizeOf: { itemId: it.id, sizeId: z.id } }));
+  });
+  return out;
+}
 function giadungOuterPrice(it) {
   if (it.vnd) return it.vnd;
+  const sv = (it.sizes || []).map((s) => parseInt(String(s.vnd || "").replace(/[^\d]/g, ""), 10)).filter((n) => n > 0);
+  if (sv.length) {
+    // Có nhiều size: hiện khoảng giá, VD "450k – 520k" (chỉ so được khi giá dạng "450k").
+    const raw = (it.sizes || []).filter((s) => (s.vnd || "").trim());
+    const lo = Math.min(...sv), hi = Math.max(...sv);
+    return lo === hi || raw.some((s) => !/^\d+k?$/i.test(String(s.vnd).trim())) ? raw[0].vnd : `${raw.find((s) => parseInt(String(s.vnd).replace(/[^\d]/g, ""), 10) === lo).vnd} – ${raw.find((s) => parseInt(String(s.vnd).replace(/[^\d]/g, ""), 10) === hi).vnd}`;
+  }
   if (!it.jpy) return "------";
   return "------";
 }
@@ -288,9 +304,9 @@ export default function GomCan() {
     });
   }
   function startLinkCheck() {
-    const items = (data.giadung || [])
+    const items = lcFlat(data.giadung)
       .filter((it) => /^https?:\/\//i.test((it.link || "").trim()) && it.orderType !== "ready" && !it.gone)
-      .map((it) => ({ id: it.id, name: it.name, link: it.link.trim(), ref: latestYenOf(it) }));
+      .map((it) => ({ id: it.id, name: it.name, link: it.link.trim(), ref: it.sizeOf ? (isNaN(parseYenNum(it.jpy)) ? null : parseYenNum(it.jpy)) : latestYenOf(it) }));
     setLcOpen(true);
     try {
       if (typeof Notification !== "undefined" && Notification.permission === "default") Notification.requestPermission();
@@ -298,6 +314,14 @@ export default function GomCan() {
     linkCheck.start(items);
   }
   function addNewYenPrice(it, jpy) {
+    if (it.sizeOf) {
+      // Size: cập nhật thẳng giá của size đó (phí cân riêng của size).
+      const parent = (data.giadung || []).find((g) => g.id === it.sizeOf.itemId);
+      if (!parent) return;
+      const calcS = vndForNewYenSize(it, String(jpy));
+      saveGiadungItem(parent.id, { sizes: (parent.sizes || []).map((z) => (z.id === it.sizeOf.sizeId ? { ...z, jpy: `${jpy}y`, vnd: calcS ? calcS.vnd : z.vnd } : z)) });
+      return;
+    }
     const calc = vndForNewYen(it, String(jpy));
     const row = { id: uid(), label: "Giá mới", jpy: `${jpy}y`, vnd: calc ? calc.vnd : "" };
     saveGiadungItem(it.id, { altPrices: [...(it.altPrices || []), row] });
@@ -473,11 +497,11 @@ export default function GomCan() {
       {lcOpen && linkCheck.run && (
         <LinkCheckModal
           run={linkCheck.run}
-          items={data.giadung}
+          items={lcFlat(data.giadung)}
           onClose={() => setLcOpen(false)}
           onCancel={linkCheck.cancel}
           onAddNew={addNewYenPrice}
-          onView={(id) => { setLcOpen(false); setViewGiadungId(id); }}
+          onView={(id) => { setLcOpen(false); setViewGiadungId(String(id).split("::")[0]); }}
           T={T}
         />
       )}
@@ -983,6 +1007,138 @@ function AltQuoteRow({ it, alt, n, onDelete, T }) {
   );
 }
 
+// ---- SIZE: mỗi size có link riêng, giá Yên và giá gồm cân riêng (it.sizes: [{ id, label, link, jpy, vnd }]) ----
+function buildSizeQuote(it, z) {
+  if (!z.vnd) return "";
+  const nm = `${it.name} size ${z.label || ""}`.trim();
+  return it.orderType === "ready" ? `Dạ ${nm} giá ${z.vnd} bên em có sẵn ạ` : `Dạ ${nm} giá order ${z.vnd} ạ`;
+}
+function SizeQuoteRow({ it, z, onDelete, T }) {
+  const { THEME, btnSub } = T;
+  const [copied, setCopied] = useState(false);
+  const quote = buildSizeQuote(it, z);
+  const linkOk = z.link && /^https?:\/\//i.test(z.link);
+  return (
+    <div style={{ marginTop: 10, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 12, padding: "10px 12px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: THEME.brand, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          Size {z.label || "—"}
+          {linkOk && (
+            <a href={z.link} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: THEME.brand, textTransform: "none", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 3 }}>
+              Link <ExternalLink size={12} />
+            </a>
+          )}
+        </span>
+        <span style={{ fontSize: 13, color: THEME.subtext }}>{z.jpy ? `¥${z.jpy} · ` : ""}<b style={{ color: THEME.brand, fontSize: 16 }}>{z.vnd || "------"}</b></span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", fontSize: 14 }}>
+        <MessageSquareQuote size={17} color={THEME.brand} style={{ flexShrink: 0 }} />
+        <span style={{ flex: 1, lineHeight: 1.45 }}>{quote || "(chưa có giá gồm cân)"}</span>
+        {onDelete && (
+          <button style={{ ...btnSub, padding: "6px 9px", color: THEME.danger }} onClick={onDelete} title="Xoá size này" aria-label="Xoá size này">
+            <Trash2 size={15} />
+          </button>
+        )}
+        <button
+          style={{ ...btnSub, padding: "6px 10px", fontSize: 13, color: copied ? THEME.success : THEME.text }}
+          onClick={() => {
+            if (!navigator.clipboard || !quote) return;
+            navigator.clipboard.writeText(quote).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            });
+          }}
+        >
+          {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Đã chép" : "Chép"}
+        </button>
+      </div>
+    </div>
+  );
+}
+function SizeAdder({ it, onSave, T }) {
+  const { THEME, inp, btn, btnSub } = T;
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ label: "", link: "", jpy: "", vnd: "" });
+  const isReady = it.orderType === "ready";
+  const reset = () => setF({ label: "", link: "", jpy: "", vnd: "" });
+  function add() {
+    if (!f.label.trim()) return;
+    onSave({ sizes: [...(it.sizes || []), { id: uid(), label: f.label.trim(), link: f.link.trim(), jpy: isReady ? "" : f.jpy.trim(), vnd: f.vnd.trim() }] });
+    reset();
+    setOpen(false);
+  }
+  if (!open)
+    return (
+      <button style={{ ...btnSub, marginTop: 10, width: "100%", justifyContent: "center" }} onClick={() => setOpen(true)}>
+        <Plus size={15} /> Thêm size
+      </button>
+    );
+  return (
+    <div style={{ marginTop: 10, border: `1px dashed ${THEME.brand}`, borderRadius: 12, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+      <input style={inp} placeholder="Size (VD: M, 38, 500ml)" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} autoFocus />
+      {!isReady && <input style={inp} placeholder="Link gốc của size này" value={f.link} onChange={(e) => setF({ ...f, link: e.target.value })} />}
+      <div style={{ display: "flex", gap: 8 }}>
+        {!isReady && <input style={{ ...inp, flex: 1, minWidth: 0 }} inputMode="numeric" placeholder="Giá Yên" value={f.jpy} onChange={(e) => setF({ ...f, jpy: e.target.value })} />}
+        <input style={{ ...inp, flex: 1, minWidth: 0, fontWeight: 600 }} placeholder="Giá gồm cân (VD: 450k)" value={f.vnd} onChange={(e) => setF({ ...f, vnd: e.target.value })} onKeyDown={(e) => e.key === "Enter" && add()} />
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button style={{ ...btn, flex: 1, justifyContent: "center" }} onClick={add} disabled={!f.label.trim()}>
+          <Check size={15} /> Lưu size
+        </button>
+        <button style={btnSub} onClick={() => { reset(); setOpen(false); }}>Huỷ</button>
+      </div>
+    </div>
+  );
+}
+// Sửa các size trong popup Sửa sản phẩm. Đổi giá Yên của 1 size đã có giá thì tự tính lại giá gồm cân theo phí cân riêng của size đó.
+function SizesEditor({ it, onSave, T }) {
+  const { THEME, inp, btnSub, iconBtn } = T;
+  const [rows, setRows] = useState(() => it.sizes || []);
+  const saved = useRef(it.sizes || []);
+  const commit = (next) => { setRows(next); saved.current = next; onSave({ sizes: next }); };
+  const edit = (i, patch) => setRows((m) => m.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const label = { fontSize: 12.5, fontWeight: 600, color: THEME.subtext, marginBottom: 5, display: "block" };
+  const isReady = it.orderType === "ready";
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <span style={label}>Các size (mỗi size có link và giá riêng)</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {rows.map((r, i) => (
+          <div key={r.id} style={{ border: `1px solid ${THEME.line}`, borderRadius: 12, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input style={{ ...inp, flex: 0.6, minWidth: 0 }} value={r.label || ""} placeholder="Size" onChange={(e) => edit(i, { label: e.target.value })} onBlur={() => onSave({ sizes: rows })} />
+              {!isReady && <input style={{ ...inp, flex: 1.4, minWidth: 0 }} value={r.link || ""} placeholder="Link gốc của size" onChange={(e) => edit(i, { link: e.target.value })} onBlur={() => onSave({ sizes: rows })} />}
+              <button style={{ ...iconBtn, flexShrink: 0, color: THEME.danger }} onClick={() => commit(rows.filter((_, j) => j !== i))} title="Xoá size" aria-label="Xoá size">
+                <X size={15} />
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {!isReady && (
+                <input
+                  style={{ ...inp, flex: 1, minWidth: 0 }}
+                  inputMode="numeric"
+                  value={r.jpy || ""}
+                  placeholder="Giá Yên"
+                  onChange={(e) => {
+                    const base = saved.current.find((x) => x.id === r.id) || r;
+                    const calc = vndForNewYenSize(base, e.target.value);
+                    edit(i, calc ? { jpy: e.target.value, vnd: calc.vnd } : { jpy: e.target.value });
+                  }}
+                  onBlur={() => onSave({ sizes: rows })}
+                />
+              )}
+              <input style={{ ...inp, flex: 1, minWidth: 0, fontWeight: 600 }} value={r.vnd || ""} placeholder="Giá gồm cân" onChange={(e) => edit(i, { vnd: e.target.value })} onBlur={() => { saved.current = rows; onSave({ sizes: rows }); }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <button style={{ ...btnSub, marginTop: 8 }} onClick={() => commit([...rows, { id: uid(), label: "", link: "", jpy: "", vnd: "" }])}>
+        <Plus size={15} /> Thêm size
+      </button>
+    </div>
+  );
+}
+
 // Nút "+ Thêm giá gồm cân khác" ngay trong popup xem sản phẩm: bấm ra form nhỏ (tên, giá Yên, giá gồm cân).
 function AltPriceAdder({ it, onSave, T }) {
   const { THEME, inp, btn, btnSub } = T;
@@ -1168,6 +1324,10 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, onSave,
           {(it.altPrices || []).map((a, i) => (
             <AltQuoteRow key={a.id || i} it={it} alt={a} n={i + 2} onDelete={perm.canEdit ? () => onSave({ altPrices: (it.altPrices || []).filter((x) => x !== a) }) : null} T={T} />
           ))}
+          {(it.sizes || []).map((z) => (
+            <SizeQuoteRow key={z.id} it={it} z={z} onDelete={perm.canEdit ? () => onSave({ sizes: (it.sizes || []).filter((x) => x.id !== z.id) }) : null} T={T} />
+          ))}
+          {perm.canEdit && <SizeAdder it={it} onSave={onSave} T={T} />}
           {perm.canEdit && <AltPriceAdder it={it} onSave={onSave} T={T} />}
           {it.productNote && (
             <div style={{ marginTop: 14 }}>
@@ -1253,6 +1413,7 @@ function GiadungEditModal({ it, onDone, onSave, onPickImage, T }) {
             <input style={inp} defaultValue={it.vnd} placeholder="Giá gồm cân" onBlur={(e) => onSave({ vnd: e.target.value })} />
           </div>
         </div>
+        <SizesEditor it={it} onSave={onSave} T={T} />
         <AltPricesEditor it={it} onSave={onSave} T={T} />
         <span style={label}>Ghi chú / tính năng sản phẩm</span>
         <textarea
