@@ -1014,6 +1014,45 @@ function buildSizeQuote(it, z) {
   const nm = z.label ? `${it.name} size ${z.label}` : it.name;
   return it.orderType === "ready" ? `Dạ ${nm} giá ${z.vnd} bên em có sẵn ạ` : `Dạ ${nm} giá order ${z.vnd} ạ`;
 }
+// Báo giá chung tất cả size: "Dạ {tên} giá order size M 450k, size L 520k ạ" (hàng sẵn: "... giá ... bên em có sẵn ạ").
+function buildCombinedSizeQuote(it) {
+  const parts = [];
+  if ((it.vnd || "").trim()) parts.push((it.vnd || "").trim());
+  (it.sizes || []).forEach((z) => {
+    if (!(z.vnd || "").trim()) return;
+    parts.push(z.label ? `size ${z.label} ${z.vnd.trim()}` : z.vnd.trim());
+  });
+  if (!it.name || parts.length < 2) return "";
+  const list = parts.join(", ");
+  return it.orderType === "ready" ? `Dạ ${it.name} giá ${list} bên em có sẵn ạ` : `Dạ ${it.name} giá order ${list} ạ`;
+}
+function CombinedSizeQuote({ it, T }) {
+  const { THEME, btnSub } = T;
+  const [copied, setCopied] = useState(false);
+  const quote = buildCombinedSizeQuote(it);
+  if (!quote) return null;
+  return (
+    <div style={{ marginTop: 14, background: THEME.surfaceAlt, border: `1.5px solid ${THEME.brand}`, borderRadius: 12, padding: "10px 12px" }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: THEME.brand, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Báo giá chung tất cả size</div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", fontSize: 14 }}>
+        <MessageSquareQuote size={17} color={THEME.brand} style={{ flexShrink: 0 }} />
+        <span style={{ flex: 1, lineHeight: 1.45 }}>{quote}</span>
+        <button
+          style={{ ...btnSub, padding: "6px 10px", fontSize: 13, color: copied ? THEME.success : THEME.text }}
+          onClick={() => {
+            if (!navigator.clipboard) return;
+            navigator.clipboard.writeText(quote).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            });
+          }}
+        >
+          {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Đã chép" : "Chép"}
+        </button>
+      </div>
+    </div>
+  );
+}
 function SizeQuoteRow({ it, z, n, onDelete, T }) {
   const { THEME, btnSub } = T;
   const [copied, setCopied] = useState(false);
@@ -1316,6 +1355,7 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, onSave,
           </div>
           <div style={{ marginTop: 12, fontSize: 24, fontWeight: 700, color: THEME.brand }}>{priceLine}</div>
           {!isReady && it.jpy && <div style={{ marginTop: 2, fontSize: 13, color: THEME.subtext }}>¥{it.jpy} (giá Yên)</div>}
+          <CombinedSizeQuote it={it} T={T} />
           {quote && (
             <div style={{ marginTop: 14, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 12, padding: "10px 12px", fontSize: 14, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
               <MessageSquareQuote size={17} color={THEME.brand} style={{ flexShrink: 0 }} />
