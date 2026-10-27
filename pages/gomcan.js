@@ -1182,7 +1182,7 @@ function AltPriceAdder({ it, onSave, T }) {
       )}
       {!isReady && f.jpy.trim() && !auto && (
         <div style={{ fontSize: 12.5, color: THEME.subtext, lineHeight: 1.4 }}>
-          Chưa tự tính được vì giá cũ của sản phẩm này không ở dạng số (VD “885y” → “390k”). Bạn nhập giá gồm cân tay nhé.
+          Chưa tự tính được vì giá cũ của sản phẩm này có nhiều mức giá (theo size/màu) hoặc không đọc ra số. Nếu là nhiều size, bạn thêm từng size ở nút “Thêm size”; còn không thì nhập giá gồm cân tay nhé.
         </div>
       )}
       <div style={{ display: "flex", gap: 8 }}>
