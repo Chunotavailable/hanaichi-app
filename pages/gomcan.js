@@ -73,7 +73,7 @@ function lcFlat(list) {
   const out = [];
   (list || []).forEach((it) => {
     out.push(it);
-    (it.sizes || []).forEach((z) => out.push({ id: `${it.id}::${z.id}`, name: `${it.name} — ${z.label ? `size ${z.label}` : `Size ${(it.sizes || []).indexOf(z) + 1}`}`, link: z.link || "", jpy: z.jpy || "", vnd: z.vnd || "", altPrices: [], orderType: it.orderType, gone: it.gone, sizeOf: { itemId: it.id, sizeId: z.id } }));
+    (it.sizes || []).forEach((z) => out.push({ id: `${it.id}::${z.id}`, name: `${it.name} — ${z.label ? `size ${z.label}` : `Giá gồm cân ${(it.sizes || []).indexOf(z) + 2}`}`, link: z.link || "", jpy: z.jpy || "", vnd: z.vnd || "", altPrices: [], orderType: it.orderType, gone: it.gone, sizeOf: { itemId: it.id, sizeId: z.id } }));
   });
   return out;
 }
@@ -1023,7 +1023,7 @@ function SizeQuoteRow({ it, z, n, onDelete, T }) {
     <div style={{ marginTop: 10, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 12, padding: "10px 12px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: THEME.brand, textTransform: "uppercase", letterSpacing: 0.5 }}>
-          {z.label ? `Size ${z.label}` : `Size ${n}`}
+          {z.label ? `Size ${z.label}` : `Giá gồm cân ${n}`}
           {linkOk && (
             <a href={z.link} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: THEME.brand, textTransform: "none", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 3 }}>
               Link <ExternalLink size={12} />
@@ -1079,7 +1079,7 @@ function SizeAdder({ it, onSave, T }) {
     );
   return (
     <div style={{ marginTop: 10, border: `1px dashed ${THEME.brand}`, borderRadius: 12, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-      <input style={inp} placeholder="Tên size (VD: M, 38, 500ml) — để trống = Size 1, 2, 3…" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} autoFocus />
+      <input style={inp} placeholder="Tên size (VD: M, 38, 500ml) — để trống = Giá gồm cân 2, 3, 4…" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} autoFocus />
       {!isReady && <input style={inp} placeholder="Link gốc của size này" value={f.link} onChange={(e) => setF({ ...f, link: e.target.value })} />}
       <div style={{ display: "flex", gap: 8 }}>
         {!isReady && <input style={{ ...inp, flex: 1, minWidth: 0 }} inputMode="numeric" placeholder="Giá Yên" value={f.jpy} onChange={(e) => setF({ ...f, jpy: e.target.value })} />}
@@ -1110,7 +1110,7 @@ function SizesEditor({ it, onSave, T }) {
         {rows.map((r, i) => (
           <div key={r.id} style={{ border: `1px solid ${THEME.line}`, borderRadius: 12, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", gap: 6 }}>
-              <input style={{ ...inp, flex: 0.6, minWidth: 0 }} value={r.label || ""} placeholder={`Size (trống = Size ${i + 1})`} onChange={(e) => edit(i, { label: e.target.value })} onBlur={() => onSave({ sizes: rows })} />
+              <input style={{ ...inp, flex: 0.6, minWidth: 0 }} value={r.label || ""} placeholder={`Size (trống = Giá gồm cân ${i + 2})`} onChange={(e) => edit(i, { label: e.target.value })} onBlur={() => onSave({ sizes: rows })} />
               {!isReady && <input style={{ ...inp, flex: 1.4, minWidth: 0 }} value={r.link || ""} placeholder="Link gốc của size" onChange={(e) => edit(i, { link: e.target.value })} onBlur={() => onSave({ sizes: rows })} />}
               <button style={{ ...iconBtn, flexShrink: 0, color: THEME.danger }} onClick={() => commit(rows.filter((_, j) => j !== i))} title="Xoá size" aria-label="Xoá size">
                 <X size={15} />
@@ -1329,7 +1329,7 @@ function GiadungDetailModal({ it, onClose, onEdit, onDelete, onFavorite, onSave,
             <AltQuoteRow key={a.id || i} it={it} alt={a} n={i + 2} onDelete={perm.canEdit ? () => onSave({ altPrices: (it.altPrices || []).filter((x) => x !== a) }) : null} T={T} />
           ))}
           {(it.sizes || []).map((z, i) => (
-            <SizeQuoteRow key={z.id} it={it} z={z} n={i + 1} onDelete={perm.canEdit ? () => onSave({ sizes: (it.sizes || []).filter((x) => x.id !== z.id) }) : null} T={T} />
+            <SizeQuoteRow key={z.id} it={it} z={z} n={i + 2} onDelete={perm.canEdit ? () => onSave({ sizes: (it.sizes || []).filter((x) => x.id !== z.id) }) : null} T={T} />
           ))}
           {perm.canEdit && <SizeAdder it={it} onSave={onSave} T={T} />}
           {perm.canEdit && <AltPriceAdder it={it} onSave={onSave} T={T} />}
