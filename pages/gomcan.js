@@ -73,7 +73,7 @@ function lcFlat(list) {
   const out = [];
   (list || []).forEach((it) => {
     out.push(it);
-    (it.sizes || []).forEach((z) => out.push({ id: `${it.id}::${z.id}`, name: `${it.name} — ${z.label ? `size ${z.label}` : `Giá gồm cân ${(it.sizes || []).indexOf(z) + 2}`}`, link: z.link || "", jpy: z.jpy || "", vnd: z.vnd || "", altPrices: [], orderType: it.orderType, gone: it.gone, sizeOf: { itemId: it.id, sizeId: z.id } }));
+    (it.sizes || []).forEach((z) => out.push({ id: `${it.id}::${z.id}`, name: `${it.name} — ${z.label ? sizeName(z.label) : `Giá gồm cân ${(it.sizes || []).indexOf(z) + 2}`}`, link: z.link || "", jpy: z.jpy || "", vnd: z.vnd || "", altPrices: [], orderType: it.orderType, gone: it.gone, sizeOf: { itemId: it.id, sizeId: z.id } }));
   });
   return out;
 }
@@ -1011,9 +1011,11 @@ function AltQuoteRow({ it, alt, n, onDelete, T }) {
 // ---- SIZE: mỗi size có link riêng, giá Yên và giá gồm cân riêng (it.sizes: [{ id, label, link, jpy, vnd }]) ----
 function buildSizeQuote(it, z) {
   if (!z.vnd) return "";
-  const nm = z.label ? `${it.name} size ${z.label}` : it.name;
+  const nm = z.label ? `${it.name} ${sizeName(z.label)}` : it.name;
   return it.orderType === "ready" ? `Dạ ${nm} giá ${z.vnd} bên em có sẵn ạ` : `Dạ ${nm} giá order ${z.vnd} ạ`;
 }
+// Tên size hiển thị: tự thêm chữ "size" phía trước, trừ khi bạn đã gõ sẵn chữ size (VD "size 26" hoặc "Size M").
+const sizeName = (label) => (/^\s*size\b/i.test(label || "") ? String(label).trim() : `size ${String(label || "").trim()}`);
 // Báo giá chung tất cả size: "Dạ {tên} giá order size M 450k, size L 520k ạ" (hàng sẵn: "... giá ... bên em có sẵn ạ").
 function buildCombinedSizeQuote(it) {
   // Giá size chính: lấy đúng chữ bạn ghi trong ô giá gồm cân (đã kèm size/dung tích, VD "350k chai 500ml"),
@@ -1024,7 +1026,7 @@ function buildCombinedSizeQuote(it) {
   (it.sizes || []).forEach((z) => {
     const v = clean(z.vnd);
     if (!v) return;
-    parts.push(z.label ? `size ${z.label} ${v}` : v);
+    parts.push(z.label ? `${sizeName(z.label)} ${v}` : v);
   });
   if (!it.name || parts.length < 2) return "";
   const list = parts.join(", ");
@@ -1066,7 +1068,7 @@ function SizeQuoteRow({ it, z, n, onDelete, T }) {
     <div style={{ marginTop: 10, background: THEME.surfaceAlt, border: `1px solid ${THEME.line}`, borderRadius: 12, padding: "10px 12px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: THEME.brand, textTransform: "uppercase", letterSpacing: 0.5 }}>
-          {z.label ? `Size ${z.label}` : `Giá gồm cân ${n}`}
+          {z.label ? sizeName(z.label) : `Giá gồm cân ${n}`}
           {linkOk && (
             <a href={z.link} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: THEME.brand, textTransform: "none", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 3 }}>
               Link <ExternalLink size={12} />
