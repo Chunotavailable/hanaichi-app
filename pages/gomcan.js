@@ -1497,7 +1497,7 @@ function PendingEditPanel({ it, x, onSave, onSaveDismiss, onClose, T }) {
   const nv = (k) => (x && x.f && x.f[k] ? x.f[k][1] : null);
   const [f, setF] = useState({
     name: it.name || "",
-    link: it.link || "",
+    link: nv("link") != null ? nv("link") : it.link || "",
     jpy: nv("jpy") != null ? nv("jpy") : it.jpy || "",
     vnd: nv("vnd") != null ? nv("vnd") : it.vnd || "",
   });
