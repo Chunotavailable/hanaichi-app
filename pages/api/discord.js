@@ -3,7 +3,7 @@
 // Discord không gửi cookie đăng nhập nên đường này được mở ở middleware, và tự kiểm tra CHỮ KÝ của Discord
 // (không đúng chữ ký thì từ chối). Có thể giới hạn người dùng bằng biến DISCORD_ALLOWED_USER_IDS.
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { addLesson, buildMessages, deleteLesson, envVar, findContext, loadBrain, productQuote, runAI, verifyDiscord } from "../../lib/nhanvien";
+import { addLesson, buildMessages, buildQuoteBlocks, deleteLesson, envVar, findContext, loadBrain, productQuote, runAI, verifyDiscord } from "../../lib/nhanvien";
 
 export const config = { api: { bodyParser: false } };
 
@@ -32,7 +32,8 @@ async function answerCustomer(message) {
   const { text, model } = await runAI(buildMessages({ message, brain, ctx }));
   const quotes = ctx.products.map(productQuote).filter(Boolean);
   const names = ctx.products.map((p) => p.name);
-  let out = `**Gợi ý trả lời** (chép phần này):\n${text}`;
+  const head = buildQuoteBlocks(message, ctx);
+  let out = `**Gợi ý trả lời** (chép phần này):\n${head ? head + "\n\n" : ""}${text}`;
   if (quotes.length) out += `\n\n💰 **Giá trong dữ liệu:**\n${quotes.map((q) => `• ${q}`).join("\n")}`;
   else if (!ctx.yq && !(ctx.links && ctx.links.length)) out += "\n\n⚠️ Không thấy sản phẩm nào khớp trong dữ liệu Gồm cân — chủ shop tự kiểm tra giá.";
   if (ctx.links && ctx.links.length) {
