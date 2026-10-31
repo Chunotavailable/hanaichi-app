@@ -4,7 +4,7 @@
 import { envVar } from "../../lib/nhanvien";
 
 const COMMANDS = [
-  { name: "hoi", type: 1, description: "Dán tin khách vào để bot soạn câu trả lời", options: [{ type: 3, name: "tin", description: "Tin nhắn của khách", required: true }] },
+  { name: "hoi", type: 1, description: "Dán tin khách vào để bot soạn câu trả lời", options: [{ type: 3, name: "tin", description: "Tin nhắn của khách (có thể bỏ trống nếu chỉ có ảnh)", required: false }, { type: 11, name: "anh", description: "Ảnh khách gửi (sản phẩm, bài đăng, tin nhắn...)", required: false }, { type: 11, name: "anh2", description: "Ảnh thứ hai (nếu có)", required: false }] },
   { name: "day", type: 1, description: "Dạy bot một điều cần nhớ (cách xưng hô, thời gian hàng về, cọc...)", options: [{ type: 3, name: "noi_dung", description: "Điều cần nhớ", required: true }] },
   {
     name: "nho",

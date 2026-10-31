@@ -3,7 +3,7 @@
 // Discord không gửi cookie đăng nhập nên đường này được mở ở middleware, và tự kiểm tra CHỮ KÝ của Discord
 // (không đúng chữ ký thì từ chối). Có thể giới hạn người dùng bằng biến DISCORD_ALLOWED_USER_IDS.
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { addLesson, buildMessages, buildQuoteBlocks, deleteLesson, envVar, findContext, loadBrain, productQuote, runAI, verifyDiscord } from "../../lib/nhanvien";
+import { addLesson, buildMessages, buildQuoteBlocks, describeImages, forSearch, deleteLesson, envVar, findContext, loadBrain, productQuote, runAI, verifyDiscord } from "../../lib/nhanvien";
 
 export const config = { api: { bodyParser: false } };
 
@@ -26,13 +26,21 @@ async function followUp(appId, token, content) {
 
 const fmtShort = (n) => { const k = n / 1000; return (Number.isInteger(k) ? k : Math.round(k * 10) / 10).toString().replace(".", ",") + "k"; };
 
-async function answerCustomer(message) {
+async function answerCustomer(message, imageUrls = []) {
   const brain = await loadBrain();
-  const ctx = await findContext(message);
-  const { text, model } = await runAI(buildMessages({ message, brain, ctx }));
+  let imageText = "";
+  let imageFailed = false;
+  if (imageUrls.length) {
+    const r = await describeImages(imageUrls);
+    imageText = r.texts.join("\n---\n");
+    imageFailed = !imageText;
+  }
+  const searchMsg = imageText ? `${message}\n${forSearch(imageText)}` : message;
+  const ctx = await findContext(searchMsg);
+  const { text, model } = await runAI(buildMessages({ message, brain, ctx, imageText, imageFailed }));
   const quotes = ctx.products.map(productQuote).filter(Boolean);
   const names = ctx.products.map((p) => p.name);
-  const head = buildQuoteBlocks(message, ctx);
+  const head = buildQuoteBlocks(searchMsg, ctx);
   let out = `**Gợi ý trả lời** (chép phần này):\n${head ? head + "\n\n" : ""}${text}`;
   if (quotes.length) out += `\n\n💰 **Giá trong dữ liệu:**\n${quotes.map((q) => `• ${q}`).join("\n")}`;
   else if (!ctx.yq && !(ctx.links && ctx.links.length) && !(ctx.closet && ctx.closet.length) && !(ctx.market && ctx.market.length)) out += "\n\n⚠️ Không thấy sản phẩm nào khớp trong dữ liệu Gồm cân — chủ shop tự kiểm tra giá.";
@@ -41,6 +49,10 @@ async function answerCustomer(message) {
   }
   const stock = [...(ctx.closet || []).map((x) => `• 👟 ${x.name.slice(0, 70)} (closet sẵn)`), ...(ctx.market || []).map((x) => `• 🛒 ${String(x.name).slice(0, 70)} (siêu thị${x.oos ? ", HẾT" : ""})`)];
   if (stock.length) out += `\n\n📦 **Hàng sẵn khớp trong web:**\n${stock.join("\n")}`;
+  if (imageText) {
+    const nm = (imageText.match(/T[êe]n s[ảa]n ph[ẩa]m:\s*(.+)/i) || [])[1];
+    out += `\n\n🖼️ **Bot đọc từ ảnh** (máy đoán, chị liếc lại): ${nm ? String(nm).slice(0, 120) : "xem trong câu trả lời"}`;
+  } else if (imageFailed) out += "\n\n🖼️ Bot không đọc được ảnh. Chị gõ tên sản phẩm trong tin giúp em nhé.";
   if (ctx.sheetFailed) out += "\n⚠️ Không đọc được Google Sheet lúc này nên bot dùng dữ liệu đã lưu trong web (có thể cũ hơn).";
   if (names.length) out += `\n🔎 Sản phẩm khớp: ${names.join(" | ")}`;
   out += `\n_(${model.includes("70b") ? "mô hình khá" : "mô hình nhẹ"} · ${brain.lessons.length} bài học)_`;
@@ -68,20 +80,24 @@ export default async function handler(req, res) {
   try {
     // ----- cần AI: trả lời "đang soạn…" trước (Discord chỉ chờ 3 giây), soạn xong sửa lại tin -----
     let customerMsg = null;
+    let imageUrls = [];
     if (d.type === 3) {
       const m = d.resolved && d.resolved.messages && d.resolved.messages[d.target_id];
       customerMsg = m && m.content ? m.content : "";
-      if (!customerMsg) return say("Tin nhắn này không có chữ để soạn trả lời.");
+      imageUrls = ((m && m.attachments) || []).filter((a) => /^image\//i.test(a.content_type || "")).map((a) => a.url);
+      if (!customerMsg && !imageUrls.length) return say("Tin nhắn này không có chữ hay ảnh để soạn trả lời.");
     } else if (d.name === "hoi") {
       customerMsg = String(opt(d, "tin") || "");
-      if (!customerMsg.trim()) return say("Bạn dán tin của khách vào ô `tin` nhé.");
+      const att = (d.resolved && d.resolved.attachments) || {};
+      imageUrls = ["anh", "anh2"].map((k) => att[opt(d, k)]).filter((a) => a && /^image\//i.test(a.content_type || "")).map((a) => a.url);
+      if (!customerMsg.trim() && !imageUrls.length) return say("Chị dán tin của khách vào ô `tin`, hoặc đính kèm ảnh vào ô `anh` nhé.");
     }
     if (customerMsg !== null) {
       const ctxCf = getCloudflareContext();
       ctxCf.ctx.waitUntil(
         (async () => {
           try {
-            await followUp(it.application_id, it.token, await answerCustomer(customerMsg));
+            await followUp(it.application_id, it.token, await answerCustomer(customerMsg, imageUrls));
           } catch (e) {
             await followUp(it.application_id, it.token, `⚠️ Bot gặp lỗi: ${String((e && e.message) || e).slice(0, 300)}\n(Có thể đã hết hạn mức AI miễn phí hôm nay, thử lại sau 7h sáng giờ Việt Nam.)`);
           }
