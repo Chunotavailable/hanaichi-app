@@ -12,6 +12,8 @@ import { getImage, peekDocEtagRaw, readDocText } from "./lib/blobDoc";
 
 function isPublicPath(pathname) {
   if (pathname === "/login" || pathname === "/api/login" || pathname === "/api/logout") return true;
+  // Discord gọi vào đây không có cookie; đường này tự kiểm tra chữ ký của Discord (xem pages/api/discord.js).
+  if (pathname === "/api/discord") return true;
   if (pathname.startsWith("/_next/")) return true;
   if (pathname === "/favicon.png" || pathname === "/favicon.ico") return true;
   return false;
