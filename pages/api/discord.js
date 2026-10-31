@@ -93,7 +93,11 @@ export default async function handler(req, res) {
     if (d.name === "baihoc") {
       const b = await loadBrain();
       if (!b.lessons.length) return say("Chưa có bài học nào. Dạy bot bằng /day hoặc /nho nhé.");
-      return say("📚 **Bài học bot đang nhớ:**\n" + b.lessons.map((l, i) => `${i + 1}. ${l.text}`).join("\n"));
+      const all = b.lessons.map((l, i) => `${i + 1}. ${l.text}`);
+      let shown = all.slice(-12);
+      while (shown.length > 1 && shown.join("\n").length > 1700) shown = shown.slice(1);
+      const hidden = all.length - shown.length;
+      return say(`📚 **Bot đang nhớ ${all.length} bài học**${hidden ? ` (chỉ hiện ${shown.length} bài mới nhất, ${hidden} bài cũ hơn vẫn nhớ)` : ""}:\n` + shown.join("\n"));
     }
     if (d.name === "xoa") {
       const r = await deleteLesson(opt(d, "so"));
