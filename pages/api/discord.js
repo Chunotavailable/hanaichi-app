@@ -41,6 +41,7 @@ async function answerCustomer(message) {
   }
   const stock = [...(ctx.closet || []).map((x) => `• 👟 ${x.name.slice(0, 70)} (closet sẵn)`), ...(ctx.market || []).map((x) => `• 🛒 ${String(x.name).slice(0, 70)} (siêu thị${x.oos ? ", HẾT" : ""})`)];
   if (stock.length) out += `\n\n📦 **Hàng sẵn khớp trong web:**\n${stock.join("\n")}`;
+  if (ctx.sheetFailed) out += "\n⚠️ Không đọc được Google Sheet lúc này nên bot dùng dữ liệu đã lưu trong web (có thể cũ hơn).";
   if (names.length) out += `\n🔎 Sản phẩm khớp: ${names.join(" | ")}`;
   out += `\n_(${model.includes("70b") ? "mô hình khá" : "mô hình nhẹ"} · ${brain.lessons.length} bài học)_`;
   return out;
