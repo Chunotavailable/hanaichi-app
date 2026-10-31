@@ -35,10 +35,12 @@ async function answerCustomer(message) {
   const head = buildQuoteBlocks(message, ctx);
   let out = `**Gợi ý trả lời** (chép phần này):\n${head ? head + "\n\n" : ""}${text}`;
   if (quotes.length) out += `\n\n💰 **Giá trong dữ liệu:**\n${quotes.map((q) => `• ${q}`).join("\n")}`;
-  else if (!ctx.yq && !(ctx.links && ctx.links.length)) out += "\n\n⚠️ Không thấy sản phẩm nào khớp trong dữ liệu Gồm cân — chủ shop tự kiểm tra giá.";
+  else if (!ctx.yq && !(ctx.links && ctx.links.length) && !(ctx.closet && ctx.closet.length) && !(ctx.market && ctx.market.length)) out += "\n\n⚠️ Không thấy sản phẩm nào khớp trong dữ liệu Gồm cân — chủ shop tự kiểm tra giá.";
   if (ctx.links && ctx.links.length) {
     out += `\n\n🌐 **Giá đọc tự động từ link** (chị liếc lại cho chắc):\n` + ctx.links.map((x) => (x.error ? `• ❌ ${x.url.slice(0, 60)} — ${x.error}, chị gõ giá Yên giúp em` : `• ✅ ¥${x.yen}${x.varies ? `–${x.max} (khác nhau theo size/màu)` : ""} → ${fmtShort(x.total)} + KG`)).join("\n");
   }
+  const stock = [...(ctx.closet || []).map((x) => `• 👟 ${x.name.slice(0, 70)} (closet sẵn)`), ...(ctx.market || []).map((x) => `• 🛒 ${String(x.name).slice(0, 70)} (siêu thị${x.oos ? ", HẾT" : ""})`)];
+  if (stock.length) out += `\n\n📦 **Hàng sẵn khớp trong web:**\n${stock.join("\n")}`;
   if (names.length) out += `\n🔎 Sản phẩm khớp: ${names.join(" | ")}`;
   out += `\n_(${model.includes("70b") ? "mô hình khá" : "mô hình nhẹ"} · ${brain.lessons.length} bài học)_`;
   return out;
