@@ -24,6 +24,8 @@ async function followUp(appId, token, content) {
   if (!r.ok) console.error("discord followUp", r.status, await r.text().catch(() => ""));
 }
 
+const fmtShort = (n) => { const k = n / 1000; return (Number.isInteger(k) ? k : Math.round(k * 10) / 10).toString().replace(".", ",") + "k"; };
+
 async function answerCustomer(message) {
   const brain = await loadBrain();
   const ctx = await findContext(message);
@@ -33,6 +35,9 @@ async function answerCustomer(message) {
   let out = `**Gợi ý trả lời** (chép phần này):\n${text}`;
   if (quotes.length) out += `\n\n💰 **Giá trong dữ liệu:**\n${quotes.map((q) => `• ${q}`).join("\n")}`;
   else out += "\n\n⚠️ Không thấy sản phẩm nào khớp trong dữ liệu Gồm cân — chủ shop tự kiểm tra giá.";
+  if (ctx.links && ctx.links.length) {
+    out += `\n\n🌐 **Giá đọc tự động từ link** (chị liếc lại cho chắc):\n` + ctx.links.map((x) => (x.error ? `• ❌ ${x.url.slice(0, 60)} — ${x.error}, chị gõ giá Yên giúp em` : `• ✅ ¥${x.yen}${x.varies ? `–${x.max} (khác nhau theo size/màu)` : ""} → ${fmtShort(x.total)} + KG`)).join("\n");
+  }
   if (names.length) out += `\n🔎 Sản phẩm khớp: ${names.join(" | ")}`;
   out += `\n_(${model.includes("70b") ? "mô hình khá" : "mô hình nhẹ"} · ${brain.lessons.length} bài học)_`;
   return out;
